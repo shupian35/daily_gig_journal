@@ -69,39 +69,9 @@ jobs:
           name: ios-ipa
           path: build/ios/iphoneos/日程清单.ipa
 
-  # ========== Web ==========
-  build-web:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
-      - name: 安装 Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.2'
-          channel: 'stable'
-
-      - name: 安装依赖
-        run: flutter pub get
-
-      - name: 构建 Web
-        run: flutter build web --release
-
-      - name: 打包 Web
-        run: |
-          cd build/web
-          zip -r ../../日程清单-web.zip .
-
-      - name: 上传 Web 包
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: 日程清单-web.zip
-
   # ========== 发布 Release ==========
   release:
-    needs: [build-android, build-ios, build-web]
+    needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
       - name: 下载全部产物
@@ -127,9 +97,7 @@ jobs:
             |------|------|
             | Android | `app-release.apk` |
             | iOS | `日程清单.ipa`（无签名） |
-            | Web | `日程清单-web.zip` |
           prerelease: true
           files: |
             artifacts/android-apk/app-release.apk
             artifacts/ios-ipa/日程清单.ipa
-            artifacts/web-build/日程清单-web.zip
