@@ -554,8 +554,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 }
 
-/// 图片文件嵌入渲染器
-/// 将 BlockEmbed.image 中的本地文件路径渲染为 Image.file
+/// 图片文件嵌入渲染器（缩略图 + 点击查看大图）
 class _ImageFileEmbedBuilder extends quill.EmbedBuilder {
   @override
   String get key => 'image';
@@ -563,13 +562,199 @@ class _ImageFileEmbedBuilder extends quill.EmbedBuilder {
   @override
   Widget build(BuildContext context, quill.EmbedContext embedContext) {
     final path = embedContext.node.value.data as String;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Image.file(
-        File(path),
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.broken_image, size: 48),
+
+    // 收集文档中所有图片路径
+    final allImages = <String>[];
+    final currentIndex = _collectImages(embedContext, allImages, path);
+
+    return GestureDetector(
+      onTap: () {
+        if (allImages.isNotEmpty) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => _FullScreenGallery(
+                images: allImages,
+                initialIndex: currentIndex,
+              ),
+            ),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 180),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Image.file(
+                  File(path),
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) =>
+                      const Icon(Icons.broken_image, size: 48),
+                ),
+                // 点击提示
+                Positioned(
+                  right: 6,
+                  bottom: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('点击放大',
+                        style: TextStyle(color: Colors.white, fontSize: 10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 从文档 Delta JSON 中收集所有图片路径
+  int _collectImages(quill.EmbedContext ctx, List<String> out, String currentPath) {
+    int idx = 0;
+    int foundIdx = -1;
+    try {
+      final deltaJson = ctx.controller.document.toDelta().toJson();
+      for (final op in deltaJson) {
+        if (op is Map<String, dynamic> && op.containsKey('insert')) {
+          final insert = op['insert'];
+          if (insert is Map && insert.containsKey('image')) {
+            final p = insert['image'] as String;
+            out.add(p);
+            if (p == currentPath) foundIdx = idx;
+            idx++;
+          }
+        }
+      }
+    } catch (_) {}
+    return foundIdx >= 0 ? foundIdx : 0;
+  }
+}
+
+/// 全屏图片浏览器（支持左右翻页）
+class _FullScreenGallery extends StatefulWidget {
+  final List<String> images;
+  final int initialIndex;
+
+  const _FullScreenGallery({
+    required this.images,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
+}
+
+class _FullScreenGalleryState extends State<_FullScreenGallery> {
+  late final PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text('${_currentIndex + 1} / ${widget.images.length}'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
+      body: Stack(
+        children: [
+          // 图片滑动区域
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.images.length,
+            onPageChanged: (index) {
+              setState(() => _currentIndex = index);
+            },
+            itemBuilder: (context, index) {
+              return Center(
+                child: InteractiveViewer(
+                  maxScale: 5.0,
+                  child: Image.file(
+                    File(widget.images[index]),
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const Center(
+                      child: Icon(Icons.broken_image, size: 64, color: Colors.grey),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          // 左箭头
+          if (_currentIndex > 0)
+            Positioned(
+              left: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: IconButton(
+                    icon: const Icon(Icons.chevron_left, color: Colors.white),
+                    onPressed: () {
+                      _pageController.previousPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          // 右箭头
+          if (_currentIndex < widget.images.length - 1)
+            Positioned(
+              right: 8,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: CircleAvatar(
+                  backgroundColor: Colors.white24,
+                  child: IconButton(
+                    icon: const Icon(Icons.chevron_right, color: Colors.white),
+                    onPressed: () {
+                      _pageController.nextPage(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
