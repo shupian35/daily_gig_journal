@@ -195,6 +195,9 @@ class StatisticsScreen extends ConsumerWidget {
   Widget _buildFlBarChart(List<Map<String, dynamic>> data, bool hideIncome) {
     // data 按 month DESC 排序，需要反转以显示从左到右的时间顺序
     final sortedData = data.reversed.toList();
+    if (sortedData.isEmpty) {
+      return const Center(child: Text('暂无数据'));
+    }
 
     // 找出最大值用于 Y 轴
     double maxTotal = 0;
@@ -215,7 +218,10 @@ class StatisticsScreen extends ConsumerWidget {
                 enabled: true,
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    final month = sortedData[groupIndex]['month'] as String;
+                    if (groupIndex < 0 || groupIndex >= sortedData.length) {
+                      return null;
+                    }
+                    final month = sortedData[groupIndex]['month'] as String? ?? '';
                     final total = (rod.toY).toStringAsFixed(1);
                     return BarTooltipItem(
                       '${Helpers.toDisplayMonth(month)}\n¥$total',

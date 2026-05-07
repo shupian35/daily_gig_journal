@@ -461,9 +461,11 @@ class _DrawingPainter extends CustomPainter {
       canvas.restore();
     }
 
-    // 2. 绘制已保存路径
-    for (int i = 0; i < paths.length; i++) {
-      _drawPath(canvas, paths[i], pathColors[i], pathStrokes[i]);
+    // 2. 绘制已保存路径（取最小值防止列表不同步导致越界）
+    final count = paths.length < pathColors.length ? paths.length : pathColors.length;
+    for (int i = 0; i < count; i++) {
+      final stroke = i < pathStrokes.length ? pathStrokes[i] : 3.0;
+      _drawPath(canvas, paths[i], pathColors[i], stroke);
     }
     // 3. 绘制当前路径
     if (currentPath != null && currentPath!.isNotEmpty) {
