@@ -303,18 +303,64 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     }
   }
 
-  /// 打开画板
-  void _openDrawingCanvas() {
+  /// 打开画板（空白或从图片批注）
+  void _openDrawingCanvas({String? backgroundImagePath}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => SafeArea(
+      builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: DrawingCanvas(
-            onSave: (imagePath) {
-              Navigator.pop(context); // 关闭画板
+            onSave: (imagePath, includeBackground) {
+              Navigator.pop(ctx);
+              _insertImageToNote(imagePath);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 先选图片，再打开画板批注
+  Future<void> _pickImageThenAnnotate() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 90,
+      );
+      if (image != null) {
+        // 把图片复制到本地
+        final imagesDir = await Helpers.getImagesDirectory();
+        final fileName = 'bg_${Helpers.generateImageFileName()}';
+        final destPath = p.join(imagesDir.path, fileName);
+        await File(image.path).copy(destPath);
+
+        if (mounted) {
+          // 打开画板并加载该图作为背景
+          _openDrawingCanvasWithImage(destPath);
+        }
+      }
+    } catch (e) {
+      _showError('选择图片失败: $e');
+    }
+  }
+
+  /// 带背景图打开画板
+  void _openDrawingCanvasWithImage(String bgPath) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: DrawingCanvas(
+            onSave: (imagePath, includeBackground) {
+              Navigator.pop(ctx);
               _insertImageToNote(imagePath);
             },
           ),
@@ -333,10 +379,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 解析日期用于显示
     final date = Helpers.parseDate(widget.dateStr);
     final displayDate = date != null ? Helpers.toDisplayDate(widget.dateStr) : widget.dateStr;
     final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth >= 600;
 
     return Scaffold(
       appBar: AppBar(
@@ -345,28 +392,22 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           children: [
             Text(displayDate),
             if (weekday.isNotEmpty)
-              Text(
-                weekday,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-              ),
+              Text(weekday,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal)),
           ],
         ),
         actions: [
-          // 删除按钮
           if (_existingNoteId != null)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: AppConstants.dangerRed),
               tooltip: '删除笔记',
               onPressed: _isSaving ? null : _deleteNote,
             ),
-          // 保存按钮
           IconButton(
             icon: _isSaving
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check, color: AppConstants.incomeGreen),
             tooltip: '保存',
             onPressed: _isSaving ? null : _saveNote,
@@ -375,127 +416,163 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ===== 结构化字段表单 =====
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: NoteFormFields(
-                        titleController: _titleController,
-                        workLocationController: _workLocationController,
-                        startTimeController: _startTimeController,
-                        endTimeController: _endTimeController,
-                        hourlyWageController: _hourlyWageController,
-                        workHoursController: _workHoursController,
-                        dailyWageController: _dailyWageController,
-                        onAutoCalculate: _autoCalculateDailyWage,
-                        onTimeChanged: _autoCalculateWorkHours,
-                      ),
-                    ),
-                  ),
+          : isTablet
+              ? _buildTabletLayout()
+              : _buildPhoneLayout(),
+    );
+  }
 
-                  const SizedBox(height: 16),
+  /// 平板布局：左侧表单 + 右侧备注和插入
+  Widget _buildTabletLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 左侧：表单
+        SizedBox(
+          width: 360,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: _buildFormCard(),
+          ),
+        ),
+        // 中间分割线
+        const VerticalDivider(width: 1),
+        // 右侧：富文本 + 插入按钮
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildRichTextCard(),
+                const SizedBox(height: 16),
+                _buildInsertButtons(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                  // ===== 备注（富文本）区域 =====
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '备注',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Quill 工具栏
-                          quill.QuillSimpleToolbar(
-                            controller: _quillController,
-                            config: const quill.QuillSimpleToolbarConfig(
-                              multiRowsDisplay: false,
-                              showBoldButton: true,
-                              showItalicButton: true,
-                              showUnderLineButton: true,
-                              showStrikeThrough: false,
-                              showHeaderStyle: true,
-                              showListNumbers: true,
-                              showListBullets: true,
-                              showListCheck: false,
-                              showQuote: true,
-                              showCodeBlock: false,
-                              showSearchButton: false,
-                              showColorButton: true,
-                              showBackgroundColorButton: false,
-                              showClearFormat: true,
-                              showLink: false,
-                              showUndo: true,
-                              showRedo: true,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            // 限制编辑器最大高度，防止在 SingleChildScrollView 中无限扩展
-                            constraints: const BoxConstraints(
-                              minHeight: 200,
-                              maxHeight: 400,
-                            ),
-                            child: quill.QuillEditor.basic(
-                              controller: _quillController,
-                              config: quill.QuillEditorConfig(
-                                placeholder: '写写今天的工作内容和感受...',
-                                padding: const EdgeInsets.all(12),
-                                autoFocus: false,
-                                scrollable: true,
-                                embedBuilders: [
-                                  _ImageFileEmbedBuilder(),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+  /// 手机布局：原有单列滚动
+  Widget _buildPhoneLayout() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFormCard(),
+          const SizedBox(height: 16),
+          _buildRichTextCard(),
+          const SizedBox(height: 16),
+          _buildInsertButtons(),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
 
-                  const SizedBox(height: 16),
+  /// 表单卡片
+  Widget _buildFormCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: NoteFormFields(
+          titleController: _titleController,
+          workLocationController: _workLocationController,
+          startTimeController: _startTimeController,
+          endTimeController: _endTimeController,
+          hourlyWageController: _hourlyWageController,
+          workHoursController: _workHoursController,
+          dailyWageController: _dailyWageController,
+          onAutoCalculate: _autoCalculateDailyWage,
+          onTimeChanged: _autoCalculateWorkHours,
+        ),
+      ),
+    );
+  }
 
-                  // ===== 插入操作按钮组 =====
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _buildInsertButton(
-                        icon: Icons.photo_library,
-                        label: '相册图片',
-                        onTap: _pickImageFromGallery,
-                      ),
-                      _buildInsertButton(
-                        icon: Icons.camera_alt,
-                        label: '拍照',
-                        onTap: _takePhoto,
-                      ),
-                      _buildInsertButton(
-                        icon: Icons.draw,
-                        label: '手写/画画',
-                        onTap: _openDrawingCanvas,
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 32),
-                ],
+  /// 富文本卡片
+  Widget _buildRichTextCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('备注', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            quill.QuillSimpleToolbar(
+              controller: _quillController,
+              config: const quill.QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                showBoldButton: true,
+                showItalicButton: true,
+                showUnderLineButton: true,
+                showStrikeThrough: false,
+                showHeaderStyle: true,
+                showListNumbers: true,
+                showListBullets: true,
+                showListCheck: false,
+                showQuote: true,
+                showCodeBlock: false,
+                showSearchButton: false,
+                showColorButton: true,
+                showBackgroundColorButton: false,
+                showClearFormat: true,
+                showLink: false,
+                showUndo: true,
+                showRedo: true,
               ),
             ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              constraints: const BoxConstraints(minHeight: 200, maxHeight: 400),
+              child: quill.QuillEditor.basic(
+                controller: _quillController,
+                config: quill.QuillEditorConfig(
+                  placeholder: '写写今天的工作内容和感受...',
+                  padding: const EdgeInsets.all(12),
+                  autoFocus: false,
+                  scrollable: true,
+                  embedBuilders: [_ImageFileEmbedBuilder()],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 插入操作按钮组
+  Widget _buildInsertButtons() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      alignment: WrapAlignment.center,
+      children: [
+        _buildInsertButton(
+            icon: Icons.photo_library,
+            label: '相册图片',
+            onTap: _pickImageFromGallery),
+        _buildInsertButton(
+            icon: Icons.camera_alt,
+            label: '拍照',
+            onTap: _takePhoto),
+        _buildInsertButton(
+            icon: Icons.draw,
+            label: '手写/画画',
+            onTap: _openDrawingCanvas),
+        _buildInsertButton(
+            icon: Icons.edit_note,
+            label: '图片批注',
+            onTap: _pickImageThenAnnotate),
+      ],
     );
   }
 
