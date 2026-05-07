@@ -6,24 +6,23 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import '../utils/helpers.dart';
 
-/// 增强版手写/批注画板
+/// 全屏手写/批注画板页面
 ///
 /// 功能：
 /// - 支持手指与手写笔绘制
 /// - 导入背景图片并调整透明度
 /// - 在图片上做批示和标注
 /// - 保存时可选择「含图片插入」或「仅插入批示」
-class DrawingCanvas extends StatefulWidget {
-  /// 完成回调，返回 (文件路径, 是否包含背景图)
+class DrawingScreen extends StatefulWidget {
   final void Function(String imagePath, bool includeBackground)? onSave;
 
-  const DrawingCanvas({super.key, this.onSave});
+  const DrawingScreen({super.key, this.onSave});
 
   @override
-  State<DrawingCanvas> createState() => _DrawingCanvasState();
+  State<DrawingScreen> createState() => _DrawingScreenState();
 }
 
-class _DrawingCanvasState extends State<DrawingCanvas> {
+class _DrawingScreenState extends State<DrawingScreen> {
   final GlobalKey _repaintKey = GlobalKey();
 
   // ---- 绘制路径 ----
@@ -37,12 +36,10 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   // ---- 背景图片 ----
   File? _backgroundImage;
   double _imageOpacity = 0.6;
-  ui.Image? _cachedImage; // 缓存解码后的图片，提升性能
-
+  ui.Image? _cachedImage;
   final ImagePicker _picker = ImagePicker();
 
-  // ---- 笔类型 ----
-  bool _isEraser = false;
+  bool _skipBgRender = false;
 
   static const List<Color> _presetColors = [
     Colors.black, Colors.red, Colors.blue, Colors.green,
@@ -61,15 +58,12 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   Future<void> _importBackground() async {
     final XFile? img = await _picker.pickImage(
       source: ImageSource.gallery,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 90,
+      maxWidth: 2048, maxHeight: 2048, imageQuality: 90,
     );
     if (img != null) {
       _cachedImage?.dispose();
       _cachedImage = null;
       setState(() => _backgroundImage = File(img.path));
-      // 预解码
       _decodeBackground();
     }
   }
@@ -85,7 +79,6 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
 
   // ---------- 绘制事件 ----------
   void _onPanStart(DragStartDetails d) {
-    if (_isEraser) return; // 橡皮擦暂用清除整条路径方案
     setState(() => _currentPath = [d.localPosition]);
   }
 
@@ -132,7 +125,6 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   // ---------- 保存 ----------
   Future<void> _onSave() async {
     if (_backgroundImage != null) {
-      // 有背景图时，让用户选择保存方式
       _showSaveOptions();
     } else {
       await _saveAsImage(includeBackground: false);
@@ -191,16 +183,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
           _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      // 如果不含背景但当前有背景图 → 临时隐藏背景渲染一次
       ui.Image rendered;
       if (!includeBackground && _backgroundImage != null) {
-        // 先生成透明背景的版本：把 _saveWithoutBg 标志设为 true 再渲染
-        // 简便方案：直接用 boundary.toImage 渲染当前画布，但画布上已含背景...
-        // 正确做法：重绘时不画背景。我用一个临时标志 _skipBgRender 控制。
         _skipBgRender = true;
         setState(() {});
-        // 等一帧
-        await Future.delayed(const Duration(milliseconds: 50));
+        await Future.delayed(const Duration(milliseconds: 80));
         rendered = await boundary.toImage(pixelRatio: 2.0);
         _skipBgRender = false;
         setState(() {});
@@ -216,15 +203,11 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
       final filePath = p.join(imagesDir.path, fileName);
       await File(filePath).writeAsBytes(byteData.buffer.asUint8List());
 
+      // 先通知回调，再关闭页面
       widget.onSave?.call(filePath, includeBackground);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(includeBackground ? '已保存图片与批示' : '已保存批示'),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -235,98 +218,105 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
     }
   }
 
-  // 临时标志：渲染时跳过背景
-  bool _skipBgRender = false;
-
   // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // ---- 背景图操作栏 ----
-        _buildImageToolbar(isDark),
-        const SizedBox(height: 8),
-        // ---- 画笔工具栏 ----
-        _buildPenToolbar(isDark),
-        const SizedBox(height: 8),
-        // ---- 画板 ----
-        ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF2D2D44) : Colors.white,
-              border: Border.all(color: Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            height: 380,
-            width: double.infinity,
-            child: RepaintBoundary(
-              key: _repaintKey,
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (e) {
-                  _onPanStart(DragStartDetails(
-                    globalPosition: e.position,
-                    localPosition: e.localPosition,
-                  ));
-                },
-                onPointerMove: (e) {
-                  _onPanUpdate(DragUpdateDetails(
-                    globalPosition: e.position,
-                    localPosition: e.localPosition,
-                  ));
-                },
-                onPointerUp: (e) {
-                  _onPanEnd(DragEndDetails(primaryVelocity: 0));
-                },
-                child: CustomPaint(
-                  painter: _DrawingPainter(
-                    paths: _paths,
-                    pathColors: _pathColors,
-                    pathStrokes: _pathStrokes,
-                    currentPath: _currentPath,
-                    currentColor: _currentColor,
-                    currentStroke: _currentStroke,
-                    backgroundImage: _cachedImage,
-                    imageOpacity: _imageOpacity,
-                    skipBg: _skipBgRender,
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('手写/批注'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.check, color: Color(0xFF2E8B57)),
+            tooltip: '完成插入',
+            onPressed: _onSave,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // ---- 背景图操作栏 ----
+          _buildImageToolbar(isDark),
+          const Divider(height: 1),
+          // ---- 画笔工具栏 ----
+          _buildPenToolbar(isDark),
+          const Divider(height: 1),
+          // ---- 画板（占据剩余全部空间） ----
+          Expanded(
+            child: ClipRRect(
+              child: Container(
+                color: isDark ? const Color(0xFF2D2D44) : Colors.white,
+                width: double.infinity,
+                height: double.infinity,
+                child: RepaintBoundary(
+                  key: _repaintKey,
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (e) {
+                      _onPanStart(DragStartDetails(
+                        globalPosition: e.position,
+                        localPosition: e.localPosition,
+                      ));
+                    },
+                    onPointerMove: (e) {
+                      _onPanUpdate(DragUpdateDetails(
+                        globalPosition: e.position,
+                        localPosition: e.localPosition,
+                      ));
+                    },
+                    onPointerUp: (e) {
+                      _onPanEnd(DragEndDetails(primaryVelocity: 0));
+                    },
+                    child: CustomPaint(
+                      painter: _DrawingPainter(
+                        paths: _paths,
+                        pathColors: _pathColors,
+                        pathStrokes: _pathStrokes,
+                        currentPath: _currentPath,
+                        currentColor: _currentColor,
+                        currentStroke: _currentStroke,
+                        backgroundImage: _cachedImage,
+                        imageOpacity: _imageOpacity,
+                        skipBg: _skipBgRender,
+                      ),
+                      size: Size.infinite,
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        // ---- 底部操作按钮 ----
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildBtn(Icons.undo, '撤销', _undoLastPath),
-            _buildBtn(Icons.delete_outline, '清空', _clearCanvas, color: Colors.red),
-            _buildBtn(Icons.auto_fix_high, _isEraser ? '橡皮擦:开' : '橡皮擦',
-                () => setState(() => _isEraser = !_isEraser),
-                color: _isEraser ? Colors.orange : null),
-            _buildBtn(Icons.save_alt, '插入笔记', _onSave,
-                color: const Color(0xFFF4A261)),
-          ],
-        ),
-      ],
+          const Divider(height: 1),
+          // ---- 底部操作按钮 ----
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildBtn(Icons.undo, '撤销', _undoLastPath),
+                _buildBtn(Icons.delete_outline, '清空', _clearCanvas, color: Colors.red),
+                _buildBtn(Icons.add_photo_alternate, '导入图片', _importBackground),
+                _buildBtn(Icons.save_alt, '插入笔记', _onSave,
+                    color: const Color(0xFFF4A261)),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  /// 背景图操作栏
   Widget _buildImageToolbar(bool isDark) {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.add_photo_alternate),
-          tooltip: '导入背景图片',
-          onPressed: _importBackground,
-        ),
-        if (_backgroundImage != null) ...[
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.opacity, size: 18, color: Colors.grey),
           const SizedBox(width: 4),
           Text('透明度', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           Expanded(
@@ -334,86 +324,83 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
               value: _imageOpacity,
               min: 0.1,
               max: 1.0,
-              onChanged: (v) => setState(() => _imageOpacity = v),
+              onChanged: _backgroundImage != null
+                  ? (v) => setState(() => _imageOpacity = v)
+                  : null,
             ),
           ),
           Text('${(_imageOpacity * 100).toInt()}%',
-              style: const TextStyle(fontSize: 11)),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            tooltip: '移除背景',
-            onPressed: () {
-              _cachedImage?.dispose();
-              _cachedImage = null;
-              setState(() => _backgroundImage = null);
-            },
+              style: TextStyle(fontSize: 11, color: _backgroundImage != null ? null : Colors.grey)),
+          if (_backgroundImage != null)
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: '移除背景',
+              onPressed: () {
+                _cachedImage?.dispose();
+                _cachedImage = null;
+                setState(() => _backgroundImage = null);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPenToolbar(bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('颜色  ', style: TextStyle(fontSize: 12)),
+              ..._presetColors.map((c) => GestureDetector(
+                    onTap: () => setState(() => _currentColor = c),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      width: 24, height: 24,
+                      decoration: BoxDecoration(
+                        color: c,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _currentColor == c ? Colors.black : Colors.grey.shade400,
+                          width: _currentColor == c ? 2.5 : 1,
+                        ),
+                      ),
+                    ),
+                  )),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              const Text('粗细  ', style: TextStyle(fontSize: 12)),
+              ..._presetStrokes.map((s) => GestureDetector(
+                    onTap: () => setState(() => _currentStroke = s),
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      width: 32, height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _currentStroke == s ? Colors.grey.shade200 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _currentStroke == s ? Colors.black : Colors.grey.shade400,
+                          width: _currentStroke == s ? 2 : 1,
+                        ),
+                      ),
+                      child: Container(width: 20, height: s, color: _currentColor),
+                    ),
+                  )),
+            ],
           ),
         ],
-      ],
+      ),
     );
   }
 
-  /// 画笔工具栏
-  Widget _buildPenToolbar(bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 颜色
-        Row(
-          children: [
-            const Text('颜色  ', style: TextStyle(fontSize: 12)),
-            ..._presetColors.map((c) => GestureDetector(
-                  onTap: () => setState(() => _currentColor = c),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 6),
-                    width: 24, height: 24,
-                    decoration: BoxDecoration(
-                      color: c,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _currentColor == c ? Colors.black : Colors.grey.shade400,
-                        width: _currentColor == c ? 2.5 : 1,
-                      ),
-                    ),
-                  ),
-                )),
-          ],
-        ),
-        const SizedBox(height: 6),
-        // 笔刷粗细
-        Row(
-          children: [
-            const Text('粗细  ', style: TextStyle(fontSize: 12)),
-            ..._presetStrokes.map((s) => GestureDetector(
-                  onTap: () => setState(() => _currentStroke = s),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    width: 32, height: 24,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _currentStroke == s
-                          ? Colors.grey.shade200
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: _currentStroke == s ? Colors.black : Colors.grey.shade400,
-                        width: _currentStroke == s ? 2 : 1,
-                      ),
-                    ),
-                    child: Container(
-                      width: 20, height: s,
-                      color: _currentColor,
-                    ),
-                  ),
-                )),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBtn(IconData icon, String label, VoidCallback onTap,
-      {Color? color}) {
+  Widget _buildBtn(IconData icon, String label, VoidCallback onTap, {Color? color}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -433,7 +420,7 @@ class _DrawingCanvasState extends State<DrawingCanvas> {
   }
 }
 
-// ======================== 自定义画笔 ========================
+// ======================== 自定义画笔（修复版） ========================
 class _DrawingPainter extends CustomPainter {
   final List<List<Offset>> paths;
   final List<Color> pathColors;
@@ -459,15 +446,19 @@ class _DrawingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. 绘制背景图（带透明度）
+    // 1. 绘制背景图（带正确透明度）
     if (!skipBg && backgroundImage != null) {
-      final paint = Paint()..color = Colors.white.withValues(alpha: imageOpacity);
-      final srcSize = Size(
+      final srcRect = Rect.fromLTWH(
+        0, 0,
         backgroundImage!.width.toDouble(),
         backgroundImage!.height.toDouble(),
       );
-      final fitted = _fit(srcSize, size);
-      canvas.drawImageRect(backgroundImage!, srcRect, fitted, paint);
+      final fitted = _fit(Size(srcRect.width, srcRect.height), size);
+      // 使用 saveLayer 实现真正的图片透明度
+      final layerPaint = Paint()..color = Colors.white.withValues(alpha: imageOpacity);
+      canvas.saveLayer(fitted, layerPaint);
+      canvas.drawImageRect(backgroundImage!, srcRect, fitted, Paint());
+      canvas.restore();
     }
 
     // 2. 绘制已保存路径
@@ -493,9 +484,6 @@ class _DrawingPainter extends CustomPainter {
     }
     return Rect.fromCenter(center: dst.center(Offset.zero), width: w, height: h);
   }
-
-  // 图片源矩形（全图）
-  static final Rect srcRect = Rect.fromLTWH(0, 0, 1, 1);
 
   void _drawPath(Canvas canvas, List<Offset> points, Color color, double stroke) {
     final paint = Paint()

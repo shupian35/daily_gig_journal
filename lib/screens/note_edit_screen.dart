@@ -303,27 +303,21 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     }
   }
 
-  /// 打开画板（空白或从图片批注）
-  void _openDrawingCanvas({String? backgroundImagePath}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: DrawingCanvas(
-            onSave: (imagePath, includeBackground) {
-              Navigator.pop(ctx);
-              _insertImageToNote(imagePath);
-            },
-          ),
+  /// 打开全屏画板（空白手写/画画）
+  void _openDrawingCanvas() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => DrawingScreen(
+          onSave: (imagePath, includeBackground) {
+            _insertImageToNote(imagePath);
+          },
         ),
       ),
     );
   }
 
-  /// 先选图片，再打开画板批注
+  /// 先选图片，再打开全屏画板批注
   Future<void> _pickImageThenAnnotate() async {
     try {
       final XFile? image = await _imagePicker.pickImage(
@@ -333,40 +327,20 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         imageQuality: 90,
       );
       if (image != null) {
-        // 把图片复制到本地
-        final imagesDir = await Helpers.getImagesDirectory();
-        final fileName = 'bg_${Helpers.generateImageFileName()}';
-        final destPath = p.join(imagesDir.path, fileName);
-        await File(image.path).copy(destPath);
-
-        if (mounted) {
-          // 打开画板并加载该图作为背景
-          _openDrawingCanvasWithImage(destPath);
-        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (_) => DrawingScreen(
+              onSave: (imagePath, includeBackground) {
+                _insertImageToNote(imagePath);
+              },
+            ),
+          ),
+        );
       }
     } catch (e) {
       _showError('选择图片失败: $e');
     }
-  }
-
-  /// 带背景图打开画板
-  void _openDrawingCanvasWithImage(String bgPath) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: DrawingCanvas(
-            onSave: (imagePath, includeBackground) {
-              Navigator.pop(ctx);
-              _insertImageToNote(imagePath);
-            },
-          ),
-        ),
-      ),
-    );
   }
 
   void _showError(String message) {
