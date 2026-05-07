@@ -60,8 +60,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // 月度工资摘要卡片
-            _buildWageSummary(monthlyWageAsync, monthlyDaysAsync, hideIncome),
+            // 月度工资摘要卡片（开启隐私则隐藏）
+            if (!hideIncome)
+              _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
             // 日历组件（周视图/月视图可切换）
             _buildCalendar(workDatesAsync),
             // 未来一周工作计划
@@ -83,7 +84,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget _buildWageSummary(
     AsyncValue<double> wageAsync,
     AsyncValue<int> daysAsync,
-    bool hideIncome,
   ) {
     return wageAsync.when(
       data: (totalWage) {
@@ -94,7 +94,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           totalWage: totalWage,
           workDays: workDays,
           monthDisplay: monthDisplay,
-          hideIncome: hideIncome,
         );
       },
       loading: () => const SizedBox(
@@ -257,16 +256,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               ),
                             ),
                             const Spacer(),
-                            Text(
-                              hideIncome
-                                  ? '合计 ***'
-                                  : '合计 ${Helpers.formatCurrency(dailyTotal)}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppConstants.incomeGreen,
+                            if (!hideIncome)
+                              Text(
+                                '合计 ${Helpers.formatCurrency(dailyTotal)}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppConstants.incomeGreen,
+                                ),
                               ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -326,18 +324,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                             fontSize: 11,
                                             color: Colors.grey.shade500),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        hideIncome
-                                            ? '***'
-                                            : Helpers.formatCurrency(
-                                                item.wage),
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppConstants.incomeGreen,
+                                      if (!hideIncome) ...[
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          Helpers.formatCurrency(item.wage),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppConstants.incomeGreen,
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
                                   ),
                                 ),

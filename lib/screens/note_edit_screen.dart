@@ -9,6 +9,7 @@ import '../models/work_note.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/drawing_canvas.dart';
 import '../providers/notes_provider.dart';
+import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
@@ -332,6 +333,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
+    final hideIncome = ref.watch(hideIncomeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -365,13 +367,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : isTablet
-              ? _buildTabletLayout()
-              : _buildPhoneLayout(),
+              ? _buildTabletLayout(hideIncome)
+              : _buildPhoneLayout(hideIncome),
     );
   }
 
   /// 平板布局：左侧表单 + 右侧备注和插入
-  Widget _buildTabletLayout() {
+  Widget _buildTabletLayout(bool hideIncome) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -380,7 +382,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           width: 360,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildFormCard(),
+            child: _buildFormCard(hideIncome),
           ),
         ),
         // 中间分割线
@@ -403,13 +405,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   /// 手机布局：原有单列滚动
-  Widget _buildPhoneLayout() {
+  Widget _buildPhoneLayout(bool hideIncome) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFormCard(),
+          _buildFormCard(hideIncome),
           const SizedBox(height: 16),
           _buildRichTextCard(),
           const SizedBox(height: 16),
@@ -421,7 +423,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   /// 表单卡片
-  Widget _buildFormCard() {
+  Widget _buildFormCard(bool hideIncome) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -435,6 +437,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           dailyWageController: _dailyWageController,
           onAutoCalculate: _autoCalculateDailyWage,
           onTimeChanged: _autoCalculateWorkHours,
+          hideIncome: hideIncome,
         ),
       ),
     );

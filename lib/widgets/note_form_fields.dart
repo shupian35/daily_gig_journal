@@ -17,6 +17,8 @@ class NoteFormFields extends StatelessWidget {
   final VoidCallback? onAutoCalculate;
   /// 时间变化时的回调
   final VoidCallback? onTimeChanged;
+  /// 是否隐藏收入相关字段
+  final bool hideIncome;
 
   const NoteFormFields({
     super.key,
@@ -29,6 +31,7 @@ class NoteFormFields extends StatelessWidget {
     required this.dailyWageController,
     this.onAutoCalculate,
     this.onTimeChanged,
+    this.hideIncome = false,
   });
 
   @override
@@ -93,52 +96,54 @@ class NoteFormFields extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // 时薪 & 工作时长
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildFieldLabel('时薪 (¥)'),
-                  TextFormField(
-                    controller: hourlyWageController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: _inputDecoration('0.00'),
-                    onChanged: (_) => onAutoCalculate?.call(),
-                  ),
-                ],
+        // 时薪 & 工作时长（开启隐私则隐藏）
+        if (!hideIncome) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFieldLabel('时薪 (¥)'),
+                    TextFormField(
+                      controller: hourlyWageController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _inputDecoration('0.00'),
+                      onChanged: (_) => onAutoCalculate?.call(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildFieldLabel('工作时长 (h)'),
-                  TextFormField(
-                    controller: workHoursController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: _inputDecoration('0.0'),
-                    onChanged: (_) => onAutoCalculate?.call(),
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildFieldLabel('工作时长 (h)'),
+                    TextFormField(
+                      controller: workHoursController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: _inputDecoration('0.0'),
+                      onChanged: (_) => onAutoCalculate?.call(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // 日工资（自动计算 + 可手动覆盖）
-        _buildFieldLabel('日工资 (¥)'),
-        TextFormField(
-          controller: dailyWageController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: _inputDecoration('0.00').copyWith(
-            helperText: '时薪 × 时长自动计算，也可手动修改',
-            helperStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            ],
           ),
-        ),
+          const SizedBox(height: 16),
+
+          // 日工资（自动计算 + 可手动覆盖）
+          _buildFieldLabel('日工资 (¥)'),
+          TextFormField(
+            controller: dailyWageController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: _inputDecoration('0.00').copyWith(
+              helperText: '时薪 × 时长自动计算，也可手动修改',
+              helperStyle: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ),
+        ],
       ],
     );
   }

@@ -11,15 +11,12 @@ class WageSummaryCard extends StatelessWidget {
   final int workDays;
   /// 月份显示文字，如 "2025年3月"
   final String monthDisplay;
-  /// 是否隐藏收入金额
-  final bool hideIncome;
 
   const WageSummaryCard({
     super.key,
     required this.totalWage,
     required this.workDays,
     required this.monthDisplay,
-    this.hideIncome = false,
   });
 
   @override
@@ -73,9 +70,7 @@ class WageSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    hideIncome
-                        ? '***'
-                        : Helpers.formatCurrency(totalWage),
+                    Helpers.formatCurrency(totalWage),
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
