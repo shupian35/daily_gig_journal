@@ -317,32 +317,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     );
   }
 
-  /// 先选图片，再打开全屏画板批注
-  Future<void> _pickImageThenAnnotate() async {
-    try {
-      final XFile? image = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 2048,
-        maxHeight: 2048,
-        imageQuality: 90,
-      );
-      if (image != null) {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            fullscreenDialog: true,
-            builder: (_) => DrawingScreen(
-              onSave: (imagePath, includeBackground) {
-                _insertImageToNote(imagePath);
-              },
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      _showError('选择图片失败: $e');
-    }
-  }
-
   void _showError(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -542,10 +516,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
             icon: Icons.draw,
             label: '手写/画画',
             onTap: _openDrawingCanvas),
-        _buildInsertButton(
-            icon: Icons.edit_note,
-            label: '图片批注',
-            onTap: _pickImageThenAnnotate),
       ],
     );
   }
