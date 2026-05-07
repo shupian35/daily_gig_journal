@@ -1,0 +1,21 @@
+workflows:
+  ios-unsigned-ipa:
+    name: iOS 无签名 IPA
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: 安装依赖
+        script: flutter pub get
+      - name: 构建 iOS (无签名)
+        script: flutter build ios --release --no-codesign
+      - name: 打包 IPA
+        script: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r 日程清单.ipa Payload/
+          rm -rf Payload
+    artifacts:
+      - build/ios/iphoneos/日程清单.ipa
