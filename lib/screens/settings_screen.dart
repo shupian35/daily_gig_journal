@@ -22,19 +22,52 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           // 主题设置
           Card(
-            child: SwitchListTile(
-              title: const Text('深色模式'),
-              subtitle: const Text('切换应用亮色/暗色主题'),
-              secondary: Icon(
-                themeMode == ThemeMode.dark
-                    ? Icons.dark_mode
-                    : Icons.dark_mode_outlined,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.brightness_6, size: 20,
+                            color: AppConstants.primaryDark),
+                        const SizedBox(width: 8),
+                        const Text('主题模式',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                  RadioGroup<ThemeMode>(
+                    groupValue: themeMode,
+                    onChanged: (v) =>
+                        ref.read(themeModeProvider.notifier).state = v,
+                    child: Column(
+                      children: [
+                        RadioListTile<ThemeMode>(
+                          title: const Text('跟随系统'),
+                          subtitle: const Text('自动跟随系统亮色/暗色设置'),
+                          value: ThemeMode.system,
+                          dense: true,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('浅色模式'),
+                          subtitle: const Text('始终使用浅色主题'),
+                          value: ThemeMode.light,
+                          dense: true,
+                        ),
+                        RadioListTile<ThemeMode>(
+                          title: const Text('深色模式'),
+                          subtitle: const Text('始终使用暗色主题'),
+                          value: ThemeMode.dark,
+                          dense: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              value: themeMode == ThemeMode.dark,
-              onChanged: (value) {
-                ref.read(themeModeProvider.notifier).state =
-                    value ? ThemeMode.dark : ThemeMode.light;
-              },
             ),
           ),
           const SizedBox(height: 12),
