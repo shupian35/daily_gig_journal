@@ -41,8 +41,11 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   RadioGroup<ThemeMode>(
                     groupValue: themeMode,
-                    onChanged: (v) =>
-                        ref.read(themeModeProvider.notifier).state = v,
+                    onChanged: (v) {
+                      if (v != null) {
+                        ref.read(themeModeProvider.notifier).state = v;
+                      }
+                    },
                     child: Column(
                       children: [
                         RadioListTile<ThemeMode>(
