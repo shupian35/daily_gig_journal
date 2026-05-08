@@ -186,6 +186,48 @@ class _DrawingScreenState extends State<DrawingScreen> {
     }
   }
 
+  // ---------- 绘制（通过 InteractiveViewer 回调，localFocalPoint 已是画布坐标） ----------
+  void _handleDrawStart(Offset canvasPos) {
+    if (_isCropping) {
+      _cropRect = Rect.fromCenter(center: canvasPos, width: 0, height: 0);
+      setState(() {});
+      return;
+    }
+    if (_isMovingImage) {
+      _imagePos = canvasPos;
+      setState(() {});
+      return;
+    }
+    setState(() => _currentPath = [canvasPos]);
+  }
+
+  void _handleDrawUpdate(Offset canvasPos) {
+    if (_isCropping && _cropRect != null) {
+      _cropRect = Rect.fromPoints(_cropRect!.topLeft, canvasPos);
+      setState(() {});
+      return;
+    }
+    if (_isMovingImage) {
+      _imagePos = canvasPos;
+      setState(() {});
+      return;
+    }
+    setState(() => _currentPath?.add(canvasPos));
+  }
+
+  void _handleDrawEnd() {
+    if (_currentPath != null && _currentPath!.length > 1) {
+      setState(() {
+        _paths.add(List.from(_currentPath!));
+        _pathColors.add(_currentColor);
+        _pathStrokes.add(_currentStroke);
+        _currentPath = null;
+      });
+    } else {
+      setState(() => _currentPath = null);
+    }
+  }
+
   void _undoLastPath() {
     if (_paths.isNotEmpty) {
       setState(() { _paths.removeLast(); _pathColors.removeLast(); _pathStrokes.removeLast(); });
@@ -313,33 +355,36 @@ class _DrawingScreenState extends State<DrawingScreen> {
               boundaryMargin: const EdgeInsets.all(double.infinity),
               onInteractionStart: (details) {
                 _touchCount = details.pointerCount;
+                if (_touchCount == 1) {
+                  _handleDrawStart(details.localFocalPoint);
+                }
               },
               onInteractionUpdate: (details) {
                 _touchCount = details.pointerCount;
+                if (_touchCount == 1) {
+                  _handleDrawUpdate(details.localFocalPoint);
+                }
               },
               onInteractionEnd: (_) {
+                if (_touchCount == 1) {
+                  _handleDrawEnd();
+                }
                 _touchCount = 0;
               },
-              child: GestureDetector(
-                // 单指绘制，双指留给 InteractiveViewer
-                onPanStart: _touchCount <= 1 ? _onPanStart : null,
-                onPanUpdate: _touchCount <= 1 ? _onPanUpdate : null,
-                onPanEnd: _touchCount <= 1 ? _onPanEnd : null,
-                child: SizedBox(
-                  width: _canvasSize,
-                  height: _canvasSize,
-                  child: RepaintBoundary(
-                    key: _repaintKey,
-                    child: CustomPaint(
-                      painter: _DrawingPainter(
-                        paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
-                        currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
-                        backgroundImage: _cachedImage, imageOpacity: _imageOpacity,
-                        imagePos: _imagePos, imageScale: _imageScale,
-                        skipBg: _skipBgRender, cropRect: _cropRect, isCropping: _isCropping,
-                      ),
-                      size: const Size(_canvasSize, _canvasSize),
+              child: SizedBox(
+                width: _canvasSize,
+                height: _canvasSize,
+                child: RepaintBoundary(
+                  key: _repaintKey,
+                  child: CustomPaint(
+                    painter: _DrawingPainter(
+                      paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
+                      currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
+                      backgroundImage: _cachedImage, imageOpacity: _imageOpacity,
+                      imagePos: _imagePos, imageScale: _imageScale,
+                      skipBg: _skipBgRender, cropRect: _cropRect, isCropping: _isCropping,
                     ),
+                    size: const Size(_canvasSize, _canvasSize),
                   ),
                 ),
               ),
