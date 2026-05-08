@@ -335,8 +335,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     final isTablet = screenWidth >= 600;
     final hideIncome = ref.watch(hideIncomeProvider);
 
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -369,7 +372,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           : isTablet
               ? _buildTabletLayout(hideIncome)
               : _buildPhoneLayout(hideIncome),
-    );
+    ));
   }
 
   /// 平板布局：左侧表单 + 右侧备注和插入

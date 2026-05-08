@@ -21,8 +21,11 @@ class DayEntriesScreen extends ConsumerWidget {
     final date = Helpers.parseDate(dateStr);
     final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
 
-    return Scaffold(
-      appBar: AppBar(
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
         title: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -61,7 +64,7 @@ class DayEntriesScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 
   /// 空状态
