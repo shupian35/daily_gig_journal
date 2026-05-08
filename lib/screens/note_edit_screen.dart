@@ -524,7 +524,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
             onTap: _takePhoto),
         _buildInsertButton(
             icon: Icons.draw,
-            label: '手写/画画',
+            label: '画板',
             onTap: _openDrawingCanvas),
       ],
     );
