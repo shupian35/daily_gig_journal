@@ -80,7 +80,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (widget.noteId != null) {
         note = await db.getNoteById(widget.noteId!);
       } else {
-        note = await db.getNoteByDate(widget.dateStr);
+        // noteId 为 null 表示新建，不加载已有笔记
+        note = null;
       }
 
       setState(() {
