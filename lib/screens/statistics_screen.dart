@@ -107,36 +107,63 @@ class StatisticsScreen extends ConsumerWidget {
     AsyncValue<List<Map<String, dynamic>>> monthlySummaryAsync,
     bool hideIncome,
   ) {
-    // 按月份分组
     final grouped = _groupByMonth(notes);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.only(bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ===== 月度柱状图 =====
-          _buildBarChart(monthlySummaryAsync, hideIncome),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isTablet = constraints.maxWidth >= 700;
 
-          const SizedBox(height: 8),
+        if (isTablet) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildBarChart(monthlySummaryAsync, hideIncome),
+                ),
+              ),
+              const VerticalDivider(width: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: grouped.entries.map((entry) {
+                      final mn = entry.value;
+                      return _buildMonthSection(
+                        monthKey: entry.key, notes: mn,
+                        monthlyTotal: mn.fold(0.0, (s, n) => s + n.dailyWage),
+                        workDays: mn.length, hideIncome: hideIncome,
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
 
-          // ===== 月度详细列表 =====
-          ...grouped.entries.map((entry) {
-            final monthNotes = entry.value;
-            final monthlyTotal =
-                monthNotes.fold(0.0, (sum, n) => sum + n.dailyWage);
-            final monthWorkDays = monthNotes.length;
-
-            return _buildMonthSection(
-              monthKey: entry.key,
-              notes: monthNotes,
-              monthlyTotal: monthlyTotal,
-              workDays: monthWorkDays,
-              hideIncome: hideIncome,
-            );
-          }),
-        ],
-      ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildBarChart(monthlySummaryAsync, hideIncome),
+              const SizedBox(height: 8),
+              ...grouped.entries.map((entry) {
+                final mn = entry.value;
+                return _buildMonthSection(
+                  monthKey: entry.key, notes: mn,
+                  monthlyTotal: mn.fold(0.0, (s, n) => s + n.dailyWage),
+                  workDays: mn.length, hideIncome: hideIncome,
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 

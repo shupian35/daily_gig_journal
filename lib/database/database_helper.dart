@@ -40,10 +40,15 @@ class DatabaseHelper {
     return _database!;
   }
 
+  /// 获取数据库文件路径（用于备份恢复）
+  static Future<String> getDatabasePath() async {
+    final dir = await getApplicationDocumentsDirectory();
+    return p.join(dir.path, _dbName);
+  }
+
   /// 初始化数据库：创建文件路径并建表
   Future<Database> _initDatabase() async {
-    final documentsDir = await getApplicationDocumentsDirectory();
-    final dbPath = p.join(documentsDir.path, _dbName);
+    final dbPath = await getDatabasePath();
 
     return await openDatabase(
       dbPath,

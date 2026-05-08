@@ -558,33 +558,50 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                 itemCount: images.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => _FullScreenGallery(
-                            images: images,
-                            initialIndex: index,
+                  return Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => _FullScreenGallery(
+                                images: images, initialIndex: index,
+                              ),
+                            ),
+                          );
+                        },
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            width: 72, height: 72,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Image.file(
+                              File(images[index]),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.broken_image, size: 32),
+                            ),
                           ),
                         ),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        width: 72, height: 72,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Image.file(
-                          File(images[index]),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.broken_image, size: 32),
+                      ),
+                      // 删除按钮
+                      Positioned(
+                        top: 0, right: 0,
+                        child: GestureDetector(
+                          onTap: () => _removeImageFromDocument(images[index]),
+                          child: Container(
+                            width: 20, height: 20,
+                            decoration: const BoxDecoration(
+                              color: Colors.red, shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.close, size: 12, color: Colors.white),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   );
                 },
               ),
@@ -610,6 +627,37 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       }
     } catch (_) {}
     return images;
+  }
+
+  /// 从 Quill 文档中删除指定图片
+  void _removeImageFromDocument(String imagePath) {
+    try {
+      final delta = _quillController.document.toDelta();
+      final ops = delta.toJson();
+      int offset = 0;
+      for (final op in ops) {
+        if (op is Map<String, dynamic> && op.containsKey('insert')) {
+          final insert = op['insert'];
+          if (insert is Map && insert.containsKey('image')) {
+            if (insert['image'] == imagePath) {
+              // 删除该嵌入：先删除图片 embed(长度1)，再删除后面的换行符(长度1)
+              _quillController.replaceText(offset, 2, '', null);
+              setState(() {}); // 刷新图片列表
+              return;
+            }
+          }
+        }
+        // 计算偏移：文本长度或嵌入对象长度为1
+        if (op is Map<String, dynamic>) {
+          final ins = op['insert'];
+          if (ins is String) {
+            offset += ins.length;
+          } else if (ins is Map) {
+            offset += 1; // embed
+          }
+        }
+      }
+    } catch (_) {}
   }
 
   /// 构建插入按钮

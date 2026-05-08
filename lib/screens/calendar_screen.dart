@@ -57,18 +57,39 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 月度工资摘要卡片（开启隐私则隐藏）
-            if (!hideIncome)
-              _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
-            // 日历组件（周视图/月视图可切换）
-            _buildCalendar(workDatesAsync),
-            // 未来一周工作计划
-            _buildUpcomingWeekPlan(hideIncome),
-          ],
-        ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = constraints.maxWidth >= 700;
+          if (isTablet) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 400,
+                  child: SingleChildScrollView(
+                    child: Column(children: [
+                      if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
+                      _buildCalendar(workDatesAsync),
+                    ]),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: _buildUpcomingWeekPlan(hideIncome),
+                  ),
+                ),
+              ],
+            );
+          }
+          return SingleChildScrollView(
+            child: Column(children: [
+              if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
+              _buildCalendar(workDatesAsync),
+              _buildUpcomingWeekPlan(hideIncome),
+            ]),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
