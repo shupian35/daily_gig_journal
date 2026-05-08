@@ -88,18 +88,45 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   // ---------- 背景图 ----------
   Future<void> _importBackground() async {
-    final XFile? img = await _picker.pickImage(
-      source: ImageSource.gallery, maxWidth: 2048, maxHeight: 2048, imageQuality: 90,
-    );
-    if (img != null) {
-      _cachedImage?.dispose();
-      _cachedImage = null;
-      _imageScale = 1.0;
-      _imagePos = Offset.zero;
-      _isMovingImage = true; // 进入移动图片模式
-      setState(() => _backgroundImage = File(img.path));
-      _decodeBackground();
+    try {
+      final XFile? img = await _picker.pickImage(
+        source: ImageSource.gallery, maxWidth: 2048, maxHeight: 2048, imageQuality: 90,
+      );
+      if (img != null) {
+        _cachedImage?.dispose();
+        _cachedImage = null;
+        _imageScale = 1.0;
+        // 将图片放在当前视口中心
+        final viewportCenter = _viewportCenter();
+        _imagePos = viewportCenter;
+        _isMovingImage = true;
+        setState(() => _backgroundImage = File(img.path));
+        _decodeBackground().then((_) {
+          // 解码完成后，调整位置使图片居中
+          if (_cachedImage != null && mounted) {
+            setState(() {
+              _imagePos = Offset(
+                viewportCenter.dx - (_cachedImage!.width * _imageScale) / 2,
+                viewportCenter.dy - (_cachedImage!.height * _imageScale) / 2,
+              );
+            });
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('导入图片失败: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
+  }
+
+  /// 获取当前视口中心在画布坐标系中的位置
+  Offset _viewportCenter() {
+    final screenSize = MediaQuery.of(context).size;
+    final screenCenter = Offset(screenSize.width / 2, screenSize.height / 2);
+    return _toCanvasCoords(screenCenter);
   }
 
   Future<void> _decodeBackground() async {

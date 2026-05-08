@@ -261,15 +261,19 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     try {
       final XFile? photo = await _imagePicker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
+        maxWidth: 1200, maxHeight: 1200, imageQuality: 85,
+        requestFullMetadata: false,
       );
       if (photo != null) {
         await _insertImageToNote(photo.path);
       }
     } catch (e) {
-      _showError('拍照失败: $e');
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('denied') || msg.contains('permission') || msg.contains('not authorized')) {
+        _showError('无法使用相机，请在系统设置中允许相机权限');
+      } else {
+        _showError('拍照失败');
+      }
     }
   }
 
