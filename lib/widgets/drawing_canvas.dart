@@ -11,7 +11,9 @@ import '../utils/constants.dart';
 /// 全屏手写/批注画板 —— iPad 笔记风格
 class DrawingScreen extends StatefulWidget {
   final void Function(String imagePath, bool includeBackground)? onSave;
-  const DrawingScreen({super.key, this.onSave});
+  /// 可选的初始背景图片路径（用于从图片批注入口进入）
+  final String? initialBackgroundPath;
+  const DrawingScreen({super.key, this.onSave, this.initialBackgroundPath});
 
   @override
   State<DrawingScreen> createState() => _DrawingScreenState();
@@ -44,6 +46,19 @@ class _DrawingScreenState extends State<DrawingScreen> {
   ];
 
   static const List<double> _presetStrokes = [1.5, 3.0, 5.0, 8.0, 12.0];
+
+  @override
+  void initState() {
+    super.initState();
+    // 加载预置背景图
+    if (widget.initialBackgroundPath != null) {
+      final f = File(widget.initialBackgroundPath!);
+      if (f.existsSync()) {
+        _backgroundImage = f;
+        Future.microtask(() => _decodeBackground());
+      }
+    }
+  }
 
   @override
   void dispose() {

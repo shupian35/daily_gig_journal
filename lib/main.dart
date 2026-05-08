@@ -31,27 +31,43 @@ void main() async {
 }
 
 /// 应用根组件
-class DailyGigApp extends ConsumerWidget {
+class DailyGigApp extends ConsumerStatefulWidget {
   const DailyGigApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DailyGigApp> createState() => _DailyGigAppState();
+}
+
+class _DailyGigAppState extends ConsumerState<DailyGigApp> {
+  @override
+  void initState() {
+    super.initState();
+    // 从本地加载持久化设置
+    Future.microtask(() => loadSettings(ref));
+    // 监听变化并自动保存
+    ref.listenManual(themeModeProvider, (prev, next) {
+      saveThemeMode(next);
+    });
+    ref.listenManual(hideIncomeProvider, (prev, next) {
+      saveHideIncome(next);
+    });
+    ref.listenManual(hideStatisticsProvider, (prev, next) {
+      saveHideStatistics(next);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp(
       title: '日程清单',
       debugShowCheckedModeBanner: false,
 
-      // 暖色温主题（亮色）
       theme: AppConstants.lightTheme,
-
-      // 深色主题
       darkTheme: AppConstants.darkTheme,
-
-      // 由用户设置控制主题模式
       themeMode: themeMode,
 
-      // 中文语言支持（Material + Cupertino + flutter_quill 本地化）
       locale: const Locale('zh'),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
