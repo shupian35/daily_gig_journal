@@ -394,7 +394,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
             child: Column(
               children: [
                 _buildRichTextCard(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
+                _buildImageList(),
+                const SizedBox(height: 12),
                 _buildInsertButtons(),
               ],
             ),
@@ -414,7 +416,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           _buildFormCard(hideIncome),
           const SizedBox(height: 16),
           _buildRichTextCard(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          _buildImageList(),
+          const SizedBox(height: 12),
           _buildInsertButtons(),
           const SizedBox(height: 32),
         ],
@@ -521,6 +525,91 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
             onTap: _openDrawingCanvas),
       ],
     );
+  }
+
+  /// 图片缩略图列表（显示备注中所有图片）
+  Widget _buildImageList() {
+    final images = _collectAllImages();
+    if (images.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.photo_library, size: 16, color: AppConstants.primaryDark),
+                const SizedBox(width: 6),
+                Text('图片 (${images.length})',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const Spacer(),
+                if (images.length > 1)
+                  Text('点击可查看大图',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: images.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => _FullScreenGallery(
+                            images: images,
+                            initialIndex: index,
+                          ),
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: 72, height: 72,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Image.file(
+                          File(images[index]),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.broken_image, size: 32),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 从 Quill 文档收集所有图片路径
+  List<String> _collectAllImages() {
+    final images = <String>[];
+    try {
+      final deltaJson = _quillController.document.toDelta().toJson();
+      for (final op in deltaJson) {
+        if (op is Map<String, dynamic> && op.containsKey('insert')) {
+          final insert = op['insert'];
+          if (insert is Map && insert.containsKey('image')) {
+            images.add(insert['image'] as String);
+          }
+        }
+      }
+    } catch (_) {}
+    return images;
   }
 
   /// 构建插入按钮
