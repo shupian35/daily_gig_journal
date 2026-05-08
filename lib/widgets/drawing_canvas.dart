@@ -8,10 +8,13 @@ import 'package:path/path.dart' as p;
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 全屏手写/批注画板 —— iPad 笔记风格
+/// 全屏手写/批注画板
+/// - 无限画布（双指平移/缩放）
+/// - 点阵背景
+/// - 导入图片支持拖动/缩放
+/// - 裁切功能
 class DrawingScreen extends StatefulWidget {
   final void Function(String imagePath, bool includeBackground)? onSave;
-  /// 可选的初始背景图片路径（用于从图片批注入口进入）
   final String? initialBackgroundPath;
   const DrawingScreen({super.key, this.onSave, this.initialBackgroundPath});
 
@@ -22,7 +25,11 @@ class DrawingScreen extends StatefulWidget {
 class _DrawingScreenState extends State<DrawingScreen> {
   final GlobalKey _repaintKey = GlobalKey();
 
-  // ---- 绘制路径（存储原始点） ----
+  // ---- 画布变换 ----
+  final TransformationController _transformCtrl = TransformationController();
+  static const double _canvasSize = 4000; // 虚拟画布尺寸
+
+  // ---- 绘制路径 ----
   final List<List<Offset>> _paths = [];
   final List<Color> _pathColors = [];
   final List<double> _pathStrokes = [];
@@ -34,23 +41,29 @@ class _DrawingScreenState extends State<DrawingScreen> {
   File? _backgroundImage;
   double _imageOpacity = 0.6;
   ui.Image? _cachedImage;
+  Offset _imagePos = Offset.zero; // 图片在画布上的位置（左上角）
+  double _imageScale = 1.0;
+  bool _isMovingImage = false; // 是否在移动图片模式
   final ImagePicker _picker = ImagePicker();
   bool _skipBgRender = false;
 
-  // ---- 工具面板状态 ----
+  // ---- 裁切模式 ----
+  bool _isCropping = false;
+  Rect? _cropRect;
+
+  // ---- 工具面板 ----
   bool _showTools = true;
+  int _touchCount = 0; // 当前触摸点数
 
   static const List<Color> _presetColors = [
     Colors.black, Colors.red, Colors.blue, Colors.green,
     Colors.orange, Colors.purple, Colors.brown, Color(0xFFF4A261),
   ];
-
   static const List<double> _presetStrokes = [1.5, 3.0, 5.0, 8.0, 12.0];
 
   @override
   void initState() {
     super.initState();
-    // 加载预置背景图
     if (widget.initialBackgroundPath != null) {
       final f = File(widget.initialBackgroundPath!);
       if (f.existsSync()) {
@@ -58,11 +71,18 @@ class _DrawingScreenState extends State<DrawingScreen> {
         Future.microtask(() => _decodeBackground());
       }
     }
+    // 居中画布
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _transformCtrl.value = Matrix4.identity()
+        ..translate(-(_canvasSize / 2 - MediaQuery.of(context).size.width / 2),
+            -(_canvasSize / 2 - MediaQuery.of(context).size.height / 2));
+    });
   }
 
   @override
   void dispose() {
     _cachedImage?.dispose();
+    _transformCtrl.dispose();
     super.dispose();
   }
 
@@ -74,6 +94,9 @@ class _DrawingScreenState extends State<DrawingScreen> {
     if (img != null) {
       _cachedImage?.dispose();
       _cachedImage = null;
+      _imageScale = 1.0;
+      _imagePos = Offset.zero;
+      _isMovingImage = true; // 进入移动图片模式
       setState(() => _backgroundImage = File(img.path));
       _decodeBackground();
     }
@@ -88,13 +111,39 @@ class _DrawingScreenState extends State<DrawingScreen> {
     if (mounted) setState(() {});
   }
 
-  // ---------- 绘制事件 ----------
+  // ---------- 绘制（画布坐标转换） ----------
+  Offset _toCanvasCoords(Offset screenPos) {
+    final matrix = Matrix4.inverted(_transformCtrl.value);
+    final canvasPoint = MatrixUtils.transformPoint(matrix, screenPos);
+    return canvasPoint;
+  }
+
   void _onPanStart(DragStartDetails d) {
-    setState(() => _currentPath = [d.localPosition]);
+    if (_isCropping) {
+      _cropRect = Rect.fromCenter(center: _toCanvasCoords(d.localPosition), width: 0, height: 0);
+      setState(() {});
+      return;
+    }
+    if (_isMovingImage) {
+      _imagePos = _toCanvasCoords(d.localPosition);
+      setState(() {});
+      return;
+    }
+    setState(() => _currentPath = [_toCanvasCoords(d.localPosition)]);
   }
 
   void _onPanUpdate(DragUpdateDetails d) {
-    setState(() => _currentPath?.add(d.localPosition));
+    if (_isCropping && _cropRect != null) {
+      _cropRect = Rect.fromPoints(_cropRect!.topLeft, _toCanvasCoords(d.localPosition));
+      setState(() {});
+      return;
+    }
+    if (_isMovingImage) {
+      _imagePos = _toCanvasCoords(d.localPosition);
+      setState(() {});
+      return;
+    }
+    setState(() => _currentPath?.add(_toCanvasCoords(d.localPosition)));
   }
 
   void _onPanEnd(DragEndDetails d) {
@@ -112,11 +161,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   void _undoLastPath() {
     if (_paths.isNotEmpty) {
-      setState(() {
-        _paths.removeLast();
-        _pathColors.removeLast();
-        _pathStrokes.removeLast();
-      });
+      setState(() { _paths.removeLast(); _pathColors.removeLast(); _pathStrokes.removeLast(); });
     }
   }
 
@@ -124,10 +169,23 @@ class _DrawingScreenState extends State<DrawingScreen> {
     setState(() {
       _paths.clear(); _pathColors.clear(); _pathStrokes.clear();
       _currentPath = null;
-      _backgroundImage = null;
-      _cachedImage?.dispose(); _cachedImage = null;
-      _imageOpacity = 0.6;
+      _backgroundImage = null; _cachedImage?.dispose(); _cachedImage = null;
+      _imageOpacity = 0.6; _imagePos = Offset.zero; _imageScale = 1.0;
+      _isMovingImage = false; _isCropping = false; _cropRect = null;
     });
+  }
+
+  void _toggleImageMove() {
+    setState(() { _isMovingImage = !_isMovingImage; _isCropping = false; _cropRect = null; });
+  }
+
+  void _toggleCrop() {
+    setState(() { _isCropping = !_isCropping; _isMovingImage = false; _cropRect = null; });
+  }
+
+  void _applyCrop() {
+    if (_cropRect == null || _cropRect!.isEmpty) return;
+    setState(() { _isCropping = false; _cropRect = null; });
   }
 
   // ---------- 保存 ----------
@@ -179,6 +237,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
       final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
 
+      // 保存时使用当前可见区域的画面
       ui.Image rendered;
       if (!includeBackground && _backgroundImage != null) {
         _skipBgRender = true; setState(() {});
@@ -217,43 +276,82 @@ class _DrawingScreenState extends State<DrawingScreen> {
       backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5F5),
       body: Stack(
         children: [
-          // 画布全屏
+          // 可平移缩放的无限画布
           Positioned.fill(
-            child: RepaintBoundary(
-              key: _repaintKey,
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerDown: (e) {
-                  _onPanStart(DragStartDetails(globalPosition: e.position, localPosition: e.localPosition));
-                },
-                onPointerMove: (e) {
-                  _onPanUpdate(DragUpdateDetails(globalPosition: e.position, localPosition: e.localPosition));
-                },
-                onPointerUp: (e) => _onPanEnd(DragEndDetails(primaryVelocity: 0)),
-                child: CustomPaint(
-                  painter: _DrawingPainter(
-                    paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
-                    currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
-                    backgroundImage: _cachedImage, imageOpacity: _imageOpacity, skipBg: _skipBgRender,
+            child: InteractiveViewer(
+              transformationController: _transformCtrl,
+              constrained: false,
+              minScale: 0.2,
+              maxScale: 5.0,
+              boundaryMargin: const EdgeInsets.all(double.infinity),
+              onInteractionStart: (details) {
+                _touchCount = details.pointerCount;
+              },
+              onInteractionUpdate: (details) {
+                _touchCount = details.pointerCount;
+              },
+              onInteractionEnd: (_) {
+                _touchCount = 0;
+              },
+              child: GestureDetector(
+                // 单指绘制，双指留给 InteractiveViewer
+                onPanStart: _touchCount <= 1 ? _onPanStart : null,
+                onPanUpdate: _touchCount <= 1 ? _onPanUpdate : null,
+                onPanEnd: _touchCount <= 1 ? _onPanEnd : null,
+                child: SizedBox(
+                  width: _canvasSize,
+                  height: _canvasSize,
+                  child: RepaintBoundary(
+                    key: _repaintKey,
+                    child: CustomPaint(
+                      painter: _DrawingPainter(
+                        paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
+                        currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
+                        backgroundImage: _cachedImage, imageOpacity: _imageOpacity,
+                        imagePos: _imagePos, imageScale: _imageScale,
+                        skipBg: _skipBgRender, cropRect: _cropRect, isCropping: _isCropping,
+                      ),
+                      size: const Size(_canvasSize, _canvasSize),
+                    ),
                   ),
-                  size: Size.infinite,
                 ),
               ),
             ),
           ),
 
-          // 顶部浮动关闭/保存按钮
+          // 顶部浮动按钮
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 12, right: 12,
+            top: MediaQuery.of(context).padding.top + 8, left: 12, right: 12,
             child: Row(
               children: [
                 _floatBtn(Icons.close, () => Navigator.of(context).pop()),
                 const Spacer(),
+                if (_isCropping)
+                  _floatBtn(Icons.crop, _applyCrop, color: Colors.green, size: 36),
                 _floatBtn(Icons.check, _onSave, color: const Color(0xFF2E8B57)),
               ],
             ),
           ),
+
+          // 模式提示
+          if (_isMovingImage)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 60, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: Colors.orange.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8)),
+                child: const Text('拖动图片到目标位置，再次点击"移动"确认', style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+            ),
+          if (_isCropping)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 60, left: 16, right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8)),
+                child: const Text('拖拽选择裁切区域，点击✓确认', style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+            ),
 
           // 底部浮动工具面板
           if (_showTools)
@@ -263,10 +361,10 @@ class _DrawingScreenState extends State<DrawingScreen> {
               child: _buildFloatingToolbar(isDark),
             ),
 
-          // 切换工具栏显示
+          // 切换工具栏
           Positioned(
             right: 16,
-            bottom: _showTools ? 200 : MediaQuery.of(context).padding.bottom + 16,
+            bottom: _showTools ? 210 : MediaQuery.of(context).padding.bottom + 16,
             child: _floatBtn(
               _showTools ? Icons.keyboard_arrow_down : Icons.brush,
               () => setState(() => _showTools = !_showTools),
@@ -278,7 +376,6 @@ class _DrawingScreenState extends State<DrawingScreen> {
     );
   }
 
-  /// 浮动工具卡片
   Widget _buildFloatingToolbar(bool isDark) {
     return Material(
       elevation: 8,
@@ -289,29 +386,26 @@ class _DrawingScreenState extends State<DrawingScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 颜色行
+            // 颜色
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: _presetColors.map((c) => GestureDetector(
-                onTap: () => setState(() => _currentColor = c),
+                onTap: _isCropping ? null : () => setState(() => _currentColor = c),
                 child: Container(
                   width: 30, height: 30,
                   decoration: BoxDecoration(
-                    color: c,
-                    shape: BoxShape.circle,
+                    color: c, shape: BoxShape.circle,
                     border: Border.all(
                       color: _currentColor == c ? (isDark ? Colors.white : Colors.black) : Colors.transparent,
                       width: 2.5,
                     ),
-                    boxShadow: _currentColor == c
-                        ? [BoxShadow(color: c.withValues(alpha: 0.4), blurRadius: 4)]
-                        : null,
+                    boxShadow: _currentColor == c ? [BoxShadow(color: c.withValues(alpha: 0.4), blurRadius: 4)] : null,
                   ),
                 ),
               )).toList(),
             ),
             const SizedBox(height: 10),
-            // 笔刷粗细 + 操作
+            // 笔刷 + 操作
             Row(
               children: [
                 ..._presetStrokes.map((s) => Padding(
@@ -319,47 +413,45 @@ class _DrawingScreenState extends State<DrawingScreen> {
                   child: GestureDetector(
                     onTap: () => setState(() => _currentStroke = s),
                     child: Container(
-                      width: 28, height: 28,
-                      alignment: Alignment.center,
+                      width: 28, height: 28, alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _currentStroke == s ? AppConstants.primaryColor.withValues(alpha: 0.2) : Colors.transparent,
-                        border: Border.all(
-                          color: _currentStroke == s ? AppConstants.primaryColor : Colors.grey.shade300,
-                        ),
+                        border: Border.all(color: _currentStroke == s ? AppConstants.primaryColor : Colors.grey.shade300),
                       ),
-                      child: Container(
-                        width: s * 3, height: s * 3,
-                        decoration: BoxDecoration(color: _currentColor, shape: BoxShape.circle),
-                      ),
+                      child: Container(width: s * 3, height: s * 3,
+                          decoration: BoxDecoration(color: _currentColor, shape: BoxShape.circle)),
                     ),
                   ),
                 )),
                 const Spacer(),
-                // 操作按钮
                 _toolBtn(Icons.undo, _undoLastPath, '撤销'),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 _toolBtn(Icons.add_photo_alternate, _importBackground, '图片'),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
+                if (_backgroundImage != null) ...[
+                  _toolBtn(Icons.open_with, _toggleImageMove, '移动', _isMovingImage ? Colors.orange : null),
+                  const SizedBox(width: 4),
+                ],
+                _toolBtn(Icons.crop, _toggleCrop, '裁切', _isCropping ? Colors.green : null),
+                const SizedBox(width: 4),
                 _toolBtn(Icons.delete_outline, _clearCanvas, '清空', Colors.red),
               ],
             ),
-            // 透明度（有背景图时显示）
-            if (_backgroundImage != null) ...[
+            if (_backgroundImage != null && !_isMovingImage) ...[
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  const Icon(Icons.opacity, size: 16, color: Colors.grey),
-                  Expanded(
-                    child: Slider(
-                      value: _imageOpacity, min: 0.1, max: 1.0,
-                      onChanged: (v) => setState(() => _imageOpacity = v),
-                    ),
-                  ),
-                  Text('${(_imageOpacity * 100).toInt()}%',
-                      style: const TextStyle(fontSize: 11)),
-                ],
-              ),
+              Row(children: [
+                const Icon(Icons.opacity, size: 16, color: Colors.grey),
+                Expanded(child: Slider(value: _imageOpacity, min: 0.1, max: 1.0,
+                    onChanged: (v) => setState(() => _imageOpacity = v))),
+                Text('${(_imageOpacity * 100).toInt()}%', style: const TextStyle(fontSize: 11)),
+                const SizedBox(width: 8),
+                // 图片缩放
+                const Icon(Icons.zoom_in, size: 14, color: Colors.grey),
+                Expanded(child: Slider(value: _imageScale, min: 0.2, max: 3.0,
+                    onChanged: (v) => setState(() => _imageScale = v))),
+                Text('${(_imageScale * 100).toInt()}%', style: const TextStyle(fontSize: 11)),
+              ]),
             ],
           ],
         ),
@@ -369,17 +461,12 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   Widget _floatBtn(IconData icon, VoidCallback onTap, {Color? color, double size = 40}) {
     return Material(
-      elevation: 4,
-      shape: const CircleBorder(),
+      elevation: 4, shape: const CircleBorder(),
       color: (color ?? Colors.grey.shade800).withValues(alpha: 0.85),
       child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: onTap,
-        child: Container(
-          width: size, height: size,
-          alignment: Alignment.center,
-          child: Icon(icon, color: Colors.white, size: size * 0.55),
-        ),
+        customBorder: const CircleBorder(), onTap: onTap,
+        child: Container(width: size, height: size, alignment: Alignment.center,
+            child: Icon(icon, color: Colors.white, size: size * 0.55)),
       ),
     );
   }
@@ -387,18 +474,15 @@ class _DrawingScreenState extends State<DrawingScreen> {
   Widget _toolBtn(IconData icon, VoidCallback onTap, String label, [Color? color]) {
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color ?? Colors.grey.shade600, size: 20),
-          Text(label, style: TextStyle(fontSize: 9, color: color ?? Colors.grey.shade600)),
-        ],
-      ),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color ?? Colors.grey.shade600, size: 20),
+        Text(label, style: TextStyle(fontSize: 9, color: color ?? Colors.grey.shade600)),
+      ]),
     );
   }
 }
 
-// ======================== 画笔（贝塞尔平滑） ========================
+// ======================== 画笔 ========================
 class _DrawingPainter extends CustomPainter {
   final List<List<Offset>> paths;
   final List<Color> pathColors;
@@ -408,72 +492,85 @@ class _DrawingPainter extends CustomPainter {
   final double currentStroke;
   final ui.Image? backgroundImage;
   final double imageOpacity;
+  final Offset imagePos;
+  final double imageScale;
   final bool skipBg;
+  final Rect? cropRect;
+  final bool isCropping;
 
   _DrawingPainter({
     required this.paths, required this.pathColors, required this.pathStrokes,
     required this.currentPath, required this.currentColor, required this.currentStroke,
-    this.backgroundImage, this.imageOpacity = 0.6, this.skipBg = false,
+    this.backgroundImage, this.imageOpacity = 0.6,
+    this.imagePos = Offset.zero, this.imageScale = 1.0,
+    this.skipBg = false, this.cropRect, this.isCropping = false,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 背景图
+    // 1. 点阵背景
+    _drawDotGrid(canvas, size);
+
+    // 2. 背景图（在指定位置、缩放、透明度）
     if (!skipBg && backgroundImage != null) {
-      final srcRect = Rect.fromLTWH(0, 0, backgroundImage!.width.toDouble(), backgroundImage!.height.toDouble());
-      final fitted = _fit(Size(srcRect.width, srcRect.height), size);
-      canvas.saveLayer(fitted, Paint()..color = Colors.white.withValues(alpha: imageOpacity));
-      canvas.drawImageRect(backgroundImage!, srcRect, fitted, Paint());
+      final srcW = backgroundImage!.width.toDouble();
+      final srcH = backgroundImage!.height.toDouble();
+      final dstRect = Rect.fromLTWH(
+        imagePos.dx, imagePos.dy,
+        srcW * imageScale, srcH * imageScale,
+      );
+      canvas.saveLayer(dstRect, Paint()..color = Colors.white.withValues(alpha: imageOpacity));
+      canvas.drawImageRect(backgroundImage!, Rect.fromLTWH(0, 0, srcW, srcH), dstRect, Paint());
       canvas.restore();
     }
 
-    // 已保存路径
+    // 3. 路径
     final count = min(paths.length, pathColors.length);
     for (int i = 0; i < count; i++) {
       final stroke = i < pathStrokes.length ? pathStrokes[i] : 3.0;
       _drawSmoothPath(canvas, paths[i], pathColors[i], stroke);
     }
-    // 当前路径
     if (currentPath != null && currentPath!.isNotEmpty) {
       _drawSmoothPath(canvas, currentPath!, currentColor, currentStroke);
     }
+
+    // 4. 裁切框
+    if (isCropping && cropRect != null) {
+      final p = Paint()
+        ..color = Colors.green.withValues(alpha: 0.15)
+        ..style = PaintingStyle.fill;
+      canvas.drawRect(cropRect!, p);
+      final bp = Paint()..color = Colors.green..style = PaintingStyle.stroke..strokeWidth = 2;
+      canvas.drawRect(cropRect!, bp);
+    }
   }
 
-  /// 使用二次贝塞尔曲线绘制平滑路径
+  /// 点阵背景
+  void _drawDotGrid(Canvas canvas, Size size) {
+    const spacing = 24.0;
+    final paint = Paint()..color = const Color(0x30BDBDBD)..style = PaintingStyle.fill;
+    for (double x = 0; x < size.width; x += spacing) {
+      for (double y = 0; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), 1.0, paint);
+      }
+    }
+  }
+
   void _drawSmoothPath(Canvas canvas, List<Offset> points, Color color, double stroke) {
     if (points.length < 2) return;
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
+      ..color = color..strokeWidth = stroke
+      ..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round
       ..style = PaintingStyle.stroke;
 
     final path = Path();
     path.moveTo(points.first.dx, points.first.dy);
-
     for (int i = 1; i < points.length - 1; i++) {
-      final mid = Offset(
-        (points[i].dx + points[i + 1].dx) / 2,
-        (points[i].dy + points[i + 1].dy) / 2,
-      );
+      final mid = Offset((points[i].dx + points[i + 1].dx) / 2, (points[i].dy + points[i + 1].dy) / 2);
       path.quadraticBezierTo(points[i].dx, points[i].dy, mid.dx, mid.dy);
     }
-    // 最后一段
     path.lineTo(points.last.dx, points.last.dy);
     canvas.drawPath(path, paint);
-  }
-
-  Rect _fit(Size src, Size dst) {
-    final srcAspect = src.width / src.height;
-    final dstAspect = dst.width / dst.height;
-    double w, h;
-    if (srcAspect > dstAspect) {
-      w = dst.width; h = w / srcAspect;
-    } else {
-      h = dst.height; w = h * srcAspect;
-    }
-    return Rect.fromCenter(center: dst.center(Offset.zero), width: w, height: h);
   }
 
   @override
