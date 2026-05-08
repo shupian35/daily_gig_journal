@@ -1,16 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
+import '../utils/export_helper.dart';
 import 'privacy_screen.dart';
 
 /// 设置页面
 /// 包含主题切换、隐私设置、数据导出、备份恢复等功能
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _isExporting = false;
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
@@ -35,7 +45,8 @@ class SettingsScreen extends ConsumerWidget {
                             color: AppConstants.primaryDark),
                         const SizedBox(width: 8),
                         const Text('主题模式',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                            style:
+                                TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
@@ -97,19 +108,21 @@ class SettingsScreen extends ConsumerWidget {
           // 数据导出
           Card(
             child: ListTile(
-              leading: const Icon(Icons.file_download_outlined,
-                  color: AppConstants.primaryDark),
+              leading: _isExporting
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.file_download_outlined,
+                      color: AppConstants.primaryDark),
               title: const Text('导出数据'),
-              subtitle: const Text('将笔记数据导出为文件（即将上线）'),
+              subtitle: Text(
+                _isExporting ? '正在导出...' : '将全部工作笔记导出为文件',
+              ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('数据导出功能即将上线~'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              },
+              enabled: !_isExporting,
+              onTap: _isExporting ? null : _showExportDialog,
             ),
           ),
           const SizedBox(height: 12),
@@ -158,5 +171,65 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// 显示导出格式选择对话框
+  void _showExportDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('选择导出格式'),
+        content: const Text('将全部工作笔记导出为文件，请选择格式：'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _exportData(ExportHelper.csv);
+            },
+            child: const Text('CSV'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _exportData(ExportHelper.json);
+            },
+            child: const Text('JSON'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 执行导出并调起系统分享面板
+  Future<void> _exportData(String format) async {
+    setState(() => _isExporting = true);
+
+    try {
+      final filePath = await ExportHelper.exportToFile(format);
+
+      if (!mounted) return;
+      setState(() => _isExporting = false);
+
+      // 通过系统分享面板保存/发送文件
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        subject: '日程清单数据导出',
+        text: '日程清单导出的工作笔记数据',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isExporting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('导出失败: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 }
