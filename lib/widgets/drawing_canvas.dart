@@ -26,7 +26,10 @@ class _DrawingScreenState extends State<DrawingScreen> {
   final GlobalKey _repaintKey = GlobalKey();
 
   // ---- 画布变换 ----
-  final TransformationController _transformCtrl = TransformationController();
+  Matrix4 _transform = Matrix4.identity();
+  Matrix4 _panStartMatrix = Matrix4.identity();
+  Offset _panStartFocal = Offset.zero;
+  bool _isPanning = false;
   static const double _canvasSize = 4000; // 虚拟画布尺寸
 
   // ---- 绘制路径 ----
@@ -51,9 +54,11 @@ class _DrawingScreenState extends State<DrawingScreen> {
   bool _isCropping = false;
   Rect? _cropRect;
 
+  // ---- 操作历史（撤销按操作顺序倒序回退）----
+  final List<_ActionType> _actionHistory = [];
+
   // ---- 工具面板 ----
   bool _showTools = true;
-  int _touchCount = 0; // 当前触摸点数
 
   static const List<Color> _presetColors = [
     Colors.black, Colors.red, Colors.blue, Colors.green,
@@ -73,16 +78,20 @@ class _DrawingScreenState extends State<DrawingScreen> {
     }
     // 居中画布
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _transformCtrl.value = Matrix4.identity()
-        ..translate(-(_canvasSize / 2 - MediaQuery.of(context).size.width / 2),
-            -(_canvasSize / 2 - MediaQuery.of(context).size.height / 2));
+      final screenSize = MediaQuery.of(context).size;
+      setState(() {
+        _transform = Matrix4.translationValues(
+          -(_canvasSize / 2 - screenSize.width / 2),
+          -(_canvasSize / 2 - screenSize.height / 2),
+          0,
+        );
+      });
     });
   }
 
   @override
   void dispose() {
     _cachedImage?.dispose();
-    _transformCtrl.dispose();
     super.dispose();
   }
 
@@ -96,15 +105,24 @@ class _DrawingScreenState extends State<DrawingScreen> {
         _cachedImage?.dispose();
         _cachedImage = null;
         _imageScale = 1.0;
-        // 将图片放在当前视口中心
         final viewportCenter = _viewportCenter();
         _imagePos = viewportCenter;
-        _isMovingImage = true;
-        setState(() => _backgroundImage = File(img.path));
+        setState(() {
+          _backgroundImage = File(img.path);
+          _actionHistory.add(_ActionType.importImage);
+        });
         _decodeBackground().then((_) {
-          // 解码完成后，调整位置使图片居中
           if (_cachedImage != null && mounted) {
             setState(() {
+              // 计算适配视口的缩放比例（占视口 80%）
+              final screenSize = MediaQuery.of(context).size;
+              final viewportSize = _toCanvasSize(screenSize);
+              final fitScale = (viewportSize.width * 0.8) / _cachedImage!.width;
+              final fitScaleH = (viewportSize.height * 0.8) / _cachedImage!.height;
+              _imageScale = fitScale < fitScaleH ? fitScale : fitScaleH;
+              if (_imageScale > 1.0) _imageScale = 1.0; // 小图不放大
+              if (_imageScale < 0.2) _imageScale = 0.2; // 不小于 Slider 下限
+              // 居中放置
               _imagePos = Offset(
                 viewportCenter.dx - (_cachedImage!.width * _imageScale) / 2,
                 viewportCenter.dy - (_cachedImage!.height * _imageScale) / 2,
@@ -120,6 +138,13 @@ class _DrawingScreenState extends State<DrawingScreen> {
         );
       }
     }
+  }
+
+  /// 获取当前视口大小（画布坐标系）
+  Size _toCanvasSize(Size screenSize) {
+    final topLeft = _toCanvasCoords(Offset.zero);
+    final bottomRight = _toCanvasCoords(Offset(screenSize.width, screenSize.height));
+    return Size((bottomRight.dx - topLeft.dx).abs(), (bottomRight.dy - topLeft.dy).abs());
   }
 
   /// 获取当前视口中心在画布坐标系中的位置
@@ -138,14 +163,45 @@ class _DrawingScreenState extends State<DrawingScreen> {
     if (mounted) setState(() {});
   }
 
-  // ---------- 绘制（画布坐标转换） ----------
+  // ---------- 坐标转换 ----------
   Offset _toCanvasCoords(Offset screenPos) {
-    final matrix = Matrix4.inverted(_transformCtrl.value);
-    final canvasPoint = MatrixUtils.transformPoint(matrix, screenPos);
-    return canvasPoint;
+    final matrix = Matrix4.inverted(_transform);
+    return MatrixUtils.transformPoint(matrix, screenPos);
   }
 
-  // ---------- 绘制（通过 InteractiveViewer 回调，localFocalPoint 已是画布坐标） ----------
+  // ---------- 手势处理（单指绘画，双指平移/缩放）----------
+  void _onScaleStart(ScaleStartDetails details) {
+    _panStartMatrix = _transform.clone();
+    _panStartFocal = details.focalPoint;
+
+    if (details.pointerCount == 1) {
+      _handleDrawStart(details.localFocalPoint);
+    }
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails details) {
+    if (details.pointerCount == 1) {
+      _handleDrawUpdate(details.localFocalPoint);
+    } else {
+      _isPanning = true;
+      setState(() {
+        _transform = Matrix4.translationValues(
+          details.focalPoint.dx - _panStartFocal.dx,
+          details.focalPoint.dy - _panStartFocal.dy,
+          0,
+        )..multiply(_panStartMatrix);
+      });
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails details) {
+    if (!_isPanning) {
+      _handleDrawEnd();
+    }
+    _isPanning = false;
+  }
+
+  // ---------- 绘制 ----------
   void _handleDrawStart(Offset canvasPos) {
     if (_isCropping) {
       _cropRect = Rect.fromCenter(center: canvasPos, width: 0, height: 0);
@@ -181,6 +237,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
         _pathColors.add(_currentColor);
         _pathStrokes.add(_currentStroke);
         _currentPath = null;
+        _actionHistory.add(_ActionType.draw);
       });
     } else {
       setState(() => _currentPath = null);
@@ -188,13 +245,37 @@ class _DrawingScreenState extends State<DrawingScreen> {
   }
 
   void _undoLastPath() {
-    if (_paths.isNotEmpty) {
-      setState(() { _paths.removeLast(); _pathColors.removeLast(); _pathStrokes.removeLast(); });
-    }
+    if (_actionHistory.isEmpty) return;
+    final lastAction = _actionHistory.removeLast();
+    setState(() {
+      switch (lastAction) {
+        case _ActionType.draw:
+          if (_paths.isNotEmpty) {
+            _paths.removeLast();
+            _pathColors.removeLast();
+            _pathStrokes.removeLast();
+          }
+        case _ActionType.importImage:
+          _removeBackgroundImage();
+      }
+    });
+  }
+
+  void _removeBackgroundImage() {
+    setState(() {
+      _cachedImage?.dispose();
+      _cachedImage = null;
+      _backgroundImage = null;
+      _imagePos = Offset.zero;
+      _imageScale = 1.0;
+      _imageOpacity = 0.6;
+      _isMovingImage = false;
+    });
   }
 
   void _clearCanvas() {
     setState(() {
+      _actionHistory.clear();
       _paths.clear(); _pathColors.clear(); _pathStrokes.clear();
       _currentPath = null;
       _backgroundImage = null; _cachedImage?.dispose(); _cachedImage = null;
@@ -214,6 +295,28 @@ class _DrawingScreenState extends State<DrawingScreen> {
   void _applyCrop() {
     if (_cropRect == null || _cropRect!.isEmpty) return;
     setState(() { _isCropping = false; _cropRect = null; });
+  }
+
+  /// 捕获当前视口可见区域的图像（避免渲染全量 4000×4000 画布导致 OOM）
+  Future<ui.Image> _captureVisible(RenderRepaintBoundary boundary) async {
+    final screenSize = MediaQuery.of(context).size;
+    final topLeft = _toCanvasCoords(Offset.zero);
+    final viewportRect = Rect.fromLTWH(
+      topLeft.dx, topLeft.dy,
+      screenSize.width / _getCurrentScale(),
+      screenSize.height / _getCurrentScale(),
+    );
+    // 通过 compositing layer 直接指定捕获区域，避免全画布渲染
+    final layer = (boundary as dynamic).debugLayer;
+    if (layer != null) {
+      return await layer.toImage(viewportRect, pixelRatio: 2.0);
+    }
+    // 兜底：全画布捕获（低分辨率避免 OOM）
+    return await boundary.toImage(pixelRatio: 1.0);
+  }
+
+  double _getCurrentScale() {
+    return _transform.getMaxScaleOnAxis();
   }
 
   // ---------- 保存 ----------
@@ -265,15 +368,14 @@ class _DrawingScreenState extends State<DrawingScreen> {
       final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
 
-      // 保存时使用当前可见区域的画面
       ui.Image rendered;
       if (!includeBackground && _backgroundImage != null) {
         _skipBgRender = true; setState(() {});
         await Future.delayed(const Duration(milliseconds: 80));
-        rendered = await boundary.toImage(pixelRatio: 2.0);
+        rendered = await _captureVisible(boundary);
         _skipBgRender = false; setState(() {});
       } else {
-        rendered = await boundary.toImage(pixelRatio: 2.0);
+        rendered = await _captureVisible(boundary);
       }
 
       final byteData = await rendered.toByteData(format: ui.ImageByteFormat.png);
@@ -304,46 +406,34 @@ class _DrawingScreenState extends State<DrawingScreen> {
       backgroundColor: isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5F5),
       body: Stack(
         children: [
-          // 可平移缩放的无限画布
+          // 无限画布：单指绘画，双指平移/缩放
           Positioned.fill(
-            child: InteractiveViewer(
-              transformationController: _transformCtrl,
-              constrained: false,
-              minScale: 0.2,
-              maxScale: 5.0,
-              boundaryMargin: const EdgeInsets.all(double.infinity),
-              onInteractionStart: (details) {
-                _touchCount = details.pointerCount;
-                if (_touchCount == 1) {
-                  _handleDrawStart(details.localFocalPoint);
-                }
-              },
-              onInteractionUpdate: (details) {
-                _touchCount = details.pointerCount;
-                if (_touchCount == 1) {
-                  _handleDrawUpdate(details.localFocalPoint);
-                }
-              },
-              onInteractionEnd: (_) {
-                if (_touchCount == 1) {
-                  _handleDrawEnd();
-                }
-                _touchCount = 0;
-              },
-              child: SizedBox(
-                width: _canvasSize,
-                height: _canvasSize,
-                child: RepaintBoundary(
-                  key: _repaintKey,
-                  child: CustomPaint(
-                    painter: _DrawingPainter(
-                      paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
-                      currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
-                      backgroundImage: _cachedImage, imageOpacity: _imageOpacity,
-                      imagePos: _imagePos, imageScale: _imageScale,
-                      skipBg: _skipBgRender, cropRect: _cropRect, isCropping: _isCropping,
+            child: ClipRect(
+              child: GestureDetector(
+                onScaleStart: _onScaleStart,
+                onScaleUpdate: _onScaleUpdate,
+                onScaleEnd: _onScaleEnd,
+                child: OverflowBox(
+                  alignment: Alignment.topLeft,
+                  minWidth: _canvasSize,
+                  maxWidth: _canvasSize,
+                  minHeight: _canvasSize,
+                  maxHeight: _canvasSize,
+                  child: Transform(
+                    transform: _transform,
+                    child: RepaintBoundary(
+                      key: _repaintKey,
+                      child: CustomPaint(
+                        painter: _DrawingPainter(
+                          paths: _paths, pathColors: _pathColors, pathStrokes: _pathStrokes,
+                          currentPath: _currentPath, currentColor: _currentColor, currentStroke: _currentStroke,
+                          backgroundImage: _cachedImage, imageOpacity: _imageOpacity,
+                          imagePos: _imagePos, imageScale: _imageScale,
+                          skipBg: _skipBgRender, cropRect: _cropRect, isCropping: _isCropping,
+                        ),
+                        size: const Size(_canvasSize, _canvasSize),
+                      ),
                     ),
-                    size: const Size(_canvasSize, _canvasSize),
                   ),
                 ),
               ),
@@ -512,6 +602,9 @@ class _DrawingScreenState extends State<DrawingScreen> {
     );
   }
 }
+
+// ======================== 操作历史类型 ========================
+enum _ActionType { draw, importImage }
 
 // ======================== 画笔 ========================
 class _DrawingPainter extends CustomPainter {

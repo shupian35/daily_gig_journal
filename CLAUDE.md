@@ -1,42 +1,42 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在此仓库中工作时提供指导。
 
-## Build & Run
+## 构建与运行
 
 ```bash
-flutter pub get          # Install dependencies
-flutter run              # Run on connected device/emulator
-flutter analyze          # Static analysis (uses package:flutter_lints/flutter.yaml)
-flutter test             # Run widget tests
-flutter build apk --release  # Build Android APK
-flutter build ios --release --no-codesign  # Build iOS IPA (macOS only)
+flutter pub get          # 安装依赖
+flutter run              # 在已连接设备/模拟器上运行
+flutter analyze          # 静态分析（使用 package:flutter_lints/flutter.yaml）
+flutter test             # 运行 widget 测试
+flutter build apk --release  # 构建 Android APK
+flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 ```
 
-## Architecture
+## 架构
 
-**Purpose:** A Flutter journal app for daily gig workers. Track work entries per day (title, location, time, hourly wage, hours, daily wage), rich-text notes with images, a drawing canvas, and monthly wage statistics.
+**用途：** 一款面向日结兼职人员的 Flutter 日记应用。可按天记录工作条目（标题、地点、时间、时薪、工时、日工资），支持富文本备注（含图片）、手写画板以及月度工资统计。
 
-**State management:** Riverpod (`flutter_riverpod`). Providers wrap database queries as `FutureProvider`/`FutureProvider.family`. Mutations (save/delete) are `FutureProvider.autoDispose.family` that call the DB and invalidate read providers to refresh UI.
+**状态管理：** Riverpod (`flutter_riverpod`)。数据库查询封装为 `FutureProvider` / `FutureProvider.family`。增删操作（save/delete）使用 `FutureProvider.autoDispose.family`，在调用数据库后自动 invalidate 相关读取 provider 以刷新 UI。
 
-**Database:** SQLite via `sqflite`. Single table `work_notes` with fields for date, title, work_location, start/end time, hourly_wage, work_hours, daily_wage, note_content (Quill Delta JSON string). `DatabaseHelper` is a singleton (`_instance`) — access via `DatabaseHelper()` or the `databaseHelperProvider` Riverpod provider. DB version 3, migrations handled in `_onUpgrade`.
+**数据库：** SQLite，使用 `sqflite`。单表 `work_notes`，包含字段：date、title、work_location、start/end time、hourly_wage、work_hours、daily_wage、note_content（存储 Quill Delta JSON 字符串）。`DatabaseHelper` 是单例（`_instance`）—— 通过 `DatabaseHelper()` 或 Riverpod 的 `databaseHelperProvider` 访问。数据库版本为 3，升级逻辑位于 `_onUpgrade`。
 
-**Navigation flow:**
-- `HomeScreen` — 3-tab `BottomNavigationBar` + `IndexedStack`: Calendar / Statistics / Settings
-- `CalendarScreen` — Week/month calendar via `table_calendar`, monthly wage summary card, upcoming week plan. Tapping a day or "today" FAB navigates to `DayEntriesScreen`.
-- `DayEntriesScreen` — Lists all work entries for a given date. Tapping a card navigates to `NoteEditScreen(noteId: entry.id)`. FAB navigates to `NoteEditScreen(noteId: null)` for new entry.
-- `NoteEditScreen` — Form (title, location, time, wage) + Quill rich text editor + image insertion (gallery/camera/drawing canvas). Save/delete via Riverpod mutation providers.
-- `DrawingScreen` — Full-screen infinite canvas. `InteractiveViewer` for pan/zoom. Custom `_DrawingPainter` renders dot grid background, imported background image (with opacity/scale), and bezier-smoothed stroke paths. Single-finger draws, two-finger pans. Supports crop mode and export as PNG.
+**导航流程：**
+- `HomeScreen` — 3 个 Tab 的 `BottomNavigationBar` + `IndexedStack`：日历 / 统计 / 设置
+- `CalendarScreen` — 通过 `table_calendar` 显示周/月视图日历、月度工资摘要卡片、未来一周计划。点击某一天或"今天"的 FAB 进入 `DayEntriesScreen`。
+- `DayEntriesScreen` — 列出某日所有工作条目。点击某条卡片进入 `NoteEditScreen(noteId: entry.id)`。FAB 进入 `NoteEditScreen(noteId: null)` 以新建条目。
+- `NoteEditScreen` — 表单（标题、地点、时间、工资）+ Quill 富文本编辑器 + 图片插入（相册/拍照/画板）。通过 Riverpod mutation provider 执行保存/删除。
+- `DrawingScreen` — 全屏无限画布。`InteractiveViewer` 支持平移/缩放。自定义 `_DrawingPainter` 渲染点阵背景、导入的背景图片（可调透明度/缩放）以及贝塞尔平滑笔迹。单指绘画，双指平移。支持裁切模式并导出为 PNG。
 
-**Settings:** `SharedPreferences` stores theme mode (system/light/dark index), `hide_income` (mask wage amounts), `hide_statistics` (hide stats tab). Loaded in `main.dart` init, changes auto-saved via `ref.listenManual`.
+**设置：** `SharedPreferences` 存储主题模式（system/light/dark 的索引值）、`hide_income`（隐藏工资金额）、`hide_statistics`（隐藏统计标签页）。在 `main.dart` 初始化时加载，修改后通过 `ref.listenManual` 自动保存。
 
-**Theme:** Defined in `AppConstants.lightTheme` / `AppConstants.darkTheme`. Warm orange primary (`#F4A261`), Material 3. Light scaffold `#FAF8F5`, dark scaffold `#1A1A2E`.
+**主题：** 定义在 `AppConstants.lightTheme` / `AppConstants.darkTheme` 中。主色调为暖橙色（`#F4A261`），Material 3。浅色模式背景 `#FAF8F5`，深色模式背景 `#1A1A2E`。
 
-## Key Patterns
+## 关键模式
 
-- **Date format:** Dates stored as `YYYY-MM-DD` strings in SQLite and passed between screens. `Helpers.formatDate(DateTime)` and `Helpers.parseDate(String)` for conversion. `Helpers.toMonthKey()` gives `YYYY-MM` for monthly queries.
-- **Provider invalidation cascade:** After save/delete, invalidate `workDatesProvider`, `wageNotesProvider`, `monthlySummaryProvider`, `monthlyTotalWageProvider`, `monthlyWorkDaysProvider`, and the date-specific `notesByDateListProvider`. This refreshes calendar dots, stats, and entry lists.
-- **One day can have multiple entries:** `date` field is NOT UNIQUE (migrated in DB v3). `getNotesByDateList(date)` returns all entries for a day, ordered by start time.
-- **Note content:** Stored as Quill Delta JSON (`noteContent` field). Serialized via `jsonEncode(quillController.document.toDelta().toJson())`. Empty note defaults to `'[]'`.
-- **Image handling:** Images copied to app documents `/images/` directory. Embedded in Quill via `BlockEmbed.image(filePath)`. Custom `_ImageFileEmbedBuilder` renders thumbnails with tap-to-fullscreen gallery.
-- **Drawing canvas positions:** Image position in canvas coordinates (not screen). `_toCanvasCoords()` transforms via inverse of `TransformationController` matrix. `InteractiveViewer.onInteractionStart/Update/End` callbacks receive `localFocalPoint` which is already in child (canvas) coordinates.
+- **日期格式：** 日期以 `YYYY-MM-DD` 字符串形式存储在 SQLite 中，并在页面之间传递。使用 `Helpers.formatDate(DateTime)` 和 `Helpers.parseDate(String)` 进行转换。`Helpers.toMonthKey()` 生成 `YYYY-MM` 格式用于按月查询。
+- **Provider 失效级联：** 保存/删除后，invalidate `workDatesProvider`、`wageNotesProvider`、`monthlySummaryProvider`、`monthlyTotalWageProvider`、`monthlyWorkDaysProvider` 以及对应日期的 `notesByDateListProvider`。这样可以刷新日历标记点、统计数据和条目列表。
+- **一天可有多条记录：** `date` 字段不设 UNIQUE 约束（在数据库 v3 中迁移）。`getNotesByDateList(date)` 返回某天的所有条目，按开始时间排序。
+- **笔记内容：** 以 Quill Delta JSON 格式存储在 `noteContent` 字段中。通过 `jsonEncode(quillController.document.toDelta().toJson())` 序列化。空笔记默认为 `'[]'`。
+- **图片处理：** 图片复制到应用文档目录的 `/images/` 文件夹中。通过 `BlockEmbed.image(filePath)` 嵌入 Quill 编辑器。自定义 `_ImageFileEmbedBuilder` 渲染缩略图，点击可进入全屏画廊。
+- **画布坐标系统：** 图片位置使用画布坐标（非屏幕坐标）。`_toCanvasCoords()` 通过 `TransformationController` 的逆矩阵进行坐标变换。`InteractiveViewer.onInteractionStart/Update/End` 回调接收的 `localFocalPoint` 已经是子组件（画布）坐标系中的坐标。
