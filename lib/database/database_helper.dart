@@ -173,24 +173,6 @@ class DatabaseHelper {
     }
   }
 
-  /// 根据日期获取该天第一条笔记（兼容旧逻辑）
-  /// 不存在时返回 null
-  Future<WorkNote?> getNoteByDate(String date) async {
-    try {
-      final db = await database;
-      final results = await db.query(
-        tableName,
-        where: '$colDate = ?',
-        whereArgs: [date],
-        limit: 1,
-      );
-      if (results.isEmpty) return null;
-      return WorkNote.fromMap(results.first);
-    } catch (e) {
-      throw Exception('查询笔记失败: $e');
-    }
-  }
-
   /// 根据日期获取该天所有笔记列表
   Future<List<WorkNote>> getNotesByDateList(String date) async {
     try {

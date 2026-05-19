@@ -368,7 +368,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check, color: AppConstants.incomeGreen),
             tooltip: '保存',
-            onPressed: _isSaving ? null : _saveNote,
+            onPressed: (_isSaving || _isLoading) ? null : _saveNote,
           ),
         ],
       ),

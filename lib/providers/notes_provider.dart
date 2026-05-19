@@ -8,12 +8,6 @@ final databaseHelperProvider = Provider<DatabaseHelper>((ref) {
   return DatabaseHelper();
 });
 
-/// 所有笔记列表提供者（异步，首次加载后缓存）
-final allNotesProvider = FutureProvider<List<WorkNote>>((ref) async {
-  final db = ref.watch(databaseHelperProvider);
-  return await db.getAllNotes();
-});
-
 /// 有工资记录的笔记列表（用于统计）
 final wageNotesProvider = FutureProvider<List<WorkNote>>((ref) async {
   final db = ref.watch(databaseHelperProvider);
@@ -81,13 +75,6 @@ final notesByDateRangeProvider = FutureProvider.autoDispose
   return await db.getNotesByDateRange(range.start, range.end);
 });
 
-/// 根据 id 获取单条笔记
-final noteByIdProvider =
-    FutureProvider.autoDispose.family<WorkNote?, int>((ref, id) async {
-  final db = ref.watch(databaseHelperProvider);
-  return await db.getNoteById(id);
-});
-
 /// 笔记保存操作（mutation）
 /// id 不为 null 则更新，否则插入
 final saveNoteProvider = FutureProvider.autoDispose
@@ -99,7 +86,6 @@ final saveNoteProvider = FutureProvider.autoDispose
     await db.insertNote(note);
   }
   // 使相关缓存失效
-  ref.invalidate(allNotesProvider);
   ref.invalidate(workDatesProvider);
   ref.invalidate(wageNotesProvider);
   ref.invalidate(monthlySummaryProvider);
@@ -116,7 +102,6 @@ final deleteNoteProvider =
   final db = ref.watch(databaseHelperProvider);
   await db.deleteNote(params.id);
   // 使相关缓存失效
-  ref.invalidate(allNotesProvider);
   ref.invalidate(workDatesProvider);
   ref.invalidate(wageNotesProvider);
   ref.invalidate(monthlySummaryProvider);

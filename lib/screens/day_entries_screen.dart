@@ -112,7 +112,6 @@ class DayEntriesScreen extends ConsumerWidget {
     WorkNote entry,
     int index,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalWage = entry.dailyWage;
 
     return Card(

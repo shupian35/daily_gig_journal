@@ -62,9 +62,6 @@ class WorkNote {
       if (!forUpdate) 'created_at': createdAt ?? DateTime.now().toIso8601String(),
       'updated_at': DateTime.now().toIso8601String(),
     };
-    if (forUpdate) {
-      // 更新时不覆盖 id
-    }
     return map;
   }
 

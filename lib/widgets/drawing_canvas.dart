@@ -145,47 +145,6 @@ class _DrawingScreenState extends State<DrawingScreen> {
     return canvasPoint;
   }
 
-  void _onPanStart(DragStartDetails d) {
-    if (_isCropping) {
-      _cropRect = Rect.fromCenter(center: _toCanvasCoords(d.localPosition), width: 0, height: 0);
-      setState(() {});
-      return;
-    }
-    if (_isMovingImage) {
-      _imagePos = _toCanvasCoords(d.localPosition);
-      setState(() {});
-      return;
-    }
-    setState(() => _currentPath = [_toCanvasCoords(d.localPosition)]);
-  }
-
-  void _onPanUpdate(DragUpdateDetails d) {
-    if (_isCropping && _cropRect != null) {
-      _cropRect = Rect.fromPoints(_cropRect!.topLeft, _toCanvasCoords(d.localPosition));
-      setState(() {});
-      return;
-    }
-    if (_isMovingImage) {
-      _imagePos = _toCanvasCoords(d.localPosition);
-      setState(() {});
-      return;
-    }
-    setState(() => _currentPath?.add(_toCanvasCoords(d.localPosition)));
-  }
-
-  void _onPanEnd(DragEndDetails d) {
-    if (_currentPath != null && _currentPath!.length > 1) {
-      setState(() {
-        _paths.add(List.from(_currentPath!));
-        _pathColors.add(_currentColor);
-        _pathStrokes.add(_currentStroke);
-        _currentPath = null;
-      });
-    } else {
-      setState(() => _currentPath = null);
-    }
-  }
-
   // ---------- 绘制（通过 InteractiveViewer 回调，localFocalPoint 已是画布坐标） ----------
   void _handleDrawStart(Offset canvasPos) {
     if (_isCropping) {
