@@ -86,11 +86,14 @@ jobs:
       - name: 构建 Android APK
         run: flutter build apk --release
 
+      - name: 重命名 APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/日程清单.apk
+
       - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/日程清单.apk
           retention-days: 30
 
   # ========== iOS IPA (无签名，需自行签名安装) ==========
@@ -180,7 +183,7 @@ jobs:
 
             | 平台 | 文件 | 说明 |
             |------|------|------|
-            | Android | `app-release.apk` | 可直接安装 |
+            | Android | `日程清单.apk` | 可直接安装 |
             | iOS | `日程清单.ipa` | ⚠️ 未签名，需通过 AltStore / Sideloadly 等工具签名后安装 |
 
             ### 📝 提交信息
@@ -189,5 +192,5 @@ jobs:
 
           prerelease: ${{ github.event.inputs.prerelease != 'false' }}
           files: |
-            artifacts/android-apk/app-release.apk
+            artifacts/android-apk/日程清单.apk
             artifacts/ios-ipa/日程清单.ipa
