@@ -54,6 +54,15 @@ class _DailyGigAppState extends ConsumerState<DailyGigApp> {
     ref.listenManual(hideStatisticsProvider, (prev, next) {
       saveHideStatistics(next);
     });
+    ref.listenManual(webDavUrlProvider, (prev, next) {
+      saveWebDavUrl(next);
+    });
+    ref.listenManual(webDavUsernameProvider, (prev, next) {
+      saveWebDavUsername(next);
+    });
+    ref.listenManual(webDavPasswordProvider, (prev, next) {
+      saveWebDavPassword(next);
+    });
   }
 
   @override

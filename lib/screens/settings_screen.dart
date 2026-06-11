@@ -10,6 +10,7 @@ import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/export_helper.dart';
 import 'privacy_screen.dart';
+import 'webdav_backup_screen.dart';
 
 /// 设置页面 —— 精致杂志风
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -138,6 +139,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       : null,
                   enabled: !_isBackingUp,
                   onTap: _isBackingUp ? null : _showBackupDialog,
+                ),
+                _buildDivider(isDark),
+                _buildNavTile(
+                  icon: Icons.cloud_outlined,
+                  title: '云备份 (WebDAV)',
+                  subtitle: '备份到坚果云或自定义服务器',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const WebDavBackupScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
