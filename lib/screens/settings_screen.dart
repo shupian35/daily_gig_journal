@@ -11,8 +11,7 @@ import '../utils/constants.dart';
 import '../utils/export_helper.dart';
 import 'privacy_screen.dart';
 
-/// 设置页面
-/// 包含主题切换、隐私设置、数据导出、备份恢复等功能
+/// 设置页面 —— 精致杂志风
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -27,34 +26,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('设置'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          // 主题设置
-          Card(
+          // ── 主题设置 ──
+          _buildSectionLabel('外观', Icons.brightness_6_rounded),
+          const SizedBox(height: 8),
+          _buildCard(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8, bottom: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.brightness_6, size: 20,
-                            color: AppConstants.primaryDark),
-                        const SizedBox(width: 8),
-                        const Text('主题模式',
-                            style:
-                                TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                      ],
-                    ),
-                  ),
                   RadioGroup<ThemeMode>(
                     groupValue: themeMode,
                     onChanged: (v) {
@@ -64,23 +53,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                     child: Column(
                       children: [
-                        RadioListTile<ThemeMode>(
-                          title: const Text('跟随系统'),
-                          subtitle: const Text('自动跟随系统亮色/暗色设置'),
-                          value: ThemeMode.system,
-                          dense: true,
+                        _buildRadioTile(
+                          ThemeMode.system,
+                          themeMode,
+                          Icons.settings_suggest_rounded,
+                          '跟随系统',
+                          '自动跟随系统亮色/暗色设置',
                         ),
-                        RadioListTile<ThemeMode>(
-                          title: const Text('浅色模式'),
-                          subtitle: const Text('始终使用浅色主题'),
-                          value: ThemeMode.light,
-                          dense: true,
+                        _buildRadioTile(
+                          ThemeMode.light,
+                          themeMode,
+                          Icons.light_mode_rounded,
+                          '浅色模式',
+                          '始终使用浅色主题',
                         ),
-                        RadioListTile<ThemeMode>(
-                          title: const Text('深色模式'),
-                          subtitle: const Text('始终使用暗色主题'),
-                          value: ThemeMode.dark,
-                          dense: true,
+                        _buildRadioTile(
+                          ThemeMode.dark,
+                          themeMode,
+                          Icons.dark_mode_rounded,
+                          '深色模式',
+                          '始终使用暗色主题',
                         ),
                       ],
                     ),
@@ -89,16 +81,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
 
-          // 隐私设置
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.shield_outlined,
-                  color: AppConstants.primaryDark),
-              title: const Text('隐私设置'),
-              subtitle: const Text('控制收入金额和统计数据的显示'),
-              trailing: const Icon(Icons.chevron_right),
+          const SizedBox(height: 20),
+
+          // ── 隐私设置 ──
+          _buildSectionLabel('隐私', Icons.shield_outlined),
+          const SizedBox(height: 8),
+          _buildCard(
+            child: _buildNavTile(
+              icon: Icons.shield_outlined,
+              title: '隐私设置',
+              subtitle: '控制收入金额和统计数据的显示',
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -108,53 +101,58 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
             ),
           ),
-          const SizedBox(height: 12),
 
-          // 数据导出
-          Card(
-            child: ListTile(
-              leading: _isExporting
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.file_download_outlined,
-                      color: AppConstants.primaryDark),
-              title: const Text('导出数据'),
-              subtitle: Text(
-                _isExporting ? '正在导出...' : '将全部工作笔记导出为文件',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              enabled: !_isExporting,
-              onTap: _isExporting ? null : _showExportDialog,
+          const SizedBox(height: 20),
+
+          // ── 数据管理 ──
+          _buildSectionLabel('数据', Icons.folder_outlined),
+          const SizedBox(height: 8),
+          _buildCard(
+            child: Column(
+              children: [
+                _buildNavTile(
+                  icon: Icons.file_download_outlined,
+                  title: '导出数据',
+                  subtitle: _isExporting ? '正在导出...' : '将全部工作笔记导出为文件',
+                  trailing: _isExporting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : null,
+                  enabled: !_isExporting,
+                  onTap: _isExporting ? null : _showExportDialog,
+                ),
+                _buildDivider(isDark),
+                _buildNavTile(
+                  icon: Icons.backup_outlined,
+                  title: '备份与恢复',
+                  subtitle: _isBackingUp ? '处理中...' : '导出数据库备份或从备份恢复',
+                  trailing: _isBackingUp
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : null,
+                  enabled: !_isBackingUp,
+                  onTap: _isBackingUp ? null : _showBackupDialog,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
 
-          // 数据备份
-          Card(
-            child: ListTile(
-              leading: _isBackingUp
-                  ? const SizedBox(width: 24, height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.backup_outlined, color: AppConstants.primaryDark),
-              title: const Text('备份与恢复'),
-              subtitle: Text(_isBackingUp ? '处理中...' : '导出数据库备份或从备份恢复'),
-              trailing: const Icon(Icons.chevron_right),
-              enabled: !_isBackingUp,
-              onTap: _isBackingUp ? null : _showBackupDialog,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
 
-          // 关于
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.info_outline,
-                  color: AppConstants.primaryDark),
-              title: const Text('关于日程清单'),
-              subtitle: const Text('版本 1.0.0 —— 让每一份付出都有记录'),
+          // ── 关于 ──
+          _buildSectionLabel('关于', Icons.info_outline_rounded),
+          const SizedBox(height: 8),
+          _buildCard(
+            child: _buildNavTile(
+              icon: Icons.info_outline_rounded,
+              title: '关于日程清单',
+              subtitle: '版本 1.0.0 —— 让每一份付出都有记录',
               onTap: () {
                 showAboutDialog(
                   context: context,
@@ -174,7 +172,165 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 显示导出格式选择对话框
+  Widget _buildSectionLabel(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppConstants.primaryDark),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppConstants.primaryDark,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCard({required Widget child}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildNavTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    Widget? trailing,
+    bool enabled = true,
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppConstants.primaryDark, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+      ),
+      trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: AppConstants.textSecondary, size: 20),
+      enabled: enabled,
+      onTap: onTap,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+
+  Widget _buildRadioTile(
+    ThemeMode value,
+    ThemeMode groupValue,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    final isSelected = value == groupValue;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: () => ref.read(themeModeProvider.notifier).state = value,
+      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppConstants.primaryColor.withValues(alpha: isDark ? 0.12 : 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+          border: isSelected
+              ? Border.all(
+                  color: AppConstants.primaryColor.withValues(alpha: 0.3),
+                  width: 0.5,
+                )
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? AppConstants.primaryColor.withValues(alpha: 0.15)
+                    : Colors.transparent,
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isSelected ? AppConstants.primaryDark : AppConstants.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected ? AppConstants.primaryDark : null,
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppConstants.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<ThemeMode>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: (v) {
+                if (v != null) ref.read(themeModeProvider.notifier).state = v;
+              },
+              fillColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppConstants.primaryColor;
+                }
+                return AppConstants.textSecondary;
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider(bool isDark) {
+    return Container(
+      height: 0.5,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+    );
+  }
+
   void _showExportDialog() {
     showDialog<void>(
       context: context,
@@ -205,7 +361,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 执行导出并调起系统分享面板
   Future<void> _exportData(String format) async {
     setState(() => _isExporting = true);
 
@@ -215,7 +370,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       setState(() => _isExporting = false);
 
-      // 通过系统分享面板保存/发送文件
       await Share.shareXFiles(
         [XFile(filePath)],
         subject: '日程清单数据导出',
@@ -227,20 +381,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('导出失败: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppConstants.dangerRed,
           duration: const Duration(seconds: 3),
         ),
       );
     }
   }
 
-  /// 备份/恢复对话框
   void _showBackupDialog() {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('备份与恢复'),
-        content: const Text('备份：将数据库导出为文件\n恢复：从备份文件恢复数据（会覆盖当前数据）'),
+        content:
+            const Text('备份：将数据库导出为文件\n恢复：从备份文件恢复数据（会覆盖当前数据）'),
         actions: [
           TextButton(
             onPressed: () {
@@ -265,7 +419,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 备份数据库
   Future<void> _backupDatabase() async {
     setState(() => _isBackingUp = true);
     try {
@@ -274,9 +427,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!await dbFile.exists()) {
         throw Exception('数据库文件不存在');
       }
-      // 复制到临时目录再分享
       final tempDir = Directory.systemTemp;
-      final backupName = '日程清单_备份_${DateTime.now().toIso8601String().substring(0, 10)}.db';
+      final backupName =
+          '日程清单_备份_${DateTime.now().toIso8601String().substring(0, 10)}.db';
       final backupFile = File('${tempDir.path}/$backupName');
       await dbFile.copy(backupFile.path);
 
@@ -289,12 +442,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('备份失败: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('备份失败: $e'),
+          backgroundColor: AppConstants.dangerRed,
+        ),
       );
     }
   }
 
-  /// 恢复数据库
   Future<void> _restoreDatabase() async {
     setState(() => _isBackingUp = true);
     try {
@@ -313,7 +468,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
 
-      // 覆盖当前数据库
       final dbPath = await DatabaseHelper.getDatabasePath();
       await File(pickedPath).copy(dbPath);
 
@@ -330,7 +484,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('恢复失败: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('恢复失败: $e'),
+          backgroundColor: AppConstants.dangerRed,
+        ),
       );
     }
   }

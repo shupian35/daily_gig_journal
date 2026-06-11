@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 月度工资摘要卡片
+/// 月度工资摘要卡片 —— 精致杂志风
 /// 显示当月预计总收入和工作天数
 class WageSummaryCard extends StatelessWidget {
-  /// 当月总收入
   final double totalWage;
-  /// 当月工作天数
   final int workDays;
-  /// 月份显示文字，如 "2025年3月"
   final String monthDisplay;
 
   const WageSummaryCard({
@@ -23,39 +20,60 @@ class WageSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: LinearGradient(
-            colors: isDark
-                ? [const Color(0xFF3D2800), const Color(0xFF4A3500)]
-                : [const Color(0xFFFFF3E0), const Color(0xFFFFE0B2)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        gradient: LinearGradient(
+          colors: isDark
+              ? const [Color(0xFF3D2A1E), Color(0xFF2D2018)]
+              : const [Color(0xFFFFF6ED), Color(0xFFFCE8D5)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        padding: const EdgeInsets.all(20),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.3)
+                : const Color(0xFFC8895A).withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+        border: Border.all(
+          color: isDark
+              ? const Color(0xFF4A3422)
+              : const Color(0xFFF2D5B8),
+          width: 0.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(22),
         child: Row(
           children: [
-            // 左侧圆形图标
+            // 左侧装饰
             Container(
-              width: 56,
-              height: 56,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppConstants.primaryColor.withValues(alpha: 0.2),
+                color: isDark
+                    ? const Color(0xFFC8895A).withValues(alpha: 0.2)
+                    : const Color(0xFFFFFFFF).withValues(alpha: 0.6),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFFC8895A).withValues(alpha: 0.3)
+                      : const Color(0xFFC8895A).withValues(alpha: 0.2),
+                  width: 1,
+                ),
               ),
               child: const Icon(
-                Icons.account_balance_wallet_outlined,
+                Icons.account_balance_wallet_rounded,
                 color: AppConstants.primaryDark,
-                size: 28,
+                size: 24,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 18),
             // 收入信息
             Expanded(
               child: Column(
@@ -65,43 +83,62 @@ class WageSummaryCard extends StatelessWidget {
                     '$monthDisplay 预计收入',
                     style: TextStyle(
                       fontSize: 13,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? const Color(0xFFB8A898)
+                          : const Color(0xFF8D7E76),
+                      letterSpacing: 0.2,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     Helpers.formatCurrency(totalWage),
                     style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
                       color: isDark
                           ? AppConstants.primaryLight
                           : AppConstants.primaryDark,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
               ),
             ),
-            // 天数
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '$workDays',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: AppConstants.incomeGreen,
+            // 天数指示器
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF5A8F7B).withValues(alpha: 0.15)
+                    : const Color(0xFF5A8F7B).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '$workDays',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? const Color(0xFF7BBBA5)
+                          : AppConstants.incomeGreen,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-                Text(
-                  '工作天数',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  Text(
+                    '工作天',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? const Color(0xFF8AA89A)
+                          : const Color(0xFF7A9E8E),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

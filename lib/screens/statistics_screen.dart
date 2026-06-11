@@ -7,8 +7,7 @@ import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 工资统计页
-/// 按月份分组展示有工资记录的笔记，并提供月度柱状图
+/// 工资统计页 —— 精致杂志风
 class StatisticsScreen extends ConsumerWidget {
   const StatisticsScreen({super.key});
 
@@ -25,29 +24,45 @@ class StatisticsScreen extends ConsumerWidget {
       ),
       body: wageNotesAsync.when(
         data: (notes) {
-          // 如果用户开启了隐藏统计，显示隐私保护页面
           if (hideStatistics) {
             return _buildPrivacyProtectedState();
           }
           if (notes.isEmpty) {
             return _buildEmptyState();
           }
-          return _buildContent(notes, monthlySummaryAsync, hideIncome);
+          return _buildContent(context, notes, monthlySummaryAsync, hideIncome);
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 12),
-              Text('加载失败: $err', style: const TextStyle(color: Colors.red)),
-              const SizedBox(height: 12),
-              ElevatedButton(
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppConstants.dangerRed.withValues(alpha: 0.08),
+                ),
+                child: const Icon(Icons.error_outline_rounded,
+                    size: 28, color: AppConstants.dangerRed),
+              ),
+              const SizedBox(height: 16),
+              Text('加载失败: $err',
+                  style: const TextStyle(color: AppConstants.dangerRed)),
+              const SizedBox(height: 16),
+              OutlinedButton(
                 onPressed: () {
                   ref.invalidate(wageNotesProvider);
                   ref.invalidate(monthlySummaryProvider);
                 },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppConstants.primaryDark,
+                  side: const BorderSide(color: AppConstants.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                  ),
+                ),
                 child: const Text('重试'),
               ),
             ],
@@ -57,52 +72,84 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  /// 构建隐私保护状态
   Widget _buildPrivacyProtectedState() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.shield_outlined, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppConstants.primaryColor.withValues(alpha: 0.08),
+            ),
+            child: Icon(Icons.shield_outlined,
+                size: 36,
+                color: AppConstants.primaryColor.withValues(alpha: 0.4)),
+          ),
+          const SizedBox(height: 20),
+          const Text(
             '统计数据已隐藏',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppConstants.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             '可在 设置 → 隐私设置 中关闭隐藏',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppConstants.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// 构建空状态
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bar_chart, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppConstants.primaryColor.withValues(alpha: 0.08),
+            ),
+            child: Icon(Icons.bar_chart_rounded,
+                size: 36,
+                color: AppConstants.primaryColor.withValues(alpha: 0.4)),
+          ),
+          const SizedBox(height: 20),
+          const Text(
             '还没有工资记录',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppConstants.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             '添加工作笔记并填写工资后即可查看统计',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppConstants.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// 构建统计内容
   Widget _buildContent(
+    BuildContext context,
     List<WorkNote> notes,
     AsyncValue<List<Map<String, dynamic>>> monthlySummaryAsync,
     bool hideIncome,
@@ -110,7 +157,7 @@ class StatisticsScreen extends ConsumerWidget {
     final grouped = _groupByMonth(notes);
 
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (ctx, constraints) {
         final isTablet = constraints.maxWidth >= 700;
 
         if (isTablet) {
@@ -121,10 +168,15 @@ class StatisticsScreen extends ConsumerWidget {
                 width: 420,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: _buildBarChart(monthlySummaryAsync, hideIncome),
+                  child: _buildBarChart(context, monthlySummaryAsync, hideIncome),
                 ),
               ),
-              const VerticalDivider(width: 1),
+              Container(
+                width: 0.5,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF3A3A44)
+                    : const Color(0xFFEDE8E2),
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.only(bottom: 32),
@@ -133,9 +185,12 @@ class StatisticsScreen extends ConsumerWidget {
                     children: grouped.entries.map((entry) {
                       final mn = entry.value;
                       return _buildMonthSection(
-                        monthKey: entry.key, notes: mn,
+                        context,
+                        monthKey: entry.key,
+                        notes: mn,
                         monthlyTotal: mn.fold(0.0, (s, n) => s + n.dailyWage),
-                        workDays: mn.length, hideIncome: hideIncome,
+                        workDays: mn.length,
+                        hideIncome: hideIncome,
                       );
                     }).toList(),
                   ),
@@ -150,14 +205,17 @@ class StatisticsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBarChart(monthlySummaryAsync, hideIncome),
+              _buildBarChart(context, monthlySummaryAsync, hideIncome),
               const SizedBox(height: 8),
               ...grouped.entries.map((entry) {
                 final mn = entry.value;
                 return _buildMonthSection(
-                  monthKey: entry.key, notes: mn,
+                  context,
+                  monthKey: entry.key,
+                  notes: mn,
                   monthlyTotal: mn.fold(0.0, (s, n) => s + n.dailyWage),
-                  workDays: mn.length, hideIncome: hideIncome,
+                  workDays: mn.length,
+                  hideIncome: hideIncome,
                 );
               }),
             ],
@@ -167,48 +225,68 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  /// 按月份分组
   Map<String, List<WorkNote>> _groupByMonth(List<WorkNote> notes) {
     final map = <String, List<WorkNote>>{};
     for (final note in notes) {
-      final monthKey = note.date.substring(0, 7); // YYYY-MM
+      final monthKey = note.date.substring(0, 7);
       map.putIfAbsent(monthKey, () => []).add(note);
     }
     return map;
   }
 
-  /// 构建月度柱状图
-  Widget _buildBarChart(AsyncValue<List<Map<String, dynamic>>> async, bool hideIncome) {
-    return Card(
+  Widget _buildBarChart(BuildContext context,
+      AsyncValue<List<Map<String, dynamic>>> async, bool hideIncome) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
       margin: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '近6个月收入趋势',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Icon(Icons.trending_up_rounded,
+                    size: 18, color: AppConstants.primaryDark),
+                const SizedBox(width: 8),
+                const Text(
+                  '近6个月收入趋势',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             SizedBox(
               height: 200,
               child: async.when(
                 data: (data) {
                   if (data.isEmpty) {
-                    return Center(
-                      child: Text(
-                        '暂无数据',
-                        style: TextStyle(color: Colors.grey.shade400),
-                      ),
+                    return const Center(
+                      child: Text('暂无数据',
+                          style: TextStyle(color: AppConstants.textSecondary)),
                     );
                   }
                   return _buildFlBarChart(data, hideIncome);
                 },
-                loading: () =>
-                    const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                loading: () => const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2)),
                 error: (err, _) => Center(
-                  child: Text('加载失败', style: TextStyle(color: Colors.red.shade300)),
+                  child: Text('加载失败',
+                      style: TextStyle(
+                          color: AppConstants.dangerRed.withValues(alpha: 0.8))),
                 ),
               ),
             ),
@@ -218,21 +296,17 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  /// 使用 fl_chart 构建柱状图
   Widget _buildFlBarChart(List<Map<String, dynamic>> data, bool hideIncome) {
-    // data 按 month DESC 排序，需要反转以显示从左到右的时间顺序
     final sortedData = data.reversed.toList();
     if (sortedData.isEmpty) {
       return const Center(child: Text('暂无数据'));
     }
 
-    // 找出最大值用于 Y 轴
     double maxTotal = 0;
     for (final d in sortedData) {
       final total = (d['total'] as num?)?.toDouble() ?? 0.0;
       if (total > maxTotal) maxTotal = total;
     }
-    // 给一点余量
     maxTotal = maxTotal > 0 ? maxTotal * 1.2 : 100;
 
     return BarChart(
@@ -248,11 +322,16 @@ class StatisticsScreen extends ConsumerWidget {
                     if (groupIndex < 0 || groupIndex >= sortedData.length) {
                       return null;
                     }
-                    final month = sortedData[groupIndex]['month'] as String? ?? '';
+                    final month =
+                        sortedData[groupIndex]['month'] as String? ?? '';
                     final total = (rod.toY).toStringAsFixed(1);
                     return BarTooltipItem(
                       '${Helpers.toDisplayMonth(month)}\n¥$total',
-                      const TextStyle(color: Colors.white, fontSize: 12),
+                      const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     );
                   },
                 ),
@@ -268,10 +347,14 @@ class StatisticsScreen extends ConsumerWidget {
                   final month = sortedData[index]['month'] as String;
                   final parts = month.split('-');
                   return Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       '${parts[1]}月',
-                      style: const TextStyle(fontSize: 11),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppConstants.textSecondary,
+                      ),
                     ),
                   );
                 }
@@ -283,22 +366,33 @@ class StatisticsScreen extends ConsumerWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: !hideIncome,
-              reservedSize: 42,
+              reservedSize: 44,
               getTitlesWidget: (value, meta) {
                 return Text(
                   '¥${value.toInt()}',
-                  style: const TextStyle(fontSize: 10),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppConstants.textSecondary,
+                  ),
                 );
               },
             ),
           ),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
         ),
         gridData: FlGridData(
           show: !hideIncome,
           drawVerticalLine: false,
           horizontalInterval: maxTotal / 4,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: const Color(0xFFE5DFD8).withValues(alpha: 0.5),
+              strokeWidth: 0.5,
+            );
+          },
         ),
         borderData: FlBorderData(show: false),
         barGroups: sortedData.asMap().entries.map((entry) {
@@ -313,8 +407,16 @@ class StatisticsScreen extends ConsumerWidget {
                 color: AppConstants.primaryColor,
                 width: 22,
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(4),
-                  topRight: Radius.circular(4),
+                  topLeft: Radius.circular(5),
+                  topRight: Radius.circular(5),
+                ),
+                gradient: LinearGradient(
+                  colors: [
+                    AppConstants.primaryColor,
+                    AppConstants.primaryDark,
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
                 ),
               ),
             ],
@@ -324,27 +426,38 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  /// 构建月度收入详情区域
-  Widget _buildMonthSection({
+  Widget _buildMonthSection(
+    BuildContext context, {
     required String monthKey,
     required List<WorkNote> notes,
     required double monthlyTotal,
     required int workDays,
     required bool hideIncome,
   }) {
-    return Card(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 月份头部
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             decoration: BoxDecoration(
-              color: AppConstants.primaryColor.withValues(alpha: 0.08),
+              color: AppConstants.primaryColor.withValues(alpha: isDark ? 0.12 : 0.06),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+                topLeft: Radius.circular(AppConstants.radiusXl),
+                topRight: Radius.circular(AppConstants.radiusXl),
               ),
             ),
             child: Row(
@@ -353,8 +466,8 @@ class StatisticsScreen extends ConsumerWidget {
                 Text(
                   Helpers.toDisplayMonth(monthKey),
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 Row(
@@ -363,18 +476,21 @@ class StatisticsScreen extends ConsumerWidget {
                       '共$workDays天',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.grey.shade600,
+                        color: isDark
+                            ? AppConstants.textSecondaryDark
+                            : AppConstants.textSecondary,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Text(
                       hideIncome
                           ? '***'
                           : Helpers.formatCurrency(monthlyTotal),
                       style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
                         color: AppConstants.incomeGreen,
+                        letterSpacing: -0.3,
                       ),
                     ),
                   ],
@@ -382,18 +498,16 @@ class StatisticsScreen extends ConsumerWidget {
               ],
             ),
           ),
-
           // 日期条目列表
           ...notes.map((note) {
             final displayDate = Helpers.toDisplayDate(note.date);
             final date = Helpers.parseDate(note.date);
             final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Row(
                 children: [
-                  // 日期
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -403,12 +517,16 @@ class StatisticsScreen extends ConsumerWidget {
                       ),
                       Text(
                         weekday,
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark
+                              ? AppConstants.textSecondaryDark
+                              : AppConstants.textSecondary,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 12),
-                  // 工作标题
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Text(
                       note.title.isNotEmpty ? note.title : '(无标题)',
@@ -416,18 +534,22 @@ class StatisticsScreen extends ConsumerWidget {
                         fontSize: 14,
                         color: note.title.isNotEmpty
                             ? null
-                            : Colors.grey.shade400,
+                            : AppConstants.textSecondary,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  // 工作时长 & 日工资
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
                         Helpers.formatHours(note.workHours),
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark
+                              ? AppConstants.textSecondaryDark
+                              : AppConstants.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -446,8 +568,7 @@ class StatisticsScreen extends ConsumerWidget {
               ),
             );
           }),
-
-          const Divider(height: 1),
+          const SizedBox(height: 4),
         ],
       ),
     );

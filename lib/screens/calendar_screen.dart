@@ -9,8 +9,7 @@ import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'note_edit_screen.dart';
 
-/// 日历首页
-/// 显示周/月视图日历、月度收入摘要、未来一周工作计划
+/// 日历首页 —— 精致杂志风
 class CalendarScreen extends ConsumerStatefulWidget {
   final Function(String dateStr)? onDaySelected;
 
@@ -39,13 +38,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final monthlyWageAsync = ref.watch(monthlyTotalWageProvider);
     final monthlyDaysAsync = ref.watch(monthlyWorkDaysProvider);
     final hideIncome = ref.watch(hideIncomeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('日程清单'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.today),
+            icon: const Icon(Icons.today_rounded, size: 22),
             tooltip: '回到今天',
             onPressed: () {
               final today = DateTime.now();
@@ -73,7 +73,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     ]),
                   ),
                 ),
-                const VerticalDivider(width: 1),
+                Container(
+                  width: 0.5,
+                  color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+                ),
                 Expanded(
                   child: SingleChildScrollView(
                     child: _buildUpcomingWeekPlan(hideIncome),
@@ -95,13 +98,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         onPressed: () {
           _navigateToDayEntries(Helpers.formatDate(DateTime.now()));
         },
-        icon: const Icon(Icons.add),
+        icon: const Icon(Icons.add_rounded, size: 22),
         label: const Text('添加今日工作'),
       ),
     );
   }
 
-  /// 构建月度工资摘要
   Widget _buildWageSummary(
     AsyncValue<double> wageAsync,
     AsyncValue<int> daysAsync,
@@ -118,20 +120,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         );
       },
       loading: () => const SizedBox(
-        height: 90,
+        height: 100,
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
-      error: (err, _) => Card(
+      error: (err, _) => Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Text('加载失败: $err', style: const TextStyle(color: Colors.red)),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
         ),
+        child: Text('加载失败: $err',
+            style: const TextStyle(color: AppConstants.dangerRed)),
       ),
     );
   }
 
-  /// 构建日历
   Widget _buildCalendar(AsyncValue<Set<DateTime>> workDatesAsync) {
     final workDates = workDatesAsync.asData?.value ?? <DateTime>{};
 
@@ -163,7 +168,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  /// 构建未来一周工作计划列表
   Widget _buildUpcomingWeekPlan(bool hideIncome) {
     final today = DateTime.now();
     final todayStr = Helpers.formatDate(today);
@@ -176,7 +180,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     return rangeNotesAsync.when(
       data: (notes) {
-        // 分组
         final grouped = <String, List<_PlanItem>>{};
         for (final note in notes) {
           grouped.putIfAbsent(note.date, () => []).add(_PlanItem(
@@ -190,19 +193,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         }
 
         if (grouped.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            child: Column(
-              children: [
-                Icon(Icons.event_note, size: 48, color: Colors.grey.shade300),
-                const SizedBox(height: 8),
-                Text(
-                  '未来一周暂无工作安排',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                ),
-              ],
-            ),
-          );
+          return _buildEmptyWeekState();
         }
 
         final entries = grouped.entries.toList();
@@ -214,24 +205,29 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             children: [
               // 标题
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_view_week,
-                        size: 18, color: AppConstants.primaryDark),
-                    const SizedBox(width: 6),
-                    Text(
-                      '未来一周工作计划',
+                    Container(
+                      width: 3,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: AppConstants.primaryColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      '未来一周',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: AppConstants.primaryDark,
+                        letterSpacing: 0.2,
                       ),
                     ),
                   ],
                 ),
               ),
-              // 日期卡片列表
               ...entries.map((entry) {
                 final ds = entry.key;
                 final items = entry.value;
@@ -244,126 +240,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 final dailyTotal =
                     items.fold(0.0, (sum, item) => sum + item.wage);
 
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 日期行
-                        Row(
-                          children: [
-                            if (isToday)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppConstants.primaryColor,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  '今天',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 11),
-                                ),
-                              ),
-                            if (isToday) const SizedBox(width: 6),
-                            Text(
-                              '$displayDate $weekday',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (!hideIncome)
-                              Text(
-                                '合计 ${Helpers.formatCurrency(dailyTotal)}',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppConstants.incomeGreen,
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // 工作条目（点击可进入编辑页）
-                        ...items.map((item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => NoteEditScreen(
-                                        dateStr: item.date,
-                                        noteId: item.noteId,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                borderRadius: BorderRadius.circular(6),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 2),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.circle,
-                                          size: 6,
-                                          color: AppConstants.primaryDark),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          item.title,
-                                          style:
-                                              const TextStyle(fontSize: 13),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      if (item.workLocation.isNotEmpty) ...[
-                                        const SizedBox(width: 6),
-                                        Icon(Icons.location_on_outlined,
-                                            size: 12,
-                                            color: Colors.grey.shade400),
-                                        const SizedBox(width: 2),
-                                        Flexible(
-                                          child: Text(
-                                            item.workLocation,
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                color:
-                                                    Colors.grey.shade500),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        item.timeRange,
-                                        style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey.shade500),
-                                      ),
-                                      if (!hideIncome) ...[
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          Helpers.formatCurrency(item.wage),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppConstants.incomeGreen,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )),
-                      ],
-                    ),
-                  ),
+                return _buildDayCard(
+                  displayDate: displayDate,
+                  weekday: weekday,
+                  isToday: isToday,
+                  items: items,
+                  dailyTotal: dailyTotal,
+                  hideIncome: hideIncome,
                 );
               }),
             ],
@@ -375,12 +258,213 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
       error: (err, _) => Center(
-        child: Text('加载失败: $err', style: const TextStyle(color: Colors.red)),
+        child: Text('加载失败: $err',
+            style: const TextStyle(color: AppConstants.dangerRed)),
       ),
     );
   }
 
-  /// 导航到当天条目列表页
+  Widget _buildEmptyWeekState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFC8895A).withValues(alpha: 0.08),
+            ),
+            child: Icon(
+              Icons.event_note_rounded,
+              size: 28,
+              color: const Color(0xFFC8895A).withValues(alpha: 0.4),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '未来一周暂无工作安排',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppConstants.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayCard({
+    required String displayDate,
+    required String weekday,
+    required bool isToday,
+    required List<_PlanItem> items,
+    required double dailyTotal,
+    required bool hideIncome,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        border: Border.all(
+          color: isToday
+              ? AppConstants.primaryColor.withValues(alpha: 0.4)
+              : (isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2)),
+          width: isToday ? 1 : 0.5,
+        ),
+        boxShadow: isToday ? AppConstants.cardShadow(isDark) : null,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 日期行
+            Row(
+              children: [
+                if (isToday)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppConstants.primaryColor,
+                      borderRadius: BorderRadius.circular(AppConstants.radiusXs),
+                    ),
+                    child: const Text(
+                      '今天',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (isToday) const SizedBox(width: 8),
+                Text(
+                  '$displayDate ',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                Text(
+                  weekday,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark
+                        ? AppConstants.textSecondaryDark
+                        : AppConstants.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                if (!hideIncome)
+                  Text(
+                    '合计 ${Helpers.formatCurrency(dailyTotal)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppConstants.incomeGreen,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // 分隔线
+            Container(
+              height: 0.5,
+              color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+            ),
+            const SizedBox(height: 10),
+            // 工作条目
+            ...items.map((item) => InkWell(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => NoteEditScreen(
+                          dateStr: item.date,
+                          noteId: item.noteId,
+                        ),
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: AppConstants.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(fontSize: 14),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (item.workLocation.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.location_on_outlined,
+                              size: 13,
+                              color: isDark
+                                  ? const Color(0xFFA09892)
+                                  : const Color(0xFFB5A99F)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              item.workLocation,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? AppConstants.textSecondaryDark
+                                    : AppConstants.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 10),
+                        Text(
+                          item.timeRange,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary,
+                          ),
+                        ),
+                        if (!hideIncome) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            Helpers.formatCurrency(item.wage),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppConstants.incomeGreen,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _navigateToDayEntries(String dateStr) {
     if (widget.onDaySelected != null) {
       widget.onDaySelected!(dateStr);
@@ -388,7 +472,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 }
 
-/// 工作计划条目（仅用于展示）
 class _PlanItem {
   final int noteId;
   final String date;

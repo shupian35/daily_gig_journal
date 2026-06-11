@@ -6,10 +6,8 @@ import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'note_edit_screen.dart';
 
-/// 某一天的工作条目列表页
-/// 显示该日期下的所有工作记录，支持添加、编辑、删除
+/// 单日工作条目列表页 —— 精致杂志风
 class DayEntriesScreen extends ConsumerWidget {
-  /// 目标日期，格式 YYYY-MM-DD
   final String dateStr;
 
   const DayEntriesScreen({super.key, required this.dateStr});
@@ -20,136 +18,186 @@ class DayEntriesScreen extends ConsumerWidget {
     final displayDate = Helpers.toDisplayDate(dateStr);
     final date = Helpers.parseDate(dateStr);
     final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-        title: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(displayDate),
-            if (weekday.isNotEmpty)
-              Text(
-                weekday,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-              ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _navigateToEdit(context, ref, dateStr, null);
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('添加工作'),
-      ),
-      body: entriesAsync.when(
-        data: (entries) {
-          if (entries.isEmpty) {
-            return _buildEmptyState(context);
-          }
-          return _buildEntriesList(context, ref, entries);
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Column(
+          title: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 12),
-              Text('加载失败: $err', style: const TextStyle(color: Colors.red)),
+              Text(displayDate),
+              if (weekday.isNotEmpty)
+                Text(
+                  weekday,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: isDark
+                        ? AppConstants.textSecondaryDark
+                        : AppConstants.textSecondary,
+                  ),
+                ),
             ],
           ),
         ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () {
+            _navigateToEdit(context, ref, dateStr, null);
+          },
+          icon: const Icon(Icons.add_rounded, size: 22),
+          label: const Text('添加工作'),
+        ),
+        body: entriesAsync.when(
+          data: (entries) {
+            if (entries.isEmpty) {
+              return _buildEmptyState(context);
+            }
+            return _buildEntriesList(context, ref, entries);
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConstants.dangerRed.withValues(alpha: 0.08),
+                  ),
+                  child: const Icon(Icons.error_outline_rounded,
+                      size: 28, color: AppConstants.dangerRed),
+                ),
+                const SizedBox(height: 16),
+                Text('加载失败: $err',
+                    style: const TextStyle(color: AppConstants.dangerRed)),
+              ],
+            ),
+          ),
+        ),
       ),
-    ));
+    );
   }
 
-  /// 空状态
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.work_outline, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          Text(
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppConstants.primaryColor.withValues(alpha: 0.08),
+            ),
+            child: Icon(
+              Icons.work_outline_rounded,
+              size: 36,
+              color: AppConstants.primaryColor.withValues(alpha: 0.4),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
             '当天还没有工作安排',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppConstants.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             '点击下方按钮添加工作',
-            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            style: TextStyle(
+              fontSize: 13,
+              color: AppConstants.textSecondary,
+            ),
           ),
         ],
       ),
     );
   }
 
-  /// 工作条目列表
   Widget _buildEntriesList(
     BuildContext context,
     WidgetRef ref,
     List<WorkNote> entries,
   ) {
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
-        return _buildEntryCard(context, ref, entry, index);
+        return _buildEntryCard(context, ref, entry, index, entries.length);
       },
     );
   }
 
-  /// 单个工作条目卡片
   Widget _buildEntryCard(
     BuildContext context,
     WidgetRef ref,
     WorkNote entry,
     int index,
+    int total,
   ) {
     final totalWage = entry.dailyWage;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isLast = index == total - 1;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
       child: InkWell(
         onTap: () {
           _navigateToEdit(context, ref, dateStr, entry.id);
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // 序号
+              // 序号指示器
               Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
-                  color: AppConstants.primaryColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                  border: Border.all(
+                    color: AppConstants.primaryColor.withValues(alpha: 0.2),
+                    width: 0.5,
+                  ),
                 ),
                 child: Center(
                   child: Text(
                     '${index + 1}',
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
                       color: AppConstants.primaryDark,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               // 内容
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 标题
                     Text(
                       entry.title.isNotEmpty ? entry.title : '(无标题)',
                       style: TextStyle(
@@ -157,22 +205,29 @@ class DayEntriesScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                         color: entry.title.isNotEmpty
                             ? null
-                            : Colors.grey.shade400,
+                            : AppConstants.textSecondary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     if (entry.workLocation.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           Icon(Icons.location_on_outlined,
-                              size: 14, color: Colors.grey.shade500),
-                          const SizedBox(width: 4),
+                              size: 13,
+                              color: isDark
+                                  ? AppConstants.textSecondaryDark
+                                  : AppConstants.textSecondary),
+                          const SizedBox(width: 3),
                           Expanded(
                             child: Text(
                               entry.workLocation,
                               style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppConstants.textSecondaryDark
+                                    : AppConstants.textSecondary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -183,22 +238,30 @@ class DayEntriesScreen extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time,
-                            size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
+                        Icon(Icons.access_time_rounded,
+                            size: 13,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary),
+                        const SizedBox(width: 3),
                         Text(
                           '${entry.startTime} - ${entry.endTime}',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 10),
                         Text(
                           Helpers.formatHours(entry.workHours),
                           style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary,
                           ),
                         ),
                       ],
@@ -213,22 +276,22 @@ class DayEntriesScreen extends ConsumerWidget {
                   Text(
                     Helpers.formatCurrency(totalWage),
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                       color: AppConstants.incomeGreen,
+                      letterSpacing: -0.3,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // 删除按钮
                   InkWell(
                     onTap: () => _confirmDelete(context, ref, entry),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusXs),
                     child: Padding(
                       padding: const EdgeInsets.all(4),
                       child: Icon(
-                        Icons.delete_outline,
+                        Icons.delete_outline_rounded,
                         size: 20,
-                        color: Colors.red.shade300,
+                        color: AppConstants.dangerRed.withValues(alpha: 0.6),
                       ),
                     ),
                   ),
@@ -241,7 +304,6 @@ class DayEntriesScreen extends ConsumerWidget {
     );
   }
 
-  /// 确认删除
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
@@ -262,7 +324,9 @@ class DayEntriesScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppConstants.dangerRed),
+            style: TextButton.styleFrom(
+              foregroundColor: AppConstants.dangerRed,
+            ),
             child: const Text('删除'),
           ),
         ],
@@ -272,22 +336,29 @@ class DayEntriesScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(deleteNoteProvider((id: entry.id!, date: entry.date)).future);
+      await ref.read(
+        deleteNoteProvider((id: entry.id!, date: entry.date)).future,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已删除'), duration: Duration(seconds: 1)),
+          const SnackBar(
+            content: Text('已删除'),
+            duration: Duration(seconds: 1),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('删除失败: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('删除失败: $e'),
+            backgroundColor: AppConstants.dangerRed,
+          ),
         );
       }
     }
   }
 
-  /// 导航到编辑页
   void _navigateToEdit(
     BuildContext context,
     WidgetRef ref,
@@ -301,7 +372,6 @@ class DayEntriesScreen extends ConsumerWidget {
       ),
     )
         .then((_) {
-      // 返回后刷新列表
       ref.invalidate(notesByDateListProvider(dateStr));
     });
   }
