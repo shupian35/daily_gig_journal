@@ -756,11 +756,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     try {
       final deltaJson = _quillController.document.toDelta().toJson();
       for (final op in deltaJson) {
-        if (op is Map<String, dynamic> && op.containsKey('insert')) {
-          final insert = op['insert'];
-          if (insert is Map && insert.containsKey('image')) {
-            images.add(insert['image'] as String);
-          }
+        final insert = op['insert'];
+        if (insert is Map && insert.containsKey('image')) {
+          images.add(insert['image'] as String);
         }
       }
     } catch (_) {}
@@ -773,23 +771,19 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final ops = delta.toJson();
       int offset = 0;
       for (final op in ops) {
-        if (op is Map<String, dynamic> && op.containsKey('insert')) {
-          final insert = op['insert'];
-          if (insert is Map && insert.containsKey('image')) {
-            if (insert['image'] == imagePath) {
-              _quillController.replaceText(offset, 2, '', null);
-              setState(() {});
-              return;
-            }
+        final imgInsert = op['insert'];
+        if (imgInsert is Map && imgInsert.containsKey('image')) {
+          if (imgInsert['image'] == imagePath) {
+            _quillController.replaceText(offset, 2, '', null);
+            setState(() {});
+            return;
           }
         }
-        if (op is Map<String, dynamic>) {
-          final ins = op['insert'];
-          if (ins is String) {
-            offset += ins.length;
-          } else if (ins is Map) {
-            offset += 1;
-          }
+        final ins = op['insert'];
+        if (ins is String) {
+          offset += ins.length;
+        } else if (ins is Map) {
+          offset += 1;
         }
       }
     } catch (_) {}
@@ -875,14 +869,12 @@ class _ImageFileEmbedBuilder extends quill.EmbedBuilder {
     try {
       final deltaJson = ctx.controller.document.toDelta().toJson();
       for (final op in deltaJson) {
-        if (op is Map<String, dynamic> && op.containsKey('insert')) {
-          final insert = op['insert'];
-          if (insert is Map && insert.containsKey('image')) {
-            final p = insert['image'] as String;
-            out.add(p);
-            if (p == currentPath) foundIdx = idx;
-            idx++;
-          }
+        final insert = op['insert'];
+        if (insert is Map && insert.containsKey('image')) {
+          final p = insert['image'] as String;
+          out.add(p);
+          if (p == currentPath) foundIdx = idx;
+          idx++;
         }
       }
     } catch (_) {}
