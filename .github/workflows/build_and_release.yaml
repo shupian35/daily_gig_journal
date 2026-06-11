@@ -1,0 +1,186 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: '标记为预发布 (pre-release)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+# 取消同一分支上的旧运行，避免并发构建浪费
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ========== 代码质量检查 ==========
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: 'stable'
+          cache: true
+
+      - name: 缓存 Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      - name: 静态分析
+        run: flutter analyze
+
+      - name: 运行测试
+        run: flutter test
+
+  # ========== Android APK ==========
+  build-android:
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: 'stable'
+          cache: true
+
+      - name: 缓存 Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      - name: 构建 Android APK
+        run: flutter build apk --release
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+  # ========== iOS IPA (无签名，需自行签名安装) ==========
+  build-ios:
+    needs: analyze
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: 'stable'
+          cache: true
+
+      - name: 缓存 Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+
+      - name: 安装依赖
+        run: flutter pub get
+
+      - name: 构建 iOS IPA (无签名)
+        run: flutter build ipa --release --no-codesign
+
+      - name: 上传 IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/日程清单.ipa
+          retention-days: 30
+
+  # ========== 发布 Release ==========
+  release:
+    needs: [build-android, build-ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 读取版本号
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: 下载全部产物
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 列出产物
+        run: find artifacts -type f -exec ls -lh {} \;
+
+      - name: 创建/更新 GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # 使用 v{version}-{short_sha} 作为 tag，不覆盖历史 release
+          tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.short_sha }}
+          name: "v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})"
+          body: |
+            ## 🏗️ 自动构建
+
+            | 项目 | 值 |
+            |------|-----|
+            | **版本** | `${{ steps.version.outputs.version }}` |
+            | **构建编号** | `#${{ github.run_number }}` |
+            | **提交** | [`${{ steps.version.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
+            | **分支** | `${{ github.ref_name }}` |
+            | **时间** | `${{ github.event.head_commit.timestamp }}` |
+
+            ### 📦 产物
+
+            | 平台 | 文件 | 说明 |
+            |------|------|------|
+            | Android | `app-release.apk` | 可直接安装 |
+            | iOS | `日程清单.ipa` | ⚠️ 未签名，需通过 AltStore / Sideloadly 等工具签名后安装 |
+
+            ### 📝 提交信息
+
+            > ${{ github.event.head_commit.message }}
+
+          prerelease: ${{ github.event.inputs.prerelease != 'false' }}
+          files: |
+            artifacts/android-apk/app-release.apk
+            artifacts/ios-ipa/日程清单.ipa
