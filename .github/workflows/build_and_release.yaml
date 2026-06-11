@@ -119,14 +119,21 @@ jobs:
       - name: 安装依赖
         run: flutter pub get
 
-      - name: 构建 iOS IPA (无签名)
-        run: flutter build ipa --release --no-codesign
+      - name: 构建 iOS (无签名)
+        run: flutter build ios --release --no-codesign
+
+      - name: 打包 IPA
+        run: |
+          cd build/ios/iphoneos
+          mkdir Payload
+          cp -r Runner.app Payload/
+          zip -r 日程清单.ipa Payload/
 
       - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: build/ios/ipa/日程清单.ipa
+          path: build/ios/iphoneos/日程清单.ipa
           retention-days: 30
 
   # ========== 发布 Release ==========
