@@ -37,8 +37,16 @@ class WebDavHelper {
     };
   }
 
-  /// HTTP 客户端
-  http.Client get _client => http.Client();
+  /// 发送 HTTP 请求并返回响应，自动管理客户端生命周期
+  Future<http.Response> _send(http.BaseRequest request) async {
+    final client = http.Client();
+    try {
+      final streamed = await client.send(request);
+      return await http.Response.fromStream(streamed);
+    } finally {
+      client.close();
+    }
+  }
 
   // ==================== 目录管理 ====================
 
@@ -50,8 +58,7 @@ class WebDavHelper {
         ..headers.addAll(_headers)
         ..headers['Depth'] = '0';
 
-      final checkStream = await _client.send(checkRequest);
-      final checkResp = await http.Response.fromStream(checkStream);
+      final checkResp = await _send(checkRequest);
 
       if (checkResp.statusCode == 207) {
         return const WebDavResult.success('备份目录已存在');
@@ -82,8 +89,7 @@ class WebDavHelper {
       final request = http.Request('MKCOL', Uri.parse(_backupPath))
         ..headers.addAll(_headers);
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       // 201 Created: 创建成功
       // 405 Method Not Allowed: 目录已存在
@@ -121,8 +127,7 @@ class WebDavHelper {
       final request = http.Request('MKCOL', Uri.parse(currentPath))
         ..headers.addAll(_headers);
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         return const WebDavResult.error('认证失败，请检查账号和密码');
@@ -141,8 +146,7 @@ class WebDavHelper {
         ..headers.addAll(_headers)
         ..headers['Depth'] = '0';
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 401) {
         return WebDavResult.error('认证失败，请检查账号和密码');
@@ -189,8 +193,7 @@ class WebDavHelper {
         ..headers.addAll(_headers)
         ..bodyBytes = bytes;
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 201 || resp.statusCode == 200 || resp.statusCode == 204) {
         return const WebDavResult.success('备份成功！文件已上传到云盘');
@@ -220,8 +223,7 @@ class WebDavHelper {
       final request = http.Request('GET', Uri.parse(url))
         ..headers.addAll(_headers);
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 200) {
         final file = File(localPath);
@@ -250,8 +252,7 @@ class WebDavHelper {
         ..headers.addAll(_headers)
         ..headers['Depth'] = '1';
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 404) {
         // 备份目录不存在
@@ -331,8 +332,7 @@ class WebDavHelper {
       final request = http.Request('DELETE', Uri.parse(url))
         ..headers.addAll(_headers);
 
-      final streamed = await _client.send(request);
-      final resp = await http.Response.fromStream(streamed);
+      final resp = await _send(request);
 
       if (resp.statusCode == 200 || resp.statusCode == 204 || resp.statusCode == 202) {
         return const WebDavResult.success('已删除云盘备份文件');
