@@ -11,6 +11,9 @@ class WebDavHelper {
   final String username;
   final String password;
 
+  /// 备份文件存放的子目录
+  static const backupSubDir = 'daily_gig_journal';
+
   WebDavHelper({
     required this.serverUrl,
     required this.username,
@@ -22,6 +25,9 @@ class WebDavHelper {
       ? serverUrl.substring(0, serverUrl.length - 1)
       : serverUrl;
 
+  /// 备份目录完整 URL
+  String get _backupPath => '$_baseUrl/$backupSubDir';
+
   /// 构建请求头
   Map<String, String> get _headers {
     final auth = base64Encode(utf8.encode('$username:$password'));
@@ -31,13 +37,104 @@ class WebDavHelper {
     };
   }
 
-  /// HTTP 客户端（不验证 SSL 证书，兼容自签名服务器）
-  http.Client get _client {
-    final client = http.Client();
-    return client;
+  /// HTTP 客户端
+  http.Client get _client => http.Client();
+
+  // ==================== 目录管理 ====================
+
+  /// 确保备份子目录存在，不存在则创建
+  Future<WebDavResult> ensureBackupDir() async {
+    try {
+      // 先检查目录是否存在
+      final checkRequest = http.Request('PROPFIND', Uri.parse(_backupPath))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '0';
+
+      final checkStream = await _client.send(checkRequest);
+      final checkResp = await http.Response.fromStream(checkStream);
+
+      if (checkResp.statusCode == 207) {
+        return const WebDavResult.success('备份目录已存在');
+      }
+
+      // 目录不存在（404），创建它
+      if (checkResp.statusCode == 404) {
+        return await _createBackupDir();
+      }
+
+      // 可能是其他状态，尝试创建
+      // 坚果云在 PROPFIND 不存在路径时可能返回不同的状态码
+      final createResult = await _createBackupDir();
+      if (createResult.isSuccess) return createResult;
+
+      // 如果创建失败但 PROPFIND 没报错，说明目录可能已存在
+      return const WebDavResult.success('备份目录可用');
+    } on SocketException {
+      return const WebDavResult.error('无法连接服务器');
+    } catch (e) {
+      return WebDavResult.error('检查目录失败: $e');
+    }
   }
 
-  /// 测试连接：尝试 PROPFIND 根目录
+  /// 创建备份子目录 (MKCOL)
+  Future<WebDavResult> _createBackupDir() async {
+    try {
+      final request = http.Request('MKCOL', Uri.parse(_backupPath))
+        ..headers.addAll(_headers);
+
+      final streamed = await _client.send(request);
+      final resp = await http.Response.fromStream(streamed);
+
+      // 201 Created: 创建成功
+      // 405 Method Not Allowed: 目录已存在
+      // 409 Conflict: 父目录不存在（递归创建）
+      if (resp.statusCode == 201) {
+        return const WebDavResult.success('备份目录已创建');
+      }
+      if (resp.statusCode == 405) {
+        return const WebDavResult.success('备份目录已存在');
+      }
+      if (resp.statusCode == 409) {
+        // 尝试先创建父级目录 — 坚果云一般不会出现此情况
+        return await _createParentDirs();
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      return WebDavResult.error('创建目录失败 (HTTP ${resp.statusCode})');
+    } catch (e) {
+      return WebDavResult.error('创建目录失败: $e');
+    }
+  }
+
+  /// 递归创建父目录
+  Future<WebDavResult> _createParentDirs() async {
+    // 对坚果云等大多数 WebDAV 服务器，只需创建目标目录即可
+    // 如果返回 409，说明需要逐级创建
+    final parts = backupSubDir.split('/');
+    var currentPath = _baseUrl;
+
+    for (final part in parts) {
+      if (part.isEmpty) continue;
+      currentPath = '$currentPath/$part';
+
+      final request = http.Request('MKCOL', Uri.parse(currentPath))
+        ..headers.addAll(_headers);
+
+      final streamed = await _client.send(request);
+      final resp = await http.Response.fromStream(streamed);
+
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      // 201 = 创建成功, 405 = 已存在, 都继续
+    }
+    return const WebDavResult.success('备份目录已创建');
+  }
+
+  // ==================== 连接测试 ====================
+
+  /// 测试连接：尝试 PROPFIND 根目录，并确保备份目录存在
   Future<WebDavResult> testConnection() async {
     try {
       final request = http.Request('PROPFIND', Uri.parse(_baseUrl))
@@ -47,13 +144,18 @@ class WebDavHelper {
       final streamed = await _client.send(request);
       final resp = await http.Response.fromStream(streamed);
 
-      if (resp.statusCode == 207 || resp.statusCode == 200 || resp.statusCode == 401) {
-        if (resp.statusCode == 401) {
-          return WebDavResult.error('认证失败，请检查账号和密码');
-        }
-        return const WebDavResult.success('连接成功！服务器可达');
+      if (resp.statusCode == 401) {
+        return WebDavResult.error('认证失败，请检查账号和密码');
       }
-      return WebDavResult.error('服务器返回异常状态: ${resp.statusCode}');
+      if (resp.statusCode != 207 && resp.statusCode != 200) {
+        return WebDavResult.error('服务器返回异常状态: ${resp.statusCode}');
+      }
+
+      // 确保备份目录存在
+      final dirResult = await ensureBackupDir();
+      if (!dirResult.isSuccess) return dirResult;
+
+      return const WebDavResult.success('连接成功！服务器可达，备份目录已就绪');
     } on SocketException {
       return const WebDavResult.error('无法连接服务器，请检查网络和地址');
     } catch (e) {
@@ -61,7 +163,9 @@ class WebDavHelper {
     }
   }
 
-  /// 上传文件到 WebDAV
+  // ==================== 文件操作 ====================
+
+  /// 上传文件到 WebDAV 备份目录
   /// [localPath] 本地文件路径
   /// [remoteFileName] 远程文件名（不含路径前缀）
   Future<WebDavResult> uploadFile(
@@ -74,8 +178,12 @@ class WebDavHelper {
         return const WebDavResult.error('本地文件不存在');
       }
 
+      // 确保备份目录存在
+      final dirResult = await ensureBackupDir();
+      if (!dirResult.isSuccess) return dirResult;
+
       final bytes = await file.readAsBytes();
-      final url = '$_baseUrl/$remoteFileName';
+      final url = '$_backupPath/$remoteFileName';
 
       final request = http.Request('PUT', Uri.parse(url))
         ..headers.addAll(_headers)
@@ -85,7 +193,7 @@ class WebDavHelper {
       final resp = await http.Response.fromStream(streamed);
 
       if (resp.statusCode == 201 || resp.statusCode == 200 || resp.statusCode == 204) {
-        return WebDavResult.success('备份成功！文件已上传到云盘');
+        return const WebDavResult.success('备份成功！文件已上传到云盘');
       }
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         return const WebDavResult.error('认证失败，请检查账号和密码');
@@ -101,15 +209,13 @@ class WebDavHelper {
     }
   }
 
-  /// 从 WebDAV 下载文件到本地
-  /// [remoteFileName] 远程文件名
-  /// [localPath] 本地保存路径
+  /// 从 WebDAV 备份目录下载文件到本地
   Future<WebDavResult> downloadFile(
     String remoteFileName,
     String localPath,
   ) async {
     try {
-      final url = '$_baseUrl/$remoteFileName';
+      final url = '$_backupPath/$remoteFileName';
 
       final request = http.Request('GET', Uri.parse(url))
         ..headers.addAll(_headers);
@@ -120,7 +226,7 @@ class WebDavHelper {
       if (resp.statusCode == 200) {
         final file = File(localPath);
         await file.writeAsBytes(resp.bodyBytes);
-        return WebDavResult.success('恢复成功！数据已从云盘下载');
+        return const WebDavResult.success('恢复成功！数据已从云盘下载');
       }
       if (resp.statusCode == 404) {
         return const WebDavResult.error('云盘上未找到备份文件');
@@ -136,16 +242,21 @@ class WebDavHelper {
     }
   }
 
-  /// 列出远程备份文件
+  /// 列出备份目录中的文件
   Future<WebDavListResult> listFiles({String prefix = 'daily_gig_backup'}) async {
     try {
-      final request = http.Request('PROPFIND', Uri.parse(_baseUrl))
+      // PROPFIND 备份子目录
+      final request = http.Request('PROPFIND', Uri.parse(_backupPath))
         ..headers.addAll(_headers)
         ..headers['Depth'] = '1';
 
       final streamed = await _client.send(request);
       final resp = await http.Response.fromStream(streamed);
 
+      if (resp.statusCode == 404) {
+        // 备份目录不存在
+        return const WebDavListResult.success([]);
+      }
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         return const WebDavListResult.error('认证失败，请检查账号和密码');
       }
@@ -154,7 +265,6 @@ class WebDavHelper {
         final document = XmlDocument.parse(resp.body);
         final files = <WebDavFileInfo>[];
 
-        // 解析 DAV:multistatus 响应
         final responses = document.findAllElements('D:response');
         for (final response in responses) {
           final href = response
@@ -190,7 +300,6 @@ class WebDavHelper {
           final size = int.tryParse(contentLength ?? '') ?? 0;
           final isCollection = href.endsWith('/');
 
-          // 跳过目录本身、非备份文件
           if (isCollection || name.isEmpty) continue;
           if (prefix.isNotEmpty && !name.startsWith(prefix)) continue;
 
@@ -202,7 +311,6 @@ class WebDavHelper {
           ));
         }
 
-        // 按修改时间降序排列
         files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
         return WebDavListResult.success(files);
       }
@@ -215,10 +323,10 @@ class WebDavHelper {
     }
   }
 
-  /// 删除远程文件
+  /// 删除备份目录中的远程文件
   Future<WebDavResult> deleteFile(String remoteFileName) async {
     try {
-      final url = '$_baseUrl/$remoteFileName';
+      final url = '$_backupPath/$remoteFileName';
 
       final request = http.Request('DELETE', Uri.parse(url))
         ..headers.addAll(_headers);
@@ -227,7 +335,7 @@ class WebDavHelper {
       final resp = await http.Response.fromStream(streamed);
 
       if (resp.statusCode == 200 || resp.statusCode == 204 || resp.statusCode == 202) {
-        return WebDavResult.success('已删除云盘备份文件');
+        return const WebDavResult.success('已删除云盘备份文件');
       }
       if (resp.statusCode == 404) {
         return const WebDavResult.error('文件不存在');
@@ -276,7 +384,6 @@ class WebDavFileInfo {
     required this.lastModified,
   });
 
-  /// 格式化文件大小
   String get formattedSize {
     if (size < 1024) return '$size B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
