@@ -228,7 +228,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isRestoring || !isConfigured
                           ? null
-                          : _restoreFromCloud,
+                          : _showRestoreFilePicker,
                       icon: _isRestoring
                           ? const SizedBox(
                               width: 16,
@@ -437,13 +437,35 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     }
   }
 
-  Future<void> _restoreFromCloud() async {
+  Future<void> _showRestoreFilePicker() async {
+    if (!mounted) return;
+    final helper = _buildHelper();
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) => _CloudFileListSheet(
+        helper: helper,
+        onFileSelected: (file) {
+          Navigator.pop(sheetCtx);
+          _restoreSelectedFile(file);
+        },
+      ),
+    );
+  }
+
+  Future<void> _restoreSelectedFile(WebDavFileInfo file) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('确认恢复'),
-        content: const Text(
-          '从云盘恢复数据将覆盖当前所有数据，此操作不可撤销。\n\n建议先备份当前数据再执行恢复。',
+        content: Text(
+          '即将从云盘恢复备份文件：\n\n${file.name}\n'
+          '${file.formattedSize}  |  ${file.lastModified}\n\n'
+          '恢复数据将覆盖当前所有数据，此操作不可撤销。\n建议先备份当前数据再执行恢复。',
         ),
         actions: [
           TextButton(
@@ -469,19 +491,8 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      final listResult = await _buildHelper().listFiles();
-      if (!listResult.isSuccess || listResult.files.isEmpty) {
-        if (mounted) {
-          setState(() => _isRestoring = false);
-        }
-        _showOpStatus('云端没有找到备份文件', error: true);
-        return;
-      }
-
-      final latest = listResult.files.first;
       final dbPath = await DatabaseHelper.getDatabasePath();
-
-      final result = await _buildHelper().downloadFile(latest.href, dbPath);
+      final result = await _buildHelper().downloadFile(file.href, dbPath);
 
       if (!mounted) return;
       setState(() => _isRestoring = false);
@@ -496,5 +507,186 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       setState(() => _isRestoring = false);
       _showOpStatus('恢复失败: $e', error: true);
     }
+  }
+}
+
+class _CloudFileListSheet extends StatefulWidget {
+  final WebDavHelper helper;
+  final ValueChanged<WebDavFileInfo> onFileSelected;
+
+  const _CloudFileListSheet({
+    required this.helper,
+    required this.onFileSelected,
+  });
+
+  @override
+  State<_CloudFileListSheet> createState() => _CloudFileListSheetState();
+}
+
+class _CloudFileListSheetState extends State<_CloudFileListSheet> {
+  bool _loading = true;
+  String? _error;
+  List<WebDavFileInfo> _files = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFiles();
+  }
+
+  Future<void> _fetchFiles() async {
+    final result = await widget.helper.listFiles();
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (result.isSuccess) {
+        _files = result.files;
+      } else {
+        _error = result.errorMessage ?? '获取文件列表失败';
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      maxChildSize: 0.85,
+      minChildSize: 0.3,
+      expand: false,
+      builder: (ctx, scrollCtrl) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '选择备份文件',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '点击文件即可恢复该日期的备份',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Divider(color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2)),
+              Expanded(child: _buildContent(scrollCtrl)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContent(ScrollController scrollCtrl) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (_loading) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(height: 12),
+            Text('正在获取备份文件列表...',
+                style: TextStyle(fontSize: 13, color: AppConstants.textSecondary)),
+          ],
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_off_rounded, size: 48,
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text(_error!,
+                style: TextStyle(
+                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: () {
+                setState(() { _loading = true; _error = null; });
+                _fetchFiles();
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('重试'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_files.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_rounded, size: 48,
+                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text('云端没有找到备份文件',
+                style: TextStyle(
+                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: scrollCtrl,
+      itemCount: _files.length,
+      itemBuilder: (_, i) {
+        final file = _files[i];
+        return Card(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+            side: BorderSide(
+              color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+            ),
+          ),
+          color: isDark ? const Color(0xFF262630) : Colors.white,
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: const Icon(Icons.insert_drive_file_outlined,
+                size: 22, color: AppConstants.primaryDark),
+            title: Text(file.name,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis),
+            subtitle: Text(
+              '${file.formattedSize}  |  ${file.lastModified}',
+              style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+            ),
+            trailing: const Icon(Icons.download_rounded,
+                size: 20, color: AppConstants.primaryDark),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+            ),
+            onTap: () => widget.onFileSelected(file),
+          ),
+        );
+      },
+    );
   }
 }
