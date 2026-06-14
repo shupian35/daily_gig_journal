@@ -18,13 +18,10 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   bool _isTesting = false;
   bool _isBackingUp = false;
   bool _isRestoring = false;
-  bool _isListing = false;
   bool _obscurePassword = true;
   String? _statusMessage;
   bool _statusError = false;
-  List<WebDavFileInfo> _remoteFiles = [];
 
-  // 使用稳定的控制器
   late final TextEditingController _urlController;
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
@@ -54,7 +51,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   @override
   Widget build(BuildContext context) {
     final isConfigured = ref.watch(webDavConfiguredProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +80,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                   const SizedBox(height: 8),
                   _buildInfoRow(
                     Icons.backup_outlined,
-                    '备份文件将存储在你的云盘根目录下',
+                    '备份文件将存储在云盘 daily_gig_journal 目录下',
                   ),
                 ],
               ),
@@ -280,62 +276,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
               ),
             ),
           ],
-
-          // ── 云端备份列表 ──
-          if (isConfigured) ...[
-            const SizedBox(height: 20),
-            _buildSectionLabel('云端备份列表', Icons.list_alt_rounded),
-            const SizedBox(height: 8),
-            _buildCard(
-              child: Column(
-                children: [
-                  // 刷新列表按钮
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        const Text(
-                          '备份文件',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton.icon(
-                          onPressed: _isListing ? null : _listRemoteFiles,
-                          icon: _isListing
-                              ? const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.refresh_rounded, size: 16),
-                          label: const Text('刷新'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppConstants.primaryDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_remoteFiles.isEmpty && !_isListing)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 20),
-                      child: const Text(
-                        '暂无备份文件',
-                        style: TextStyle(
-                          color: AppConstants.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    )
-                  else
-                    ..._remoteFiles.map((file) => _buildFileItem(file, isDark)),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -356,37 +296,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
               height: 1.4,
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFileItem(WebDavFileInfo file, bool isDark) {
-    return Column(
-      children: [
-        Container(
-          height: 0.5,
-          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-        ),
-        ListTile(
-          dense: true,
-          leading: const Icon(Icons.insert_drive_file_outlined,
-              size: 20, color: AppConstants.primaryDark),
-          title: Text(
-            file.name,
-            style: const TextStyle(fontSize: 13),
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            '${file.formattedSize}  ·  ${file.lastModified}',
-            style: const TextStyle(fontSize: 11, color: AppConstants.textSecondary),
-          ),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                size: 18, color: AppConstants.dangerRed),
-            onPressed: () => _deleteRemoteFile(file.name),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         ),
       ],
     );
@@ -498,11 +407,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       _statusMessage = result.message;
       _statusError = !result.isSuccess;
     });
-
-    // 成功后自动刷新文件列表
-    if (result.isSuccess) {
-      _listRemoteFiles();
-    }
   }
 
   Future<void> _backupToCloud() async {
@@ -524,10 +428,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       _showStatus(result.message, error: !result.isSuccess);
-
-      if (result.isSuccess) {
-        _listRemoteFiles();
-      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
@@ -536,7 +436,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   }
 
   Future<void> _restoreFromCloud() async {
-    // 确认对话框
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -568,7 +467,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      // 先列出远端文件，选最新的
+      // 列出远端文件，选最新的恢复
       final listResult = await _buildHelper().listFiles();
       if (!listResult.isSuccess || listResult.files.isEmpty) {
         if (mounted) {
@@ -595,52 +494,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       if (!mounted) return;
       setState(() => _isRestoring = false);
       _showStatus('恢复失败: $e', error: true);
-    }
-  }
-
-  Future<void> _listRemoteFiles() async {
-    setState(() => _isListing = true);
-
-    final result = await _buildHelper().listFiles();
-
-    if (!mounted) return;
-    setState(() {
-      _isListing = false;
-      if (result.isSuccess) {
-        _remoteFiles = result.files;
-      }
-    });
-  }
-
-  Future<void> _deleteRemoteFile(String fileName) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('确认删除'),
-        content: Text('确定要删除云端备份文件 "$fileName" 吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(
-              foregroundColor: AppConstants.dangerRed,
-            ),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final result = await _buildHelper().deleteFile(fileName);
-    _showStatus(result.message, error: !result.isSuccess);
-
-    if (result.isSuccess) {
-      _listRemoteFiles();
     }
   }
 }
