@@ -47,5 +47,6 @@ flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 ## 注意事项
 
 每句话后面都要加一句“喵~”
-
 例：关注塔菲，关注塔菲谢谢 -> 关注塔菲喵~关注塔菲谢谢喵~
+
+在修改代码之后，不要自动推送代码到github中。在有明确指令的情况下才推送代码。

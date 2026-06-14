@@ -19,8 +19,14 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   bool _isBackingUp = false;
   bool _isRestoring = false;
   bool _obscurePassword = true;
-  String? _statusMessage;
-  bool _statusError = false;
+
+  // 测试连接的提示
+  String? _testMessage;
+  bool _testError = false;
+
+  // 备份/恢复操作的提示
+  String? _opMessage;
+  bool _opError = false;
 
   late final TextEditingController _urlController;
   late final TextEditingController _usernameController;
@@ -166,6 +172,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                       ),
                     ),
                   ),
+                  // 测试连接提示
+                  if (_testMessage != null) ...[
+                    const SizedBox(height: 12),
+                    _buildStatusMessage(_testMessage!, error: _testError),
+                  ],
                 ],
               ),
             ),
@@ -234,6 +245,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                       ),
                     ),
                   ),
+                  // 备份/恢复操作提示
+                  if (_opMessage != null) ...[
+                    const SizedBox(height: 12),
+                    _buildStatusMessage(_opMessage!, error: _opError),
+                  ],
                 ],
               ),
             ),
@@ -258,46 +274,42 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 20),
-
-          // ── 状态消息 ──
-          if (_statusMessage != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _statusError
-                    ? AppConstants.dangerRed.withValues(alpha: 0.06)
-                    : AppConstants.incomeGreen.withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                border: Border.all(
-                  color: _statusError
-                      ? AppConstants.dangerRed.withValues(alpha: 0.2)
-                      : AppConstants.incomeGreen.withValues(alpha: 0.2),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    _statusError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-                    size: 18,
-                    color: _statusError ? AppConstants.dangerRed : AppConstants.incomeGreen,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _statusMessage!,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: _statusError ? AppConstants.dangerRed : AppConstants.incomeGreen,
-                      ),
-                    ),
-                  ),
-                ],
+  Widget _buildStatusMessage(String message, {required bool error}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: error
+            ? AppConstants.dangerRed.withValues(alpha: 0.06)
+            : AppConstants.incomeGreen.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        border: Border.all(
+          color: error
+              ? AppConstants.dangerRed.withValues(alpha: 0.2)
+              : AppConstants.incomeGreen.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            error ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+            size: 18,
+            color: error ? AppConstants.dangerRed : AppConstants.incomeGreen,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 13,
+                color: error ? AppConstants.dangerRed : AppConstants.incomeGreen,
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -408,33 +420,37 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     );
   }
 
-  void _showStatus(String message, {bool error = false}) {
+  void _showTestStatus(String message, {bool error = false}) {
     setState(() {
-      _statusMessage = message;
-      _statusError = error;
+      _testMessage = message;
+      _testError = error;
+    });
+  }
+
+  void _showOpStatus(String message, {bool error = false}) {
+    setState(() {
+      _opMessage = message;
+      _opError = error;
     });
   }
 
   Future<void> _testConnection() async {
     setState(() {
       _isTesting = true;
-      _statusMessage = null;
+      _testMessage = null;
     });
 
     final result = await _buildHelper().testConnection();
 
     if (!mounted) return;
-    setState(() {
-      _isTesting = false;
-      _statusMessage = result.message;
-      _statusError = !result.isSuccess;
-    });
+    setState(() => _isTesting = false);
+    _showTestStatus(result.message, error: !result.isSuccess);
   }
 
   Future<void> _backupToCloud() async {
     setState(() {
       _isBackingUp = true;
-      _statusMessage = null;
+      _opMessage = null;
     });
 
     try {
@@ -449,11 +465,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
 
       if (!mounted) return;
       setState(() => _isBackingUp = false);
-      _showStatus(result.message, error: !result.isSuccess);
+      _showOpStatus(result.message, error: !result.isSuccess);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
-      _showStatus('备份失败: $e', error: true);
+      _showOpStatus('备份失败: $e', error: true);
     }
   }
 
@@ -485,17 +501,16 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
 
     setState(() {
       _isRestoring = true;
-      _statusMessage = null;
+      _opMessage = null;
     });
 
     try {
-      // 列出远端文件，选最新的恢复
       final listResult = await _buildHelper().listFiles();
       if (!listResult.isSuccess || listResult.files.isEmpty) {
         if (mounted) {
           setState(() => _isRestoring = false);
         }
-        _showStatus('云端没有找到备份文件', error: true);
+        _showOpStatus('云端没有找到备份文件', error: true);
         return;
       }
 
@@ -506,7 +521,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
 
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showStatus(
+      _showOpStatus(
         result.isSuccess
             ? '恢复成功！请重启应用以加载恢复的数据'
             : result.message,
@@ -515,7 +530,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showStatus('恢复失败: $e', error: true);
+      _showOpStatus('恢复失败: $e', error: true);
     }
   }
 }
