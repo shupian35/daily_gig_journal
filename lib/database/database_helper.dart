@@ -46,6 +46,11 @@ class DatabaseHelper {
   /// 设置测试数据库路径
   static void setTestDbPath(String path) => _testDbPath = path;
 
+  /// 重置实例（测试文件间清理，避免单例缓存干扰）
+  static void resetForTesting() {
+    _database = null;
+  }
+
   /// 获取数据库文件路径（用于备份恢复）
   static Future<String> getDatabasePath() async {
     if (_testDbPath != null) return _testDbPath!;

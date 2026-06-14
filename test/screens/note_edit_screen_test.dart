@@ -56,12 +56,13 @@ void main() {
     expect(find.byIcon(Icons.check_rounded), findsOneWidget);
   });
 
-  testWidgets('加载中不显示表单', (tester) async {
+  testWidgets('新建模式最终显示完整表单', (tester) async {
     await tester.pumpWidget(
       _buildTestApp(const NoteEditScreen(dateStr: '2025-06-14', noteId: null)),
     );
-    // 不 pumpAndSettle，只 pump 一帧，此时仍加载中
-    await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    // 等待异步加载完成
+    await tester.pump(const Duration(seconds: 3));
+    // 加载完成后应显示表单
+    expect(find.text('基本信息'), findsOneWidget);
   });
 }

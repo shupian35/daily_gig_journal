@@ -11,6 +11,7 @@ void main() {
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+    DatabaseHelper.resetForTesting();
     final tmpDir = Directory.systemTemp;
     DatabaseHelper.setTestDbPath('${tmpDir.path}/test_daily_gig_stats.db');
   });
