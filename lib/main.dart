@@ -63,6 +63,9 @@ class _DailyGigAppState extends ConsumerState<DailyGigApp> {
     ref.listenManual(webDavPasswordProvider, (prev, next) {
       saveWebDavPassword(next);
     });
+    ref.listenManual(autoBackupProvider, (prev, next) {
+      saveAutoBackup(next);
+    });
   }
 
   @override

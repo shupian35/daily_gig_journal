@@ -239,6 +239,28 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
             ),
           ),
 
+          // ── 自动备份 ──
+          _buildSectionLabel('自动备份', Icons.auto_mode_rounded),
+          const SizedBox(height: 8),
+          _buildCard(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.sync_rounded,
+                  size: 22, color: AppConstants.primaryDark),
+              title: const Text('添加/删除时自动备份',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              subtitle: const Text('开启后，每次保存或删除日程时自动备份到云盘'),
+              value: ref.watch(autoBackupProvider),
+              onChanged: isConfigured
+                  ? (v) => ref.read(autoBackupProvider.notifier).state = v
+                  : null,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
           // ── 状态消息 ──
           if (_statusMessage != null) ...[
             const SizedBox(height: 12),

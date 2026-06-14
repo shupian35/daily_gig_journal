@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/work_note.dart';
 import '../database/database_helper.dart';
 import '../utils/helpers.dart';
+import '../utils/webdav_helper.dart';
+import 'settings_provider.dart';
 
 /// 数据库帮助类实例（单例）
 final databaseHelperProvider = Provider<DatabaseHelper>((ref) {
@@ -75,6 +77,36 @@ final notesByDateRangeProvider = FutureProvider.autoDispose
   return await db.getNotesByDateRange(range.start, range.end);
 });
 
+/// 自动备份到 WebDAV（失败静默，不阻塞主流程）
+Future<void> _tryAutoBackup(Ref ref) async {
+  try {
+    final autoBackup = ref.read(autoBackupProvider);
+    final configured = ref.read(webDavConfiguredProvider);
+    if (!autoBackup || !configured) return;
+
+    final url = ref.read(webDavUrlProvider);
+    final username = ref.read(webDavUsernameProvider);
+    final password = ref.read(webDavPasswordProvider);
+
+    final helper = WebDavHelper(
+      serverUrl: url,
+      username: username,
+      password: password,
+    );
+
+    final dbPath = await DatabaseHelper.getDatabasePath();
+    final timestamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(':', '-')
+        .substring(0, 19);
+    final remoteName = 'daily_gig_backup_auto_$timestamp.db';
+
+    await helper.uploadFile(dbPath, remoteName);
+  } catch (_) {
+    // 自动备份失败不打扰用户
+  }
+}
+
 /// 笔记保存操作（mutation）
 /// id 不为 null 则更新，否则插入
 final saveNoteProvider = FutureProvider.autoDispose
@@ -93,6 +125,9 @@ final saveNoteProvider = FutureProvider.autoDispose
   ref.invalidate(monthlyWorkDaysProvider);
   ref.invalidate(notesByDateListProvider(note.date));
   ref.invalidate(notesByDateRangeProvider);
+
+  // 自动备份
+  await _tryAutoBackup(ref);
 });
 
 /// 笔记删除操作（mutation）
@@ -109,4 +144,7 @@ final deleteNoteProvider =
   ref.invalidate(monthlyWorkDaysProvider);
   ref.invalidate(notesByDateListProvider(params.date));
   ref.invalidate(notesByDateRangeProvider);
+
+  // 自动备份
+  await _tryAutoBackup(ref);
 });

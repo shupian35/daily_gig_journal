@@ -9,6 +9,7 @@ const _keyHideStatistics = 'hide_statistics';
 const _keyWebDavUrl = 'webdav_url';
 const _keyWebDavUsername = 'webdav_username';
 const _keyWebDavPassword = 'webdav_password';
+const _keyAutoBackup = 'auto_backup';
 
 /// 主题模式状态提供者
 final themeModeProvider = StateProvider<ThemeMode>((ref) {
@@ -45,6 +46,11 @@ final webDavPasswordProvider = StateProvider<String>((ref) {
   return '';
 });
 
+/// 是否开启自动备份（添加/删除日程时自动备份到云盘）
+final autoBackupProvider = StateProvider<bool>((ref) {
+  return false;
+});
+
 /// WebDAV 是否已配置（至少填写了地址和账号）
 final webDavConfiguredProvider = Provider<bool>((ref) {
   final url = ref.watch(webDavUrlProvider);
@@ -72,6 +78,8 @@ Future<void> loadSettings(WidgetRef ref) async {
       prefs.getString(_keyWebDavUsername) ?? '';
   ref.read(webDavPasswordProvider.notifier).state =
       prefs.getString(_keyWebDavPassword) ?? '';
+  ref.read(autoBackupProvider.notifier).state =
+      prefs.getBool(_keyAutoBackup) ?? false;
 }
 
 /// 保存主题模式
@@ -108,4 +116,10 @@ Future<void> saveWebDavUsername(String value) async {
 Future<void> saveWebDavPassword(String value) async {
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(_keyWebDavPassword, value);
+}
+
+/// 保存自动备份开关
+Future<void> saveAutoBackup(bool value) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(_keyAutoBackup, value);
 }
