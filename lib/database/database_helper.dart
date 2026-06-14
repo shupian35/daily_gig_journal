@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -61,6 +63,23 @@ class DatabaseHelper {
   /// 初始化数据库：创建文件路径并建表
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasePath();
+    final restorePath = '$dbPath.restore';
+
+    // 检查是否有待恢复的 .restore 文件（云恢复时因文件锁定写入的）
+    final restoreFile = File(restorePath);
+    if (await restoreFile.exists()) {
+      try {
+        final dbFile = File(dbPath);
+        // 先备份当前数据库
+        if (await dbFile.exists()) {
+          await dbFile.copy('$dbPath.bak');
+        }
+        await restoreFile.copy(dbPath);
+        await restoreFile.delete();
+      } catch (_) {
+        // 恢复失败，忽略（用户可手动重试）
+      }
+    }
 
     return await openDatabase(
       dbPath,

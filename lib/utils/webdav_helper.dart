@@ -226,21 +226,38 @@ class WebDavHelper {
       final resp = await _send(request);
 
       if (resp.statusCode == 200) {
+        if (resp.bodyBytes.isEmpty) {
+          return const WebDavResult.error('下载的文件为空，备份可能已损坏');
+        }
+
         final file = File(localPath);
         final bakPath = '$localPath.bak';
+        final restorePath = '$localPath.restore';
+
         if (await file.exists()) {
           await file.copy(bakPath);
         }
+
         try {
           await file.writeAsBytes(resp.bodyBytes);
+          return const WebDavResult.success('恢复成功！数据已从云盘下载，请重启应用');
+        } on FileSystemException {
+          // 数据库文件被锁定，写入 .restore 文件，重启后自动替换
+          try {
+            await File(restorePath).writeAsBytes(resp.bodyBytes);
+            return const WebDavResult.success(
+              '数据库文件被占用，已保存到临时位置，请重启应用以完成恢复',
+            );
+          } catch (e2) {
+            return WebDavResult.error('写入恢复文件失败: $e2');
+          }
         } catch (e) {
           final bakFile = File(bakPath);
           if (await bakFile.exists()) {
             await bakFile.copy(localPath);
           }
-          rethrow;
+          return WebDavResult.error('写入文件失败: $e');
         }
-        return const WebDavResult.success('恢复成功！数据已从云盘下载');
       }
       if (resp.statusCode == 404) {
         return const WebDavResult.error('云盘上未找到备份文件');
