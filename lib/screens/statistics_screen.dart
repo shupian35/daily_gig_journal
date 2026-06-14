@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
@@ -150,7 +150,7 @@ class StatisticsScreen extends ConsumerWidget {
 
   Widget _buildContent(
     BuildContext context,
-    List<WorkNote> notes,
+    List<WorkEntry> notes,
     AsyncValue<List<Map<String, dynamic>>> monthlySummaryAsync,
     bool hideIncome,
   ) {
@@ -225,8 +225,8 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Map<String, List<WorkNote>> _groupByMonth(List<WorkNote> notes) {
-    final map = <String, List<WorkNote>>{};
+  Map<String, List<WorkEntry>> _groupByMonth(List<WorkEntry> notes) {
+    final map = <String, List<WorkEntry>>{};
     for (final note in notes) {
       final monthKey = note.date.substring(0, 7);
       map.putIfAbsent(monthKey, () => []).add(note);
@@ -429,7 +429,7 @@ class StatisticsScreen extends ConsumerWidget {
   Widget _buildMonthSection(
     BuildContext context, {
     required String monthKey,
-    required List<WorkNote> notes,
+    required List<WorkEntry> notes,
     required double monthlyTotal,
     required int workDays,
     required bool hideIncome,
@@ -473,7 +473,7 @@ class StatisticsScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Text(
-                      '共$workDays天',
+                      '共$workDays次',
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark

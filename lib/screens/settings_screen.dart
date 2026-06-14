@@ -483,7 +483,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
 
       final dbPath = await DatabaseHelper.getDatabasePath();
-      await File(pickedPath).copy(dbPath);
+      final bakPath = '$dbPath.bak';
+      final dbFile = File(dbPath);
+      if (await dbFile.exists()) {
+        await dbFile.copy(bakPath);
+      }
+      try {
+        await File(pickedPath).copy(dbPath);
+      } catch (e) {
+        final bakFile = File(bakPath);
+        if (await bakFile.exists()) {
+          await bakFile.copy(dbPath);
+        }
+        rethrow;
+      }
 
       if (!mounted) return;
       setState(() => _isBackingUp = false);

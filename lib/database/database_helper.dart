@@ -1,7 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 
 /// 数据库帮助类 —— 单例模式
 /// 负责 SQLite 数据库的初始化、增删改查操作
@@ -40,8 +40,15 @@ class DatabaseHelper {
     return _database!;
   }
 
+  /// 测试用数据库路径覆盖（外部注入）
+  static String? _testDbPath;
+
+  /// 设置测试数据库路径
+  static void setTestDbPath(String path) => _testDbPath = path;
+
   /// 获取数据库文件路径（用于备份恢复）
   static Future<String> getDatabasePath() async {
+    if (_testDbPath != null) return _testDbPath!;
     final dir = await getApplicationDocumentsDirectory();
     return p.join(dir.path, _dbName);
   }
@@ -126,7 +133,7 @@ class DatabaseHelper {
 
   /// 插入一条新笔记
   /// 返回插入行的 id
-  Future<int> insertNote(WorkNote note) async {
+  Future<int> insertNote(WorkEntry note) async {
     try {
       final db = await database;
       final id = await db.insert(
@@ -142,7 +149,7 @@ class DatabaseHelper {
 
   /// 根据 id 更新笔记
   /// 返回受影响的行数
-  Future<int> updateNote(WorkNote note) async {
+  Future<int> updateNote(WorkEntry note) async {
     try {
       final db = await database;
       final rows = await db.update(
@@ -174,7 +181,7 @@ class DatabaseHelper {
   }
 
   /// 根据日期获取该天所有笔记列表
-  Future<List<WorkNote>> getNotesByDateList(String date) async {
+  Future<List<WorkEntry>> getNotesByDateList(String date) async {
     try {
       final db = await database;
       final results = await db.query(
@@ -183,14 +190,14 @@ class DatabaseHelper {
         whereArgs: [date],
         orderBy: '$colStartTime ASC',
       );
-      return results.map((map) => WorkNote.fromMap(map)).toList();
+      return results.map((map) => WorkEntry.fromMap(map)).toList();
     } catch (e) {
       throw Exception('查询笔记列表失败: $e');
     }
   }
 
   /// 根据 id 获取笔记
-  Future<WorkNote?> getNoteById(int id) async {
+  Future<WorkEntry?> getNoteById(int id) async {
     try {
       final db = await database;
       final results = await db.query(
@@ -200,21 +207,21 @@ class DatabaseHelper {
         limit: 1,
       );
       if (results.isEmpty) return null;
-      return WorkNote.fromMap(results.first);
+      return WorkEntry.fromMap(results.first);
     } catch (e) {
       throw Exception('查询笔记失败: $e');
     }
   }
 
   /// 获取所有笔记，按日期降序排列
-  Future<List<WorkNote>> getAllNotes() async {
+  Future<List<WorkEntry>> getAllNotes() async {
     try {
       final db = await database;
       final results = await db.query(
         tableName,
         orderBy: '$colDate DESC, $colStartTime ASC',
       );
-      return results.map((map) => WorkNote.fromMap(map)).toList();
+      return results.map((map) => WorkEntry.fromMap(map)).toList();
     } catch (e) {
       throw Exception('查询所有笔记失败: $e');
     }
@@ -222,7 +229,7 @@ class DatabaseHelper {
 
   /// 获取指定月份的所有笔记
   /// month 格式为 YYYY-MM（如 "2025-03"）
-  Future<List<WorkNote>> getNotesByMonth(String month) async {
+  Future<List<WorkEntry>> getNotesByMonth(String month) async {
     try {
       final db = await database;
       final results = await db.query(
@@ -231,7 +238,7 @@ class DatabaseHelper {
         whereArgs: ['$month%'],
         orderBy: '$colDate ASC, $colStartTime ASC',
       );
-      return results.map((map) => WorkNote.fromMap(map)).toList();
+      return results.map((map) => WorkEntry.fromMap(map)).toList();
     } catch (e) {
       throw Exception('查询月度笔记失败: $e');
     }
@@ -252,7 +259,7 @@ class DatabaseHelper {
   }
 
   /// 获取日期范围内的所有笔记
-  Future<List<WorkNote>> getNotesByDateRange(String startDate, String endDate) async {
+  Future<List<WorkEntry>> getNotesByDateRange(String startDate, String endDate) async {
     try {
       final db = await database;
       final results = await db.query(
@@ -261,7 +268,7 @@ class DatabaseHelper {
         whereArgs: [startDate, endDate],
         orderBy: '$colDate ASC, $colStartTime ASC',
       );
-      return results.map((map) => WorkNote.fromMap(map)).toList();
+      return results.map((map) => WorkEntry.fromMap(map)).toList();
     } catch (e) {
       throw Exception('查询日期范围笔记失败: $e');
     }
@@ -269,7 +276,7 @@ class DatabaseHelper {
 
   /// 获取有日工资记录的笔记（用于统计页）
   /// 即 daily_wage > 0 的记录
-  Future<List<WorkNote>> getNotesWithWage() async {
+  Future<List<WorkEntry>> getNotesWithWage() async {
     try {
       final db = await database;
       final results = await db.query(
@@ -277,7 +284,7 @@ class DatabaseHelper {
         where: '$colDailyWage > 0',
         orderBy: '$colDate DESC, $colStartTime ASC',
       );
-      return results.map((map) => WorkNote.fromMap(map)).toList();
+      return results.map((map) => WorkEntry.fromMap(map)).toList();
     } catch (e) {
       throw Exception('查询有薪笔记失败: $e');
     }

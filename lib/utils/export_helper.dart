@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../database/database_helper.dart';
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 
 /// 数据导出工具类
 /// 支持将全部工作笔记导出为 CSV 或 JSON 文件
@@ -30,7 +30,7 @@ class ExportHelper {
   }
 
   /// 导出为 CSV 文件
-  static Future<String> _exportCsv(List<WorkNote> notes) async {
+  static Future<String> _exportCsv(List<WorkEntry> notes) async {
     final buffer = StringBuffer();
 
     // BOM 头，确保 Excel 正确识别 UTF-8 中文
@@ -53,7 +53,7 @@ class ExportHelper {
         note.hourlyWage,
         note.workHours,
         note.dailyWage,
-        _csvEscape(note.noteContent),
+        _csvEscape(_deltaToPlainText(note.noteContent)),
         note.createdAt ?? '',
         note.updatedAt ?? '',
       ].join(','));
@@ -63,7 +63,7 @@ class ExportHelper {
   }
 
   /// 导出为 JSON 文件
-  static Future<String> _exportJson(List<WorkNote> notes) async {
+  static Future<String> _exportJson(List<WorkEntry> notes) async {
     final list = notes.map((note) => {
       'id': note.id,
       'date': note.date,
@@ -110,6 +110,32 @@ class ExportHelper {
   }
 
   // ========== 工具方法 ==========
+
+  /// 将 Quill Delta JSON 转为可读纯文本
+  static String _deltaToPlainText(String deltaJson) {
+    try {
+      final List<dynamic> ops = jsonDecode(deltaJson);
+      final buffer = StringBuffer();
+      for (final op in ops) {
+        if (op is Map<String, dynamic>) {
+          final insert = op['insert'];
+          if (insert is String) {
+            buffer.write(insert);
+          } else if (insert is Map) {
+            // 嵌入对象（图片等）
+            if (insert.containsKey('image')) {
+              buffer.write('[图片]');
+            } else {
+              buffer.write('[附件]');
+            }
+          }
+        }
+      }
+      return buffer.toString().trim();
+    } catch (_) {
+      return deltaJson; // 解析失败返回原文
+    }
+  }
 
   /// CSV 字段转义：包含逗号、引号、换行时用双引号包裹
   static String _csvEscape(String field) {

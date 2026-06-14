@@ -50,3 +50,17 @@ flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 例：关注塔菲，关注塔菲谢谢 -> 关注塔菲喵~关注塔菲谢谢喵~
 
 在修改代码之后，不要自动推送代码到github中。在有明确指令的情况下才推送代码。
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues — 使用 `gh` CLI 操作。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用默认标签名：`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+Single-context 布局：根目录 `CONTEXT.md` + `docs/adr/`。详见 `docs/agents/domain.md`。

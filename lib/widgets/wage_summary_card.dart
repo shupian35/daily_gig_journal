@@ -3,7 +3,7 @@ import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
 /// 月度工资摘要卡片 —— 精致杂志风
-/// 显示当月预计总收入和工作天数
+/// 显示当月预计总收入和工作次数
 class WageSummaryCard extends StatelessWidget {
   final double totalWage;
   final int workDays;
@@ -128,7 +128,7 @@ class WageSummaryCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '工作天',
+                    '工作次',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,

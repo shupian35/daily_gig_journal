@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_quill/flutter_quill.dart' as quill;
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/drawing_canvas.dart';
 import '../providers/notes_provider.dart';
@@ -64,7 +64,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   Future<void> _loadNote() async {
     try {
       final db = ref.read(databaseHelperProvider);
-      WorkNote? note;
+      WorkEntry? note;
 
       if (widget.noteId != null) {
         note = await db.getNoteById(widget.noteId!);
@@ -128,7 +128,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final quillJson =
           jsonEncode(_quillController.document.toDelta().toJson());
 
-      final note = WorkNote(
+      final note = WorkEntry(
         id: _existingNoteId,
         date: widget.dateStr,
         title: _titleController.text.trim(),

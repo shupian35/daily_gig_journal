@@ -1,9 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 import '../database/database_helper.dart';
 import '../utils/helpers.dart';
-import '../utils/webdav_helper.dart';
-import 'settings_provider.dart';
+import '../services/backup_service.dart';
 
 /// 数据库帮助类实例（单例）
 final databaseHelperProvider = Provider<DatabaseHelper>((ref) {
@@ -11,7 +10,7 @@ final databaseHelperProvider = Provider<DatabaseHelper>((ref) {
 });
 
 /// 有工资记录的笔记列表（用于统计）
-final wageNotesProvider = FutureProvider<List<WorkNote>>((ref) async {
+final wageNotesProvider = FutureProvider<List<WorkEntry>>((ref) async {
   final db = ref.watch(databaseHelperProvider);
   return await db.getNotesWithWage();
 });
@@ -65,52 +64,24 @@ final monthlyWorkDaysProvider = FutureProvider.autoDispose<int>((ref) async {
 
 /// 根据日期获取该天所有笔记列表
 final notesByDateListProvider =
-    FutureProvider.autoDispose.family<List<WorkNote>, String>((ref, dateStr) async {
+    FutureProvider.autoDispose.family<List<WorkEntry>, String>((ref, dateStr) async {
   final db = ref.watch(databaseHelperProvider);
   return await db.getNotesByDateList(dateStr);
 });
 
 /// 根据日期范围获取笔记列表（用于本周计划等）
 final notesByDateRangeProvider = FutureProvider.autoDispose
-    .family<List<WorkNote>, ({String start, String end})>((ref, range) async {
+    .family<List<WorkEntry>, ({String start, String end})>((ref, range) async {
   final db = ref.watch(databaseHelperProvider);
   return await db.getNotesByDateRange(range.start, range.end);
 });
 
-/// 自动备份到 WebDAV（失败静默，不阻塞主流程）
-Future<void> _tryAutoBackup(Ref ref) async {
-  try {
-    final autoBackup = ref.read(autoBackupProvider);
-    final configured = ref.read(webDavConfiguredProvider);
-    if (!autoBackup || !configured) return;
-
-    final url = ref.read(webDavUrlProvider);
-    final username = ref.read(webDavUsernameProvider);
-    final password = ref.read(webDavPasswordProvider);
-
-    final helper = WebDavHelper(
-      serverUrl: url,
-      username: username,
-      password: password,
-    );
-
-    final dbPath = await DatabaseHelper.getDatabasePath();
-    final timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .substring(0, 19);
-    final remoteName = 'daily_gig_backup_auto_$timestamp.db';
-
-    await helper.uploadFile(dbPath, remoteName);
-  } catch (_) {
-    // 自动备份失败不打扰用户
-  }
-}
+Future<void> _tryAutoBackup(Ref ref) => BackupService.autoBackup(ref);
 
 /// 笔记保存操作（mutation）
 /// id 不为 null 则更新，否则插入
 final saveNoteProvider = FutureProvider.autoDispose
-    .family<void, WorkNote>((ref, note) async {
+    .family<void, WorkEntry>((ref, note) async {
   final db = ref.watch(databaseHelperProvider);
   if (note.id != null) {
     await db.updateNote(note);

@@ -1,6 +1,6 @@
 /// 工作笔记数据模型
 /// 对应数据库 work_notes 表
-class WorkNote {
+class WorkEntry {
   final int? id;
   final String date;       // 日期，格式 YYYY-MM-DD
   final String title;      // 工作标题，如"会展协助"
@@ -14,7 +14,7 @@ class WorkNote {
   final String? createdAt;
   final String? updatedAt;
 
-  const WorkNote({
+  const WorkEntry({
     this.id,
     required this.date,
     required this.title,
@@ -29,9 +29,9 @@ class WorkNote {
     this.updatedAt,
   });
 
-  /// 从数据库 Map 创建 WorkNote 实例
-  factory WorkNote.fromMap(Map<String, dynamic> map) {
-    return WorkNote(
+  /// 从数据库 Map 创建 WorkEntry 实例
+  factory WorkEntry.fromMap(Map<String, dynamic> map) {
+    return WorkEntry(
       id: map['id'] as int?,
       date: map['date'] as String,
       title: (map['title'] as String?) ?? '',
@@ -66,8 +66,8 @@ class WorkNote {
   }
 
   /// 创建一份默认的空笔记模板（用于新建）
-  factory WorkNote.empty(String date) {
-    return WorkNote(
+  factory WorkEntry.empty(String date) {
+    return WorkEntry(
       date: date,
       title: '',
       workLocation: '',
@@ -81,7 +81,7 @@ class WorkNote {
   }
 
   /// 复制并修改部分字段
-  WorkNote copyWith({
+  WorkEntry copyWith({
     int? id,
     String? date,
     String? title,
@@ -95,7 +95,7 @@ class WorkNote {
     String? createdAt,
     String? updatedAt,
   }) {
-    return WorkNote(
+    return WorkEntry(
       id: id ?? this.id,
       date: date ?? this.date,
       title: title ?? this.title,
@@ -113,5 +113,5 @@ class WorkNote {
 
   @override
   String toString() =>
-      'WorkNote(id: $id, date: $date, title: $title, dailyWage: $dailyWage)';
+      'WorkEntry(id: $id, date: $date, title: $title, dailyWage: $dailyWage)';
 }

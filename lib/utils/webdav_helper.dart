@@ -227,7 +227,19 @@ class WebDavHelper {
 
       if (resp.statusCode == 200) {
         final file = File(localPath);
-        await file.writeAsBytes(resp.bodyBytes);
+        final bakPath = '$localPath.bak';
+        if (await file.exists()) {
+          await file.copy(bakPath);
+        }
+        try {
+          await file.writeAsBytes(resp.bodyBytes);
+        } catch (e) {
+          final bakFile = File(bakPath);
+          if (await bakFile.exists()) {
+            await bakFile.copy(localPath);
+          }
+          rethrow;
+        }
         return const WebDavResult.success('恢复成功！数据已从云盘下载');
       }
       if (resp.statusCode == 404) {

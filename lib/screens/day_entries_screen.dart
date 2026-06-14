@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../models/work_note.dart';
+import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
@@ -126,7 +126,7 @@ class DayEntriesScreen extends ConsumerWidget {
   Widget _buildEntriesList(
     BuildContext context,
     WidgetRef ref,
-    List<WorkNote> entries,
+    List<WorkEntry> entries,
   ) {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
@@ -141,7 +141,7 @@ class DayEntriesScreen extends ConsumerWidget {
   Widget _buildEntryCard(
     BuildContext context,
     WidgetRef ref,
-    WorkNote entry,
+    WorkEntry entry,
     int index,
     int total,
   ) {
@@ -307,7 +307,7 @@ class DayEntriesScreen extends ConsumerWidget {
   Future<void> _confirmDelete(
     BuildContext context,
     WidgetRef ref,
-    WorkNote entry,
+    WorkEntry entry,
   ) async {
     final displayDate = Helpers.toDisplayDate(entry.date);
     final confirmed = await showDialog<bool>(
