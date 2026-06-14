@@ -334,37 +334,25 @@ class WebDavHelper {
 
       final document = XmlDocument.parse(resp.body);
       final files = <WebDavFileInfo>[];
-      final responses = document.findAllElements('D:response');
+
+      // 兼容不同 WebDAV 服务器的大小写命名空间前缀
+      final responses = [
+        ...document.findAllElements('D:response'),
+        ...document.findAllElements('d:response'),
+      ];
+      if (responses.isEmpty) {
+        // 兜底：按本地名称搜索
+        responses.addAll(document.descendantElements
+            .where((e) => e.name.local == 'response'));
+      }
 
       for (final response in responses) {
-        final href = response
-            .findElements('D:href')
-            .firstOrNull
-            ?.innerText
-            .trim() ?? '';
-        final displayName = response
-            .findElements('D:propstat')
-            .expand((ps) => ps.findElements('D:prop'))
-            .expand((p) => p.findElements('D:displayname'))
-            .firstOrNull
-            ?.innerText
-            .trim() ?? '';
-        final contentLength = response
-            .findElements('D:propstat')
-            .expand((ps) => ps.findElements('D:prop'))
-            .expand((p) => p.findElements('D:getcontentlength'))
-            .firstOrNull
-            ?.innerText
-            .trim();
-        final lastModified = response
-            .findElements('D:propstat')
-            .expand((ps) => ps.findElements('D:prop'))
-            .expand((p) => p.findElements('D:getlastmodified'))
-            .firstOrNull
-            ?.innerText
-            .trim();
+        final href = _davText(response, 'href');
+        final displayName = _davTextDeep(response, 'displayname');
+        final contentLength = _davTextDeep(response, 'getcontentlength');
+        final lastModified = _davTextDeep(response, 'getlastmodified');
 
-        final name = displayName.isNotEmpty
+        final name = (displayName != null && displayName.isNotEmpty)
             ? displayName
             : href.split('/').where((s) => s.isNotEmpty).lastOrNull ?? '';
         final size = int.tryParse(contentLength ?? '') ?? 0;
@@ -384,6 +372,74 @@ class WebDavHelper {
     } catch (_) {
       return [];
     }
+  }
+
+  /// 从 DAV 元素中查找子元素文本（兼容大小写命名空间前缀）
+  static String _davText(XmlElement parent, String localName) {
+    final elements = [
+      ...parent.findElements('D:$localName'),
+      ...parent.findElements('d:$localName'),
+    ];
+    if (elements.isEmpty) {
+      final fallback = parent.descendantElements
+          .where((e) => e.name.local == localName)
+          .firstOrNull;
+      return fallback?.innerText.trim() ?? '';
+    }
+    return elements.first.innerText.trim();
+  }
+
+  /// 从 DAV 深层嵌套中查找子元素文本
+  /// 路径: propstat → prop → target
+  static String? _davTextDeep(XmlElement parent, String localName) {
+    final propstats = [
+      ...parent.findElements('D:propstat'),
+      ...parent.findElements('d:propstat'),
+    ];
+    if (propstats.isEmpty) {
+      final fallback = parent.descendantElements
+          .where((e) => e.name.local == 'propstat');
+      for (final ps in fallback) {
+        final props = [
+          ...ps.findElements('D:prop'),
+          ...ps.findElements('d:prop'),
+        ];
+        if (props.isEmpty) {
+          final pFallback = ps.descendantElements
+              .where((e) => e.name.local == 'prop');
+          for (final p in pFallback) {
+            final result = _davText(p, localName);
+            if (result.isNotEmpty) return result;
+          }
+        } else {
+          for (final p in props) {
+            final result = _davText(p, localName);
+            if (result.isNotEmpty) return result;
+          }
+        }
+      }
+      return null;
+    }
+    for (final ps in propstats) {
+      final props = [
+        ...ps.findElements('D:prop'),
+        ...ps.findElements('d:prop'),
+      ];
+      if (props.isEmpty) {
+        final pFallback = ps.descendantElements
+            .where((e) => e.name.local == 'prop');
+        for (final p in pFallback) {
+          final result = _davText(p, localName);
+          if (result.isNotEmpty) return result;
+        }
+      } else {
+        for (final p in props) {
+          final result = _davText(p, localName);
+          if (result.isNotEmpty) return result;
+        }
+      }
+    }
+    return null;
   }
 
   /// 删除备份目录中的远程文件
