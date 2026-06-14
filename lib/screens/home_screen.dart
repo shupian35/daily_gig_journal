@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'calendar_screen.dart';
 import 'statistics_screen.dart';
 import 'settings_screen.dart';
 import 'day_entries_screen.dart';
+import '../providers/settings_provider.dart';
 
 /// 主页面 —— 精致的底部导航
 /// 管理三个Tab：日历、统计、设置
-class HomeScreen extends StatefulWidget {
+/// 开启隐藏统计后自动隐藏统计 Tab
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
-  late final List<Widget> _pages;
+  late final List<Widget> _allPages;
 
   @override
   void initState() {
     super.initState();
-    _pages = [
+    _allPages = [
       CalendarScreen(
         onDaySelected: (dateStr) {
           _navigateToDayEntries(dateStr);
@@ -42,13 +45,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hideStatistics = ref.watch(hideStatisticsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
+
+    // 构建可见页面列表和导航项
+    final visiblePages = <Widget>[];
+    final navItems = <_NavItem>[];
+
+    // 日历 — 始终显示
+    visiblePages.add(_allPages[0]);
+    navItems.add(_NavItem(icon: Icons.calendar_today_rounded, label: '日历'));
+
+    // 统计 — 根据隐藏设置决定
+    if (!hideStatistics) {
+      navItems.add(_NavItem(icon: Icons.show_chart_rounded, label: '统计'));
+      visiblePages.add(_allPages[1]);
+    }
+
+    // 设置 — 始终显示
+    visiblePages.add(_allPages.last);
+    navItems.add(_NavItem(icon: Icons.tune_rounded, label: '设置'));
+
+    // 如果当前选中索引超出范围，回退到 0
+    if (_currentIndex >= navItems.length) {
+      _currentIndex = 0;
+    }
 
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: _pages,
+        children: visiblePages,
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -67,26 +94,14 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(
-                  index: 0,
-                  icon: Icons.calendar_today_rounded,
-                  activeIcon: Icons.calendar_today_rounded,
-                  label: '日历',
-                ),
-                _buildNavItem(
-                  index: 1,
-                  icon: Icons.show_chart_rounded,
-                  activeIcon: Icons.show_chart_rounded,
-                  label: '统计',
-                ),
-                _buildNavItem(
-                  index: 2,
-                  icon: Icons.tune_rounded,
-                  activeIcon: Icons.tune_rounded,
-                  label: '设置',
-                ),
-              ],
+              children: List.generate(navItems.length, (i) {
+                return _buildNavItem(
+                  index: i,
+                  icon: navItems[i].icon,
+                  activeIcon: navItems[i].icon,
+                  label: navItems[i].label,
+                );
+              }),
             ),
           ),
         ),
@@ -151,4 +166,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  const _NavItem({required this.icon, required this.label});
 }
