@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:xml/xml.dart';
 
 /// WebDAV 云备份客户端
@@ -517,5 +518,19 @@ class WebDavFileInfo {
     if (size < 1024) return '$size B';
     if (size < 1024 * 1024) return '${(size / 1024).toStringAsFixed(1)} KB';
     return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  /// 将 HTTP 日期格式转为中文本地时间显示
+  /// 输入：Mon, 14 Jun 2025 08:30:00 GMT
+  /// 输出：2025年6月14日 16:30（本地时区）
+  String get formattedDate {
+    try {
+      final utc = HttpDate.parse(lastModified);
+      final local = utc.toLocal();
+      final fmt = DateFormat('yyyy年M月d日 HH:mm');
+      return fmt.format(local);
+    } catch (_) {
+      return lastModified;
+    }
   }
 }

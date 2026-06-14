@@ -464,7 +464,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
         title: const Text('确认恢复'),
         content: Text(
           '即将从云盘恢复备份文件：\n\n${file.name}\n'
-          '${file.formattedSize}  |  ${file.lastModified}\n\n'
+          '${file.formattedSize}  |  ${file.formattedDate}\n\n'
           '恢复数据将覆盖当前所有数据，此操作不可撤销。\n建议先备份当前数据再执行恢复。',
         ),
         actions: [
@@ -675,7 +675,7 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis),
             subtitle: Text(
-              '${file.formattedSize}  |  ${file.lastModified}',
+              '${file.formattedSize}  |  ${file.formattedDate}',
               style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
             ),
             trailing: const Icon(Icons.download_rounded,
