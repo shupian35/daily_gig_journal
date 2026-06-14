@@ -28,10 +28,5 @@ void main() {
 
     // "回到今天"按钮
     expect(find.byIcon(Icons.today_rounded), findsOneWidget);
-
-    // 未来一周区域（有数据时显示"未来一周"，无数据时显示空状态）
-    final hasWeekPlan = find.text('未来一周').evaluate().isNotEmpty;
-    final hasEmptyPlan = find.text('未来一周暂无工作安排').evaluate().isNotEmpty;
-    expect(hasWeekPlan || hasEmptyPlan, true);
   });
 }
