@@ -128,7 +128,7 @@ class BackupService {
       );
 
       for (final file in listResult.files) {
-        final parsed = _parseTimestampFromName(file.name);
+        final parsed = parseTimestampFromName(file.name);
         if (parsed != null && parsed.isBefore(cutoff)) {
           await helper.deleteFile(file.name);
         }
@@ -140,7 +140,7 @@ class BackupService {
 
   /// 从备份文件名中提取时间戳
   /// 文件名格式: daily_gig_backup_auto_2025-06-14T08-30-00.db
-  static DateTime? _parseTimestampFromName(String name) {
+  static DateTime? parseTimestampFromName(String name) {
     try {
       final start = name.indexOf('auto_');
       if (start == -1) return null;
