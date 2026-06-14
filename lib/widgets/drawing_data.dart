@@ -25,18 +25,31 @@ class ImageLayer {
     this.cachedImage,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'filePath': filePath,
-        'position': {'dx': position.dx, 'dy': position.dy},
-        'scale': scale,
-        'opacity': opacity,
-        'visible': visible,
-      };
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'id': id,
+      'filePath': filePath,
+      'position': {'dx': position.dx, 'dy': position.dy},
+      'scale': scale,
+      'opacity': opacity,
+      'visible': visible,
+    };
+
+    // 嵌入图片文件的 Base64 数据，确保草稿不依赖原始文件
+    try {
+      final file = File(filePath);
+      if (file.existsSync()) {
+        final bytes = file.readAsBytesSync();
+        map['imageBase64'] = base64Encode(bytes);
+      }
+    } catch (_) {}
+
+    return map;
+  }
 
   factory ImageLayer.fromJson(Map<String, dynamic> json) {
     final pos = json['position'] as Map<String, dynamic>?;
-    return ImageLayer(
+    final layer = ImageLayer(
       id: json['id'] as String,
       filePath: json['filePath'] as String,
       position: Offset(
@@ -47,6 +60,19 @@ class ImageLayer {
       opacity: (json['opacity'] as num?)?.toDouble() ?? 0.6,
       visible: json['visible'] as bool? ?? true,
     );
+
+    // 如果原始文件不存在但 JSON 中包含嵌入数据，则恢复文件
+    final file = File(layer.filePath);
+    if (!file.existsSync()) {
+      final base64 = json['imageBase64'] as String?;
+      if (base64 != null && base64.isNotEmpty) {
+        try {
+          file.writeAsBytesSync(base64Decode(base64));
+        } catch (_) {}
+      }
+    }
+
+    return layer;
   }
 
   void dispose() {

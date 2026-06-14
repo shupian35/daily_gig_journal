@@ -88,11 +88,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               note.dailyWage > 0 ? note.dailyWage.toString() : '';
           try {
             final deltaJson = jsonDecode(note.noteContent);
+            _quillController.dispose();
             _quillController = quill.QuillController(
               document: quill.Document.fromJson(deltaJson),
               selection: const TextSelection.collapsed(offset: 0),
             );
           } catch (_) {
+            _quillController.dispose();
             _quillController = quill.QuillController.basic();
           }
         } else {

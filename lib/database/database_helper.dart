@@ -119,7 +119,7 @@ class DatabaseHelper {
         )
       ''');
       await db.execute(
-        'INSERT INTO ${tableName}_new SELECT * FROM $tableName',
+        'INSERT INTO ${tableName}_new ($colId, $colDate, $colTitle, $colWorkLocation, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt) SELECT $colId, $colDate, $colTitle, $colWorkLocation, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt FROM $tableName',
       );
       await db.execute('DROP TABLE $tableName');
       await db.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
