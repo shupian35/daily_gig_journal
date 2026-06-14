@@ -8,6 +8,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../models/work_note.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/drawing_canvas.dart';
+import 'camera_screen.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
@@ -256,15 +257,14 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   Future<void> _takePhoto() async {
     try {
-      final XFile? photo = await _imagePicker.pickImage(
-        source: ImageSource.camera,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 85,
-        requestFullMetadata: false,
+      final imagePath = await Navigator.of(context).push<String>(
+        MaterialPageRoute(
+          fullscreenDialog: true,
+          builder: (_) => const CameraScreen(),
+        ),
       );
-      if (photo != null) {
-        await _insertImageToNote(photo.path);
+      if (imagePath != null && mounted) {
+        await _insertImageToNote(imagePath);
       }
     } catch (e) {
       final msg = e.toString().toLowerCase();

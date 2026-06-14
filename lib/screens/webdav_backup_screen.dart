@@ -262,9 +262,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
             child: SwitchListTile(
               secondary: const Icon(Icons.sync_rounded,
                   size: 22, color: AppConstants.primaryDark),
-              title: const Text('添加/删除时自动备份',
+              title: const Text('保存/删除时自动备份',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: const Text('开启后，每次保存或删除日程时自动备份到云盘'),
+              subtitle: const Text('开启后，每次新增、修改或删除日程时自动备份到云盘'),
               value: ref.watch(autoBackupProvider),
               onChanged: isConfigured
                   ? (v) => ref.read(autoBackupProvider.notifier).state = v
