@@ -9,6 +9,8 @@ import '../database/database_helper.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/export_helper.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_section_label.dart';
 import 'privacy_screen.dart';
 import 'webdav_backup_screen.dart';
 
@@ -37,9 +39,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           // ── 主题设置 ──
-          _buildSectionLabel('外观', Icons.brightness_6_rounded),
+          AppSectionLabel(title: '外观', icon: Icons.brightness_6_rounded),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -86,9 +88,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 隐私设置 ──
-          _buildSectionLabel('隐私', Icons.shield_outlined),
+          AppSectionLabel(title: '隐私', icon: Icons.shield_outlined),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: _buildNavTile(
               icon: Icons.shield_outlined,
               title: '隐私设置',
@@ -106,9 +108,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 数据管理 ──
-          _buildSectionLabel('数据', Icons.folder_outlined),
+          AppSectionLabel(title: '数据', icon: Icons.folder_outlined),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: Column(
               children: [
                 _buildNavTile(
@@ -160,9 +162,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 关于 ──
-          _buildSectionLabel('关于', Icons.info_outline_rounded),
+          AppSectionLabel(title: '关于', icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: _buildNavTile(
               icon: Icons.info_outline_rounded,
               title: '关于日程清单',
@@ -183,44 +185,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionLabel(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppConstants.primaryDark),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppConstants.primaryDark,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard({required Widget child}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262630) : Colors.white,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-          width: 0.5,
-        ),
-        boxShadow: AppConstants.cardShadow(isDark),
-      ),
-      child: child,
     );
   }
 

@@ -5,6 +5,8 @@ import '../database/database_helper.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/webdav_helper.dart';
+import '../widgets/app_card.dart';
+import '../widgets/app_section_label.dart';
 
 /// WebDAV 云备份页面 —— 精致杂志风
 class WebDavBackupScreen extends ConsumerStatefulWidget {
@@ -66,9 +68,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           // ── 说明卡片 ──
-          _buildSectionLabel('说明', Icons.info_outline_rounded),
+          AppSectionLabel(title: '说明', icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -96,9 +98,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           const SizedBox(height: 20),
 
           // ── 服务器配置 ──
-          _buildSectionLabel('服务器配置', Icons.dns_outlined),
+          AppSectionLabel(title: '服务器配置', icon: Icons.dns_outlined),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -185,9 +187,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           const SizedBox(height: 20),
 
           // ── 备份操作 ──
-          _buildSectionLabel('操作', Icons.sync_rounded),
+          AppSectionLabel(title: '操作', icon: Icons.sync_rounded),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -256,9 +258,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           ),
 
           // ── 自动备份 ──
-          _buildSectionLabel('自动备份', Icons.auto_mode_rounded),
+          AppSectionLabel(title: '自动备份', icon: Icons.auto_mode_rounded),
           const SizedBox(height: 8),
-          _buildCard(
+          AppCard(
             child: SwitchListTile(
               secondary: const Icon(Icons.sync_rounded,
                   size: 22, color: AppConstants.primaryDark),
@@ -336,44 +338,6 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   }
 
   // ======================== UI 组件 ========================
-
-  Widget _buildSectionLabel(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppConstants.primaryDark),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppConstants.primaryDark,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCard({required Widget child}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262630) : Colors.white,
-        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-          width: 0.5,
-        ),
-        boxShadow: AppConstants.cardShadow(isDark),
-      ),
-      child: child,
-    );
-  }
 
   Widget _buildFieldLabel(String text) {
     return Text(
