@@ -216,16 +216,13 @@ class WebDavHelper {
   }
 
   /// 从 WebDAV 下载文件到本地
-  /// [remotePath] 可以是文件名（自动拼接到备份目录）或完整 href
+  /// [remotePath] 可以是文件名、绝对路径 (/dav/...)、或完整 URL
   Future<WebDavResult> downloadFile(
     String remotePath,
     String localPath,
   ) async {
     try {
-      // 如果 remotePath 已经是完整 URL，直接使用；否则拼接到备份目录
-      final url = remotePath.startsWith('http')
-          ? remotePath
-          : '$_backupPath/$remotePath';
+      final url = _resolveUrl(remotePath);
 
       final request = http.Request('GET', Uri.parse(url))
         ..headers.addAll(_headers);
@@ -372,6 +369,20 @@ class WebDavHelper {
     } catch (_) {
       return [];
     }
+  }
+
+  /// 将各种路径格式解析为完整 URL
+  String _resolveUrl(String pathOrUrl) {
+    if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+      return pathOrUrl; // 已经是完整 URL
+    }
+    if (pathOrUrl.startsWith('/')) {
+      // 绝对路径，拼接到 baseUrl 的 origin
+      final uri = Uri.parse(_baseUrl);
+      return '${uri.scheme}://${uri.host}$pathOrUrl';
+    }
+    // 纯文件名，拼接到备份目录
+    return '$_backupPath/$pathOrUrl';
   }
 
   /// 从 DAV 元素中查找子元素文本（兼容大小写命名空间前缀）
