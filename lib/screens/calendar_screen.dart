@@ -187,6 +187,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 date: note.date,
                 title: note.title.isNotEmpty ? note.title : '(无标题)',
                 workLocation: note.workLocation,
+                contact: note.contact,
                 timeRange: '${note.startTime}-${note.endTime}',
                 wage: note.dailyWage,
               ));
@@ -434,6 +435,27 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             ),
                           ),
                         ],
+                        if (item.contact.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.person_outline_rounded,
+                              size: 13,
+                              color: isDark
+                                  ? const Color(0xFFA09892)
+                                  : const Color(0xFFB5A99F)),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              item.contact,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isDark
+                                    ? AppConstants.textSecondaryDark
+                                    : AppConstants.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                         const SizedBox(width: 10),
                         Text(
                           item.timeRange,
@@ -477,6 +499,7 @@ class _PlanItem {
   final String date;
   final String title;
   final String workLocation;
+  final String contact;
   final String timeRange;
   final double wage;
   const _PlanItem({
@@ -484,6 +507,7 @@ class _PlanItem {
     required this.date,
     required this.title,
     required this.workLocation,
+    required this.contact,
     required this.timeRange,
     required this.wage,
   });

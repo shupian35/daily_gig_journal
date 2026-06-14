@@ -30,7 +30,7 @@ void main() {
             WorkEntry(
               date: '2025-06-14',
               title: '会展协助',
-              workLocation: '会展中心',
+              workLocation: '会展中心', contact: '',
               startTime: '09:00', endTime: '18:00',
               hourlyWage: 25, workHours: 9, dailyWage: 225,
               noteContent: '[]',
@@ -38,7 +38,7 @@ void main() {
             WorkEntry(
               date: '2025-06-14',
               title: '家教',
-              workLocation: '学生家',
+              workLocation: '学生家', contact: '',
               startTime: '14:00', endTime: '18:00',
               hourlyWage: 60, workHours: 4, dailyWage: 240,
               noteContent: '[]',

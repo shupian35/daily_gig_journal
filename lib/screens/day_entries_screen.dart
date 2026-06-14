@@ -235,6 +235,31 @@ class DayEntriesScreen extends ConsumerWidget {
                         ],
                       ),
                     ],
+                    if (entry.contact.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline_rounded,
+                              size: 13,
+                              color: isDark
+                                  ? AppConstants.textSecondaryDark
+                                  : AppConstants.textSecondary),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              entry.contact,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark
+                                    ? AppConstants.textSecondaryDark
+                                    : AppConstants.textSecondary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Row(
                       children: [

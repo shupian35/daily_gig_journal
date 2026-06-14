@@ -9,6 +9,7 @@ void main() {
         'date': '2025-06-14',
         'title': '会展协助',
         'work_location': '会展中心A馆',
+        'contact': '张三',
         'start_time': '08:00',
         'end_time': '17:00',
         'hourly_wage': 25.0,
@@ -25,6 +26,7 @@ void main() {
       expect(entry.date, '2025-06-14');
       expect(entry.title, '会展协助');
       expect(entry.workLocation, '会展中心A馆');
+      expect(entry.contact, '张三');
       expect(entry.hourlyWage, 25.0);
       expect(entry.workHours, 8.0);
       expect(entry.dailyWage, 200.0);
@@ -36,6 +38,7 @@ void main() {
 
       expect(entry.title, '');
       expect(entry.workLocation, '');
+      expect(entry.contact, '');
       expect(entry.startTime, '09:00');
       expect(entry.endTime, '18:00');
       expect(entry.hourlyWage, 0.0);
@@ -49,6 +52,7 @@ void main() {
         date: '2025-06-14',
         title: '家教',
         workLocation: '学生家',
+        contact: '李四',
         startTime: '14:00',
         endTime: '18:00',
         hourlyWage: 60.0,
@@ -61,6 +65,7 @@ void main() {
 
       expect(map['date'], '2025-06-14');
       expect(map['title'], '家教');
+      expect(map['contact'], '李四');
       expect(map['hourly_wage'], 60.0);
       expect(map['daily_wage'], 240.0);
       expect(map['updated_at'], isNotNull);
@@ -70,7 +75,7 @@ void main() {
       final entry = WorkEntry(
         date: '2025-06-14',
         title: '测试',
-        workLocation: '',
+        workLocation: '', contact: '',
         startTime: '09:00',
         endTime: '18:00',
         hourlyWage: 0,

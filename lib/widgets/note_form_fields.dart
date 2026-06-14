@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 class NoteFormFields extends StatelessWidget {
   final TextEditingController titleController;
   final TextEditingController workLocationController;
+  final TextEditingController contactController;
   final TextEditingController startTimeController;
   final TextEditingController endTimeController;
   final TextEditingController hourlyWageController;
@@ -19,6 +20,7 @@ class NoteFormFields extends StatelessWidget {
     super.key,
     required this.titleController,
     required this.workLocationController,
+    required this.contactController,
     required this.startTimeController,
     required this.endTimeController,
     required this.hourlyWageController,
@@ -52,6 +54,13 @@ class NoteFormFields extends StatelessWidget {
         TextFormField(
           controller: workLocationController,
           decoration: _inputDecoration('例如：会展中心A馆、解放路步行街'),
+        ),
+        const SizedBox(height: 16),
+        _buildFieldLabel('对接人'),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: contactController,
+          decoration: _inputDecoration('例如：张三、李经理'),
         ),
 
         sectionSpacing,

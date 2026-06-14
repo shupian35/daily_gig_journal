@@ -35,6 +35,7 @@ void main() {
         date: '2025-06-14',
         title: '测试工作',
         workLocation: '测试地点',
+        contact: '',
         startTime: '09:00',
         endTime: '18:00',
         hourlyWage: 30.0,
@@ -61,7 +62,7 @@ void main() {
       final entry = WorkEntry(
         date: '2025-06-14',
         title: '旧标题',
-        workLocation: '',
+        workLocation: '', contact: '',
         startTime: '09:00',
         endTime: '18:00',
         hourlyWage: 0,
@@ -90,14 +91,14 @@ void main() {
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
         title: '下午班',
-        workLocation: '',
+        workLocation: '', contact: '',
         startTime: '14:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 0, noteContent: '[]',
       ));
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
         title: '上午班',
-        workLocation: '',
+        workLocation: '', contact: '',
         startTime: '08:00', endTime: '12:00',
         hourlyWage: 0, workHours: 0, dailyWage: 0, noteContent: '[]',
       ));
@@ -130,13 +131,13 @@ void main() {
     test('getMonthlyTotalWage 计算月收入', () async {
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 200.0, noteContent: '[]',
       ));
       await db.insertNote(WorkEntry(
         date: '2025-06-15',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 300.0, noteContent: '[]',
       ));
@@ -148,13 +149,13 @@ void main() {
     test('getRecentMonthlySummary 按月分组', () async {
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 100.0, noteContent: '[]',
       ));
       await db.insertNote(WorkEntry(
         date: '2025-06-15',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 200.0, noteContent: '[]',
       ));
@@ -177,13 +178,13 @@ void main() {
     test('getNotesWithWage 只返回有日工资的记录', () async {
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 0.0, noteContent: '[]',
       ));
       await db.insertNote(WorkEntry(
         date: '2025-06-15',
-        title: '', workLocation: '',
+        title: '', workLocation: '', contact: '',
         startTime: '09:00', endTime: '18:00',
         hourlyWage: 0, workHours: 0, dailyWage: 300.0, noteContent: '[]',
       ));

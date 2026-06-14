@@ -29,6 +29,7 @@ class NoteEditScreen extends ConsumerStatefulWidget {
 class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   final _titleController = TextEditingController();
   final _workLocationController = TextEditingController();
+  final _contactController = TextEditingController();
   final _startTimeController = TextEditingController();
   final _endTimeController = TextEditingController();
   final _hourlyWageController = TextEditingController();
@@ -54,6 +55,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   void dispose() {
     _titleController.dispose();
     _workLocationController.dispose();
+    _contactController.dispose();
     _startTimeController.dispose();
     _endTimeController.dispose();
     _hourlyWageController.dispose();
@@ -80,6 +82,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           _existingNoteId = note.id;
           _titleController.text = note.title;
           _workLocationController.text = note.workLocation;
+          _contactController.text = note.contact;
           _startTimeController.text = note.startTime;
           _endTimeController.text = note.endTime;
           _hourlyWageController.text =
@@ -137,6 +140,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         date: widget.dateStr,
         title: _titleController.text.trim(),
         workLocation: _workLocationController.text.trim(),
+        contact: _contactController.text.trim(),
         startTime: _startTimeController.text,
         endTime: _endTimeController.text,
         hourlyWage: hourlyWage,
@@ -476,6 +480,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         child: NoteFormFields(
           titleController: _titleController,
           workLocationController: _workLocationController,
+          contactController: _contactController,
           startTimeController: _startTimeController,
           endTimeController: _endTimeController,
           hourlyWageController: _hourlyWageController,

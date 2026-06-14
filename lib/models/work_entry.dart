@@ -5,6 +5,7 @@ class WorkEntry {
   final String date;       // 日期，格式 YYYY-MM-DD
   final String title;      // 工作标题，如"会展协助"
   final String workLocation; // 工作地点
+  final String contact;    // 对接人
   final String startTime;  // 开始时间，格式 HH:mm
   final String endTime;    // 结束时间，格式 HH:mm
   final double hourlyWage; // 时薪
@@ -19,6 +20,7 @@ class WorkEntry {
     required this.date,
     required this.title,
     required this.workLocation,
+    required this.contact,
     required this.startTime,
     required this.endTime,
     required this.hourlyWage,
@@ -36,6 +38,7 @@ class WorkEntry {
       date: map['date'] as String,
       title: (map['title'] as String?) ?? '',
       workLocation: (map['work_location'] as String?) ?? '',
+      contact: (map['contact'] as String?) ?? '',
       startTime: (map['start_time'] as String?) ?? '09:00',
       endTime: (map['end_time'] as String?) ?? '18:00',
       hourlyWage: (map['hourly_wage'] as num?)?.toDouble() ?? 0.0,
@@ -53,6 +56,7 @@ class WorkEntry {
       'date': date,
       'title': title,
       'work_location': workLocation,
+      'contact': contact,
       'start_time': startTime,
       'end_time': endTime,
       'hourly_wage': hourlyWage,
@@ -71,6 +75,7 @@ class WorkEntry {
       date: date,
       title: '',
       workLocation: '',
+      contact: '',
       startTime: '09:00',
       endTime: '18:00',
       hourlyWage: 0.0,
@@ -86,6 +91,7 @@ class WorkEntry {
     String? date,
     String? title,
     String? workLocation,
+    String? contact,
     String? startTime,
     String? endTime,
     double? hourlyWage,
@@ -100,6 +106,7 @@ class WorkEntry {
       date: date ?? this.date,
       title: title ?? this.title,
       workLocation: workLocation ?? this.workLocation,
+      contact: contact ?? this.contact,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       hourlyWage: hourlyWage ?? this.hourlyWage,

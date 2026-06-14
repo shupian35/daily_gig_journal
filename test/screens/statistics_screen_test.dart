@@ -30,7 +30,7 @@ void main() {
             WorkEntry(
               date: '2025-06-14',
               title: '测试工作',
-              workLocation: '',
+              workLocation: '', contact: '',
               startTime: '09:00', endTime: '18:00',
               hourlyWage: 30, workHours: 9, dailyWage: 270,
               noteContent: '[]',

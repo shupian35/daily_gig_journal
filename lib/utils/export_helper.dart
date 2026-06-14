@@ -38,7 +38,7 @@ class ExportHelper {
 
     // 表头
     buffer.writeln(
-      '编号,日期,工作标题,工作地点,开始时间,结束时间,时薪,工作时长,日工资,笔记内容,创建时间,更新时间',
+      '编号,日期,工作标题,工作地点,对接人,开始时间,结束时间,时薪,工作时长,日工资,笔记内容,创建时间,更新时间',
     );
 
     // 数据行
@@ -48,6 +48,7 @@ class ExportHelper {
         note.date,
         _csvEscape(note.title),
         _csvEscape(note.workLocation),
+        _csvEscape(note.contact),
         note.startTime,
         note.endTime,
         note.hourlyWage,
@@ -69,6 +70,7 @@ class ExportHelper {
       'date': note.date,
       'title': note.title,
       'work_location': note.workLocation,
+      'contact': note.contact,
       'start_time': note.startTime,
       'end_time': note.endTime,
       'hourly_wage': note.hourlyWage,

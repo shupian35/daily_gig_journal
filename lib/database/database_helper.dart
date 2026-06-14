@@ -18,7 +18,7 @@ class DatabaseHelper {
 
   // 数据库名称与版本
   static const String _dbName = 'daily_gig_journal.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
 
   // 表名与字段常量
   static const String tableName = 'work_notes';
@@ -26,6 +26,7 @@ class DatabaseHelper {
   static const String colDate = 'date';
   static const String colTitle = 'title';
   static const String colWorkLocation = 'work_location';
+  static const String colContact = 'contact';
   static const String colStartTime = 'start_time';
   static const String colEndTime = 'end_time';
   static const String colHourlyWage = 'hourly_wage';
@@ -96,6 +97,7 @@ class DatabaseHelper {
       $colDate TEXT NOT NULL,
       $colTitle TEXT DEFAULT '',
       $colWorkLocation TEXT DEFAULT '',
+      $colContact TEXT DEFAULT '',
       $colStartTime TEXT DEFAULT '09:00',
       $colEndTime TEXT DEFAULT '18:00',
       $colHourlyWage REAL DEFAULT 0.0,
@@ -132,6 +134,7 @@ class DatabaseHelper {
           $colDate TEXT NOT NULL,
           $colTitle TEXT DEFAULT '',
           $colWorkLocation TEXT DEFAULT '',
+          $colContact TEXT DEFAULT '',
           $colStartTime TEXT DEFAULT '09:00',
           $colEndTime TEXT DEFAULT '18:00',
           $colHourlyWage REAL DEFAULT 0.0,
@@ -143,12 +146,18 @@ class DatabaseHelper {
         )
       ''');
       await db.execute(
-        'INSERT INTO ${tableName}_new ($colId, $colDate, $colTitle, $colWorkLocation, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt) SELECT $colId, $colDate, $colTitle, $colWorkLocation, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt FROM $tableName',
+        'INSERT INTO ${tableName}_new ($colId, $colDate, $colTitle, $colWorkLocation, $colContact, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt) SELECT $colId, $colDate, $colTitle, $colWorkLocation, $colContact, $colStartTime, $colEndTime, $colHourlyWage, $colWorkHours, $colDailyWage, $colNoteContent, $colCreatedAt, $colUpdatedAt FROM $tableName',
       );
       await db.execute('DROP TABLE $tableName');
       await db.execute('ALTER TABLE ${tableName}_new RENAME TO $tableName');
       await db.execute(
         'CREATE INDEX idx_$colDate ON $tableName ($colDate)',
+      );
+    }
+    if (oldVersion < 4) {
+      // v3 -> v4: 添加 contact 字段
+      await db.execute(
+        'ALTER TABLE $tableName ADD COLUMN $colContact TEXT DEFAULT \'\'',
       );
     }
   }
