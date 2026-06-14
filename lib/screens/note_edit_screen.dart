@@ -8,6 +8,8 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../models/work_entry.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/drawing_canvas.dart';
+import '../widgets/image_gallery_viewer.dart';
+import '../widgets/image_file_embed_builder.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
@@ -561,7 +563,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                   padding: const EdgeInsets.all(14),
                   autoFocus: false,
                   scrollable: true,
-                  embedBuilders: [_ImageFileEmbedBuilder()],
+                  embedBuilders: [ImageFileEmbedBuilder()],
                 ),
               ),
             ),
@@ -693,7 +695,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => _FullScreenGallery(
+                              builder: (_) => ImageGalleryViewer(
                                 images: images,
                                 initialIndex: index,
                               ),
@@ -792,220 +794,3 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 }
 
-/// 图片文件嵌入渲染器
-class _ImageFileEmbedBuilder extends quill.EmbedBuilder {
-  @override
-  String get key => 'image';
-
-  @override
-  Widget build(BuildContext context, quill.EmbedContext embedContext) {
-    final path = embedContext.node.value.data as String;
-    final allImages = <String>[];
-    final currentIndex = _collectImages(embedContext, allImages, path);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return GestureDetector(
-      onTap: () {
-        if (allImages.isNotEmpty) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => _FullScreenGallery(
-                images: allImages,
-                initialIndex: currentIndex,
-              ),
-            ),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          child: Container(
-            constraints: const BoxConstraints(maxHeight: 180),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFE5DFD8),
-              ),
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Image.file(
-                  File(path),
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  errorBuilder: (_, __, ___) =>
-                      const Icon(Icons.broken_image_rounded, size: 48),
-                ),
-                Positioned(
-                  right: 8,
-                  bottom: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius:
-                          BorderRadius.circular(AppConstants.radiusXs),
-                    ),
-                    child: const Text(
-                      '点击放大',
-                      style: TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  int _collectImages(
-      quill.EmbedContext ctx, List<String> out, String currentPath) {
-    int idx = 0;
-    int foundIdx = -1;
-    try {
-      final deltaJson = ctx.controller.document.toDelta().toJson();
-      for (final op in deltaJson) {
-        final insert = op['insert'];
-        if (insert is Map && insert.containsKey('image')) {
-          final p = insert['image'] as String;
-          out.add(p);
-          if (p == currentPath) foundIdx = idx;
-          idx++;
-        }
-      }
-    } catch (_) {}
-    return foundIdx >= 0 ? foundIdx : 0;
-  }
-}
-
-/// 全屏图片浏览器
-class _FullScreenGallery extends StatefulWidget {
-  final List<String> images;
-  final int initialIndex;
-
-  const _FullScreenGallery({
-    required this.images,
-    required this.initialIndex,
-  });
-
-  @override
-  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
-}
-
-class _FullScreenGalleryState extends State<_FullScreenGallery> {
-  late final PageController _pageController;
-  late int _currentIndex;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentIndex = widget.initialIndex;
-    _pageController = PageController(initialPage: _currentIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          '${_currentIndex + 1} / ${widget.images.length}',
-          style: const TextStyle(color: Colors.white),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.images.length,
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-            },
-            itemBuilder: (context, index) {
-              return Center(
-                child: InteractiveViewer(
-                  maxScale: 5.0,
-                  child: Image.file(
-                    File(widget.images[index]),
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
-                      child: Icon(Icons.broken_image_rounded,
-                          size: 64, color: Colors.grey),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          if (_currentIndex > 0)
-            Positioned(
-              left: 8,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
-                  child: IconButton(
-                    icon:
-                        const Icon(Icons.chevron_left_rounded, color: Colors.white),
-                    onPressed: () {
-                      _pageController.previousPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          if (_currentIndex < widget.images.length - 1)
-            Positioned(
-              right: 8,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.15),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.chevron_right_rounded,
-                        color: Colors.white),
-                    onPressed: () {
-                      _pageController.nextPage(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
