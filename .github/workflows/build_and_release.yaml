@@ -151,8 +151,9 @@ jobs:
         id: version
         run: |
           VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          BUILD_DATE=$(date +%Y%m%d-%H%M%S)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$(echo '${{ github.sha }}' | cut -c1-7)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$BUILD_DATE" >> "$GITHUB_OUTPUT"
 
       - name: 下载全部产物
         uses: actions/download-artifact@v4
@@ -165,8 +166,8 @@ jobs:
       - name: 创建/更新 GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          # 使用 v{version}-{short_sha} 作为 tag，不覆盖历史 release
-          tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.short_sha }}
+          # 使用日期时间作为 tag，GitHub 按 semver 排序时按时间倒序
+          tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.build_date }}
           name: "v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})"
           body: |
             ## 🏗️ 自动构建
@@ -175,9 +176,9 @@ jobs:
             |------|-----|
             | **版本** | `${{ steps.version.outputs.version }}` |
             | **构建编号** | `#${{ github.run_number }}` |
-            | **提交** | [`${{ steps.version.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
+            | **构建时间** | `${{ steps.version.outputs.build_date }}` |
+            | **提交** | [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
             | **分支** | `${{ github.ref_name }}` |
-            | **时间** | `${{ github.event.head_commit.timestamp }}` |
 
             ### 📦 产物
 
