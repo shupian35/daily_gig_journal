@@ -25,8 +25,11 @@ class WebDavHelper {
       ? serverUrl.substring(0, serverUrl.length - 1)
       : serverUrl;
 
-  /// 备份目录完整 URL
+  /// 备份目录完整 URL（用于文件操作，无尾部斜杠）
   String get _backupPath => '$_baseUrl/$backupSubDir';
+
+  /// 备份目录 URL（用于 PROPFIND/MKCOL，带尾部斜杠）
+  String get _backupDirUrl => '$_backupPath/';
 
   /// 构建请求头
   Map<String, String> get _headers {
@@ -54,7 +57,7 @@ class WebDavHelper {
   Future<WebDavResult> ensureBackupDir() async {
     try {
       // 先检查目录是否存在
-      final checkRequest = http.Request('PROPFIND', Uri.parse(_backupPath))
+      final checkRequest = http.Request('PROPFIND', Uri.parse(_backupDirUrl))
         ..headers.addAll(_headers)
         ..headers['Depth'] = '0';
 
@@ -86,7 +89,7 @@ class WebDavHelper {
   /// 创建备份子目录 (MKCOL)
   Future<WebDavResult> _createBackupDir() async {
     try {
-      final request = http.Request('MKCOL', Uri.parse(_backupPath))
+      final request = http.Request('MKCOL', Uri.parse(_backupDirUrl))
         ..headers.addAll(_headers);
 
       final resp = await _send(request);
@@ -124,7 +127,7 @@ class WebDavHelper {
       if (part.isEmpty) continue;
       currentPath = '$currentPath/$part';
 
-      final request = http.Request('MKCOL', Uri.parse(currentPath))
+      final request = http.Request('MKCOL', Uri.parse('$currentPath/'))
         ..headers.addAll(_headers);
 
       final resp = await _send(request);
@@ -212,13 +215,17 @@ class WebDavHelper {
     }
   }
 
-  /// 从 WebDAV 备份目录下载文件到本地
+  /// 从 WebDAV 下载文件到本地
+  /// [remotePath] 可以是文件名（自动拼接到备份目录）或完整 href
   Future<WebDavResult> downloadFile(
-    String remoteFileName,
+    String remotePath,
     String localPath,
   ) async {
     try {
-      final url = '$_backupPath/$remoteFileName';
+      // 如果 remotePath 已经是完整 URL，直接使用；否则拼接到备份目录
+      final url = remotePath.startsWith('http')
+          ? remotePath
+          : '$_backupPath/$remotePath';
 
       final request = http.Request('GET', Uri.parse(url))
         ..headers.addAll(_headers);
@@ -276,8 +283,8 @@ class WebDavHelper {
   /// 列出备份目录中的文件
   Future<WebDavListResult> listFiles({String prefix = 'daily_gig_backup'}) async {
     try {
-      // PROPFIND 备份子目录
-      final request = http.Request('PROPFIND', Uri.parse(_backupPath))
+      // PROPFIND 备份子目录（带尾部斜杠）
+      final request = http.Request('PROPFIND', Uri.parse(_backupDirUrl))
         ..headers.addAll(_headers)
         ..headers['Depth'] = '1';
 
@@ -292,53 +299,11 @@ class WebDavHelper {
       }
 
       if (resp.statusCode == 207) {
-        final document = XmlDocument.parse(resp.body);
-        final files = <WebDavFileInfo>[];
+        var files = await _listFilesInDir(_backupDirUrl, prefix);
 
-        final responses = document.findAllElements('D:response');
-        for (final response in responses) {
-          final href = response
-              .findElements('D:href')
-              .firstOrNull
-              ?.innerText
-              .trim() ?? '';
-          final displayName = response
-              .findElements('D:propstat')
-              .expand((ps) => ps.findElements('D:prop'))
-              .expand((p) => p.findElements('D:displayname'))
-              .firstOrNull
-              ?.innerText
-              .trim() ?? '';
-          final contentLength = response
-              .findElements('D:propstat')
-              .expand((ps) => ps.findElements('D:prop'))
-              .expand((p) => p.findElements('D:getcontentlength'))
-              .firstOrNull
-              ?.innerText
-              .trim();
-          final lastModified = response
-              .findElements('D:propstat')
-              .expand((ps) => ps.findElements('D:prop'))
-              .expand((p) => p.findElements('D:getlastmodified'))
-              .firstOrNull
-              ?.innerText
-              .trim();
-
-          final name = displayName.isNotEmpty
-              ? displayName
-              : href.split('/').where((s) => s.isNotEmpty).lastOrNull ?? '';
-          final size = int.tryParse(contentLength ?? '') ?? 0;
-          final isCollection = href.endsWith('/');
-
-          if (isCollection || name.isEmpty) continue;
-          if (prefix.isNotEmpty && !name.startsWith(prefix)) continue;
-
-          files.add(WebDavFileInfo(
-            name: name,
-            href: href,
-            size: size,
-            lastModified: lastModified ?? '',
-          ));
+        // 如果子目录为空，也检查根目录（兼容旧版本备份）
+        if (files.isEmpty) {
+          files = await _listFilesInDir(_baseUrl, prefix);
         }
 
         files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
@@ -350,6 +315,74 @@ class WebDavHelper {
       return const WebDavListResult.error('网络连接失败');
     } catch (e) {
       return WebDavListResult.error('列出文件失败: $e');
+    }
+  }
+
+  /// PROPFIND 指定目录并解析文件列表
+  Future<List<WebDavFileInfo>> _listFilesInDir(
+    String dirUrl,
+    String prefix,
+  ) async {
+    try {
+      final url = dirUrl.endsWith('/') ? dirUrl : '$dirUrl/';
+      final request = http.Request('PROPFIND', Uri.parse(url))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '1';
+
+      final resp = await _send(request);
+      if (resp.statusCode != 207) return [];
+
+      final document = XmlDocument.parse(resp.body);
+      final files = <WebDavFileInfo>[];
+      final responses = document.findAllElements('D:response');
+
+      for (final response in responses) {
+        final href = response
+            .findElements('D:href')
+            .firstOrNull
+            ?.innerText
+            .trim() ?? '';
+        final displayName = response
+            .findElements('D:propstat')
+            .expand((ps) => ps.findElements('D:prop'))
+            .expand((p) => p.findElements('D:displayname'))
+            .firstOrNull
+            ?.innerText
+            .trim() ?? '';
+        final contentLength = response
+            .findElements('D:propstat')
+            .expand((ps) => ps.findElements('D:prop'))
+            .expand((p) => p.findElements('D:getcontentlength'))
+            .firstOrNull
+            ?.innerText
+            .trim();
+        final lastModified = response
+            .findElements('D:propstat')
+            .expand((ps) => ps.findElements('D:prop'))
+            .expand((p) => p.findElements('D:getlastmodified'))
+            .firstOrNull
+            ?.innerText
+            .trim();
+
+        final name = displayName.isNotEmpty
+            ? displayName
+            : href.split('/').where((s) => s.isNotEmpty).lastOrNull ?? '';
+        final size = int.tryParse(contentLength ?? '') ?? 0;
+        final isCollection = href.endsWith('/');
+
+        if (isCollection || name.isEmpty) continue;
+        if (prefix.isNotEmpty && !name.startsWith(prefix)) continue;
+
+        files.add(WebDavFileInfo(
+          name: name,
+          href: href,
+          size: size,
+          lastModified: lastModified ?? '',
+        ));
+      }
+      return files;
+    } catch (_) {
+      return [];
     }
   }
 

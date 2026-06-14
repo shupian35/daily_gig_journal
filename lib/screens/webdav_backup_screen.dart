@@ -481,7 +481,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       final latest = listResult.files.first;
       final dbPath = await DatabaseHelper.getDatabasePath();
 
-      final result = await _buildHelper().downloadFile(latest.name, dbPath);
+      final result = await _buildHelper().downloadFile(latest.href, dbPath);
 
       if (!mounted) return;
       setState(() => _isRestoring = false);
