@@ -1,15 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-/// 设置持久化 Key
-const _keyThemeMode = 'theme_mode';
-const _keyHideIncome = 'hide_income';
-const _keyHideStatistics = 'hide_statistics';
-const _keyWebDavUrl = 'webdav_url';
-const _keyWebDavUsername = 'webdav_username';
-const _keyWebDavPassword = 'webdav_password';
-const _keyAutoBackup = 'auto_backup';
+import '../services/settings_service.dart';
 
 /// 主题模式状态提供者
 final themeModeProvider = StateProvider<ThemeMode>((ref) {
@@ -62,64 +53,47 @@ final webDavConfiguredProvider = Provider<bool>((ref) {
 
 /// 从本地加载所有持久化设置到 provider
 Future<void> loadSettings(WidgetRef ref) async {
-  final prefs = await SharedPreferences.getInstance();
-  final themeIndex = prefs.getInt(_keyThemeMode) ?? 0;
-  ref.read(themeModeProvider.notifier).state =
-      ThemeMode.values[themeIndex.clamp(0, 2)];
+  ref.read(themeModeProvider.notifier).state = ThemeMode.values[
+    (await SettingsService.loadInt(keyThemeMode, 0)).clamp(0, 2)
+  ];
   ref.read(hideIncomeProvider.notifier).state =
-      prefs.getBool(_keyHideIncome) ?? false;
+      await SettingsService.loadBool(keyHideIncome, false);
   ref.read(hideStatisticsProvider.notifier).state =
-      prefs.getBool(_keyHideStatistics) ?? false;
-
-  // WebDAV 配置
+      await SettingsService.loadBool(keyHideStatistics, false);
   ref.read(webDavUrlProvider.notifier).state =
-      prefs.getString(_keyWebDavUrl) ?? defaultWebDavUrl;
+      await SettingsService.loadString(keyWebDavUrl, defaultWebDavUrl);
   ref.read(webDavUsernameProvider.notifier).state =
-      prefs.getString(_keyWebDavUsername) ?? '';
+      await SettingsService.loadString(keyWebDavUsername, '');
   ref.read(webDavPasswordProvider.notifier).state =
-      prefs.getString(_keyWebDavPassword) ?? '';
+      await SettingsService.loadString(keyWebDavPassword, '');
   ref.read(autoBackupProvider.notifier).state =
-      prefs.getBool(_keyAutoBackup) ?? false;
+      await SettingsService.loadBool(keyAutoBackup, false);
 }
 
 /// 保存主题模式
-Future<void> saveThemeMode(ThemeMode mode) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt(_keyThemeMode, mode.index);
-}
+Future<void> saveThemeMode(ThemeMode mode) =>
+    SettingsService.saveInt(keyThemeMode, mode.index);
 
 /// 保存隐藏收入设置
-Future<void> saveHideIncome(bool value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(_keyHideIncome, value);
-}
+Future<void> saveHideIncome(bool value) =>
+    SettingsService.saveBool(keyHideIncome, value);
 
 /// 保存隐藏统计设置
-Future<void> saveHideStatistics(bool value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(_keyHideStatistics, value);
-}
+Future<void> saveHideStatistics(bool value) =>
+    SettingsService.saveBool(keyHideStatistics, value);
 
 /// 保存 WebDAV 服务器地址
-Future<void> saveWebDavUrl(String value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_keyWebDavUrl, value);
-}
+Future<void> saveWebDavUrl(String value) =>
+    SettingsService.saveString(keyWebDavUrl, value);
 
 /// 保存 WebDAV 账号
-Future<void> saveWebDavUsername(String value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_keyWebDavUsername, value);
-}
+Future<void> saveWebDavUsername(String value) =>
+    SettingsService.saveString(keyWebDavUsername, value);
 
 /// 保存 WebDAV 密码
-Future<void> saveWebDavPassword(String value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_keyWebDavPassword, value);
-}
+Future<void> saveWebDavPassword(String value) =>
+    SettingsService.saveString(keyWebDavPassword, value);
 
 /// 保存自动备份开关
-Future<void> saveAutoBackup(bool value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(_keyAutoBackup, value);
-}
+Future<void> saveAutoBackup(bool value) =>
+    SettingsService.saveBool(keyAutoBackup, value);
