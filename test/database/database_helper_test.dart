@@ -175,7 +175,7 @@ void main() {
       expect(range.first.date, '2025-06-14');
     });
 
-    test('getNotesWithWage 只返回有日工资的记录', () async {
+    test('getNotesWithWage 返回全部记录（含零工资）', () async {
       await db.insertNote(WorkEntry(
         date: '2025-06-14',
         title: '', workLocation: '', contact: '',
@@ -189,9 +189,8 @@ void main() {
         hourlyWage: 0, workHours: 0, dailyWage: 300.0, noteContent: '[]',
       ));
 
-      final withWage = await db.getNotesWithWage();
-      expect(withWage.length, 1);
-      expect(withWage.first.dailyWage, 300.0);
+      final all = await db.getNotesWithWage();
+      expect(all.length, 2); // 零工资也计入
     });
   });
 }

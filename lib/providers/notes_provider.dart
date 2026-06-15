@@ -59,7 +59,7 @@ final monthlyWorkDaysProvider = FutureProvider.autoDispose<int>((ref) async {
   final monthKey = Helpers.toMonthKey(focusedDay);
   final db = ref.watch(databaseHelperProvider);
   final notes = await db.getNotesByMonth(monthKey);
-  return notes.where((n) => n.dailyWage > 0).length;
+  return notes.length;
 });
 
 /// 根据日期获取该天所有笔记列表

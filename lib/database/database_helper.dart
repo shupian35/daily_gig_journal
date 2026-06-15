@@ -307,14 +307,12 @@ class DatabaseHelper {
     }
   }
 
-  /// 获取有日工资记录的笔记（用于统计页）
-  /// 即 daily_wage > 0 的记录
+  /// 获取全部笔记（用于统计页，含零工资记录）
   Future<List<WorkEntry>> getNotesWithWage() async {
     try {
       final db = await database;
       final results = await db.query(
         tableName,
-        where: '$colDailyWage > 0',
         orderBy: '$colDate DESC, $colStartTime ASC',
       );
       return results.map((map) => WorkEntry.fromMap(map)).toList();
@@ -348,9 +346,8 @@ class DatabaseHelper {
         SELECT SUBSTR($colDate, 1, 7) as month, 
                SUM($colDailyWage) as total,
                COUNT(*) as work_days
-        FROM $tableName 
-        WHERE $colDailyWage > 0
-        GROUP BY month 
+        FROM $tableName
+        GROUP BY month
         ORDER BY month DESC 
         LIMIT ?
       ''', [months]);
