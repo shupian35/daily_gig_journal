@@ -8,7 +8,7 @@
 flutter pub get          # 安装依赖
 flutter run              # 在已连接设备/模拟器上运行
 flutter analyze          # 静态分析（使用 package:flutter_lints/flutter.yaml）
-flutter test             # 运行测试（33 tests，覆盖 model/helper/db/widget）
+flutter test             # 运行测试（54 tests，覆盖 model/helper/db/widget/screen/service）
 flutter build apk --release  # 构建 Android APK
 flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 ```
@@ -19,9 +19,9 @@ flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 
 **状态管理：** Riverpod (`flutter_riverpod`)。数据库查询封装为 `FutureProvider` / `FutureProvider.family`。增删操作（save/delete）使用 `FutureProvider.autoDispose.family`，在调用数据库后自动 invalidate 相关读取 provider 以刷新 UI。画板 (`DrawingScreen`) 使用纯 `setState`，因为其状态不需要跨页面共享。
 
-**数据模型：** `WorkEntry` — 工作条目，对应数据库 `work_notes` 表。11 个字段：id、date、title、workLocation、startTime、endTime、hourlyWage、workHours、dailyWage、noteContent（Quill Delta JSON）、createdAt、updatedAt。
+**数据模型：** `WorkEntry` — 工作条目，对应数据库 `work_notes` 表。12 个字段：id、date、title、workLocation、contact、startTime、endTime、hourlyWage、workHours、dailyWage、noteContent（Quill Delta JSON）、createdAt、updatedAt。
 
-**数据库：** SQLite，使用 `sqflite`。`DatabaseHelper` 是单例（`_instance`）—— 通过 `DatabaseHelper()` 或 Riverpod 的 `databaseHelperProvider` 访问。数据库版本为 3，升级逻辑使用显式列名迁移。支持 `setTestDbPath()` 注入测试路径。
+**数据库：** SQLite，使用 `sqflite`。`DatabaseHelper` 是单例（`_instance`）—— 通过 `DatabaseHelper()` 或 Riverpod 的 `databaseHelperProvider` 访问。数据库版本为 4，升级逻辑使用显式列名迁移。支持 `setTestDbPath()` 注入测试路径。
 
 **服务层：** `BackupService` 统一封装本地备份、云备份（WebDAV）、自动备份逻辑。`safeOverwrite()` / `safeWriteBytes()` 在覆盖前自动创建 `.bak` 备份。自动备份每次保存/删除后触发，30 天自动清理。
 
