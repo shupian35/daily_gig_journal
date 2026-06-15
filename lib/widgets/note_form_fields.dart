@@ -13,6 +13,7 @@ class NoteFormFields extends StatelessWidget {
   final TextEditingController workHoursController;
   final TextEditingController dailyWageController;
   final VoidCallback? onAutoCalculate;
+  final VoidCallback? onDailyWageChanged;
   final VoidCallback? onTimeChanged;
   final bool hideIncome;
 
@@ -27,6 +28,7 @@ class NoteFormFields extends StatelessWidget {
     required this.workHoursController,
     required this.dailyWageController,
     this.onAutoCalculate,
+    this.onDailyWageChanged,
     this.onTimeChanged,
     this.hideIncome = false,
   });
@@ -177,9 +179,10 @@ class NoteFormFields extends StatelessWidget {
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             decoration: _inputDecoration('0.00').copyWith(
-              helperText: '时薪 × 时长，自动计算后可手动修改',
+              helperText: '填时薪自动算日工资，填日工资反推时薪',
               helperStyle: const TextStyle(fontSize: 11, color: AppConstants.textSecondary),
             ),
+            onChanged: (_) => onDailyWageChanged?.call(),
           ),
         ],
       ],

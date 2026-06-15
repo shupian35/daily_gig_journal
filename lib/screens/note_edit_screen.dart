@@ -40,6 +40,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isAutoUpdating = false; // 防递归守卫
   int? _existingNoteId;
   final ImagePicker _imagePicker = ImagePicker();
   bool _initialized = false;
@@ -231,10 +232,25 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   void _autoCalculateDailyWage() {
+    if (_isAutoUpdating) return;
+    _isAutoUpdating = true;
     final hourlyWage = double.tryParse(_hourlyWageController.text) ?? 0.0;
     final workHours = double.tryParse(_workHoursController.text) ?? 0.0;
     final dailyWage = hourlyWage * workHours;
     _dailyWageController.text = dailyWage.toStringAsFixed(1);
+    _isAutoUpdating = false;
+  }
+
+  void _autoCalculateHourlyWage() {
+    if (_isAutoUpdating) return;
+    _isAutoUpdating = true;
+    final dailyWage = double.tryParse(_dailyWageController.text) ?? 0.0;
+    final workHours = double.tryParse(_workHoursController.text) ?? 0.0;
+    if (workHours > 0) {
+      final hourlyWage = dailyWage / workHours;
+      _hourlyWageController.text = hourlyWage.toStringAsFixed(1);
+    }
+    _isAutoUpdating = false;
   }
 
   void _autoCalculateWorkHours() {
@@ -487,6 +503,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           workHoursController: _workHoursController,
           dailyWageController: _dailyWageController,
           onAutoCalculate: _autoCalculateDailyWage,
+          onDailyWageChanged: _autoCalculateHourlyWage,
           onTimeChanged: _autoCalculateWorkHours,
           hideIncome: hideIncome,
         ),
