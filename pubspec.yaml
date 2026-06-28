@@ -1,7 +1,7 @@
 name: daily_gig_journal
 description: "日程清单 - 帮助日结兼职人员记录工作安排、笔记和工资统计"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.2.0+1
 
 environment:
   sdk: ^3.11.0
