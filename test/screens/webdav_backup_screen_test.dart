@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/screens/webdav_backup_screen.dart';
 
 void main() {
   testWidgets('配置表单渲染', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
         child: MaterialApp(
-          home: WebDavBackupScreen(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const WebDavBackupScreen(),
         ),
       ),
     );

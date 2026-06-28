@@ -8,6 +8,7 @@ const keyWebDavUrl = 'webdav_url';
 const keyWebDavUsername = 'webdav_username';
 const keyWebDavPassword = 'webdav_password';
 const keyAutoBackup = 'auto_backup';
+const keyLocale = 'locale';
 
 /// 设置持久化服务
 /// 封装 SharedPreferences 访问，消除 7 处重复的 getInstance 样板

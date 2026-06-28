@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/screens/calendar_screen.dart';
 
 void main() {
@@ -11,9 +12,12 @@ void main() {
 
   testWidgets('日历和摘要渲染', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
+      ProviderScope(
         child: MaterialApp(
-          home: CalendarScreen(),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const CalendarScreen(),
         ),
       ),
     );

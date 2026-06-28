@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_quill/flutter_quill.dart' as quill;
+import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/drawing_canvas.dart';
@@ -115,7 +116,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('加载笔记失败: $e'),
+            content: Text('${AppLocalizations.of(context)!.loadNoteFailed}: $e'),
             backgroundColor: AppConstants.dangerRed,
           ),
         );
@@ -154,8 +155,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('保存成功！'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.saveSuccess),
             backgroundColor: AppConstants.incomeGreen,
             duration: Duration(seconds: 1),
           ),
@@ -166,7 +167,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('保存失败: $e'),
+            content: Text('${AppLocalizations.of(context)!.saveFailed}: $e'),
             backgroundColor: AppConstants.dangerRed,
           ),
         );
@@ -179,24 +180,26 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   Future<void> _deleteNote() async {
     if (_existingNoteId == null) return;
 
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('确认删除'),
+        title: Text(l10n.confirmDelete),
         content: Text(
-          '确定要删除 ${Helpers.toDisplayDate(widget.dateStr)} 的工作笔记吗？\n此操作不可撤销。',
+          '确定要删除 ${Helpers.toDisplayDate(widget.dateStr, locale)} 的工作笔记吗？\n此操作不可撤销。',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: AppConstants.dangerRed,
             ),
-            child: const Text('删除'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -212,8 +215,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已删除'),
+          SnackBar(
+            content: Text(l10n.deleted),
             duration: Duration(seconds: 1),
           ),
         );
@@ -223,7 +226,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('删除失败: $e'),
+            content: Text('${AppLocalizations.of(context)!.deleteFailed}: $e'),
             backgroundColor: AppConstants.dangerRed,
           ),
         );
@@ -274,7 +277,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         await _insertImageToNote(image.path);
       }
     } catch (e) {
-      _showError('选择图片失败: $e');
+      _showError('${AppLocalizations.of(context)!.selectImageFailed}: $e');
     }
   }
 
@@ -295,9 +298,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (msg.contains('denied') ||
           msg.contains('permission') ||
           msg.contains('not authorized')) {
-        _showError('无法使用相机，请在系统设置中允许相机权限');
+        _showError(AppLocalizations.of(context)!.cameraPermissionError);
       } else {
-        _showError('拍照失败');
+        _showError(AppLocalizations.of(context)!.takePhotoFailed);
       }
     }
   }
@@ -323,14 +326,14 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('图片已插入'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.imageInserted),
             duration: Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
-      _showError('插入图片失败: $e');
+      _showError('${AppLocalizations.of(context)!.insertImageFailed}: $e');
     }
   }
 
@@ -360,10 +363,12 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final date = Helpers.parseDate(widget.dateStr);
     final displayDate =
-        date != null ? Helpers.toDisplayDate(widget.dateStr) : widget.dateStr;
-    final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
+        date != null ? Helpers.toDisplayDate(widget.dateStr, locale) : widget.dateStr;
+    final weekday = date != null ? Helpers.getWeekday(date, locale) : '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
     final hideIncome = ref.watch(hideIncomeProvider);
@@ -396,7 +401,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               IconButton(
                 icon: const Icon(Icons.delete_outline_rounded,
                     color: AppConstants.dangerRed),
-                tooltip: '删除笔记',
+                tooltip: l10n.deleteNote,
                 onPressed: _isSaving ? null : _deleteNote,
               ),
             IconButton(
@@ -410,7 +415,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                     )
                   : const Icon(Icons.check_rounded,
                       color: AppConstants.incomeGreen),
-              tooltip: '保存',
+              tooltip: l10n.save,
               onPressed: (_isSaving || _isLoading) ? null : _saveNote,
             ),
           ],
@@ -512,6 +517,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Widget _buildRichTextCard() {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -534,8 +540,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                 Icon(Icons.edit_note_rounded,
                     size: 18, color: AppConstants.primaryDark),
                 const SizedBox(width: 8),
-                const Text(
-                  '备注',
+                Text(
+                  l10n.remarks,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -581,7 +587,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               child: quill.QuillEditor.basic(
                 controller: _quillController,
                 config: quill.QuillEditorConfig(
-                  placeholder: '写写今天的工作内容和感受...',
+                  placeholder: l10n.remarksPlaceholder,
                   padding: const EdgeInsets.all(14),
                   autoFocus: false,
                   scrollable: true,
@@ -596,24 +602,25 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Widget _buildInsertButtons() {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _buildInsertButton(
           icon: Icons.photo_library_rounded,
-          label: '相册图片',
+          label: l10n.galleryImage,
           onTap: _pickImageFromGallery,
         ),
         const SizedBox(width: 10),
         _buildInsertButton(
           icon: Icons.camera_alt_rounded,
-          label: '拍照',
+          label: l10n.takePhoto,
           onTap: _takePhoto,
         ),
         const SizedBox(width: 10),
         _buildInsertButton(
           icon: Icons.draw_rounded,
-          label: '画板',
+          label: l10n.drawingBoard,
           onTap: _openDrawingCanvas,
         ),
       ],
@@ -660,6 +667,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Widget _buildImageList() {
+    final l10n = AppLocalizations.of(context)!;
     final images = _collectAllImages();
     if (images.isEmpty) return const SizedBox.shrink();
 
@@ -686,7 +694,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                     size: 16, color: AppConstants.primaryDark),
                 const SizedBox(width: 6),
                 Text(
-                  '图片 (${images.length})',
+                  '${l10n.images} (${images.length})',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -694,8 +702,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                 ),
                 const Spacer(),
                 if (images.length > 1)
-                  const Text(
-                    '点击可查看大图',
+                  Text(
+                    l10n.tapToViewFullImage,
                     style: TextStyle(
                       fontSize: 11,
                       color: AppConstants.textSecondary,

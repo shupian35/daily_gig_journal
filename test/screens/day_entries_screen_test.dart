@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/models/work_entry.dart';
 import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/day_entries_screen.dart';
@@ -12,8 +13,11 @@ void main() {
         overrides: [
           notesByDateListProvider('2025-06-14').overrideWith((ref) => []),
         ],
-        child: const MaterialApp(
-          home: DayEntriesScreen(dateStr: '2025-06-14'),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const DayEntriesScreen(dateStr: '2025-06-14'),
         ),
       ),
     );
@@ -45,8 +49,11 @@ void main() {
             ),
           ]),
         ],
-        child: const MaterialApp(
-          home: DayEntriesScreen(dateStr: '2025-06-14'),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const DayEntriesScreen(dateStr: '2025-06-14'),
         ),
       ),
     );

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
+import 'day_entries_screen.dart';
 
 /// 工资统计页 —— 精致杂志风
 class StatisticsScreen extends ConsumerWidget {
@@ -13,6 +15,7 @@ class StatisticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final wageNotesAsync = ref.watch(wageNotesProvider);
     final monthlySummaryAsync = ref.watch(monthlySummaryProvider(6));
     final hideStatistics = ref.watch(hideStatisticsProvider);
@@ -20,15 +23,15 @@ class StatisticsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('工资统计'),
+        title: Text(l10n.wageStatistics),
       ),
       body: wageNotesAsync.when(
         data: (notes) {
           if (hideStatistics) {
-            return _buildPrivacyProtectedState();
+            return _buildPrivacyProtectedState(context);
           }
           if (notes.isEmpty) {
-            return _buildEmptyState();
+            return _buildEmptyState(context);
           }
           return _buildContent(context, notes, monthlySummaryAsync, hideIncome);
         },
@@ -48,7 +51,7 @@ class StatisticsScreen extends ConsumerWidget {
                     size: 28, color: AppConstants.dangerRed),
               ),
               const SizedBox(height: 16),
-              Text('加载失败: $err',
+              Text('${l10n.loadFailed}: $err',
                   style: const TextStyle(color: AppConstants.dangerRed)),
               const SizedBox(height: 16),
               OutlinedButton(
@@ -63,7 +66,7 @@ class StatisticsScreen extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                   ),
                 ),
-                child: const Text('重试'),
+                child: Text(l10n.retry),
               ),
             ],
           ),
@@ -72,7 +75,8 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPrivacyProtectedState() {
+  Widget _buildPrivacyProtectedState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -89,8 +93,8 @@ class StatisticsScreen extends ConsumerWidget {
                 color: AppConstants.primaryColor.withValues(alpha: 0.4)),
           ),
           const SizedBox(height: 20),
-          const Text(
-            '统计数据已隐藏',
+          Text(
+            l10n.statsHidden,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -98,8 +102,8 @@ class StatisticsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '可在 设置 → 隐私设置 中关闭隐藏',
+          Text(
+            l10n.statsHiddenHint,
             style: TextStyle(
               fontSize: 13,
               color: AppConstants.textSecondary,
@@ -110,7 +114,8 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -127,8 +132,8 @@ class StatisticsScreen extends ConsumerWidget {
                 color: AppConstants.primaryColor.withValues(alpha: 0.4)),
           ),
           const SizedBox(height: 20),
-          const Text(
-            '还没有工资记录',
+          Text(
+            l10n.noWageRecords,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -136,8 +141,8 @@ class StatisticsScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '添加工作笔记并填写工资后即可查看统计',
+          Text(
+            l10n.noWageRecordsSubtitle,
             style: TextStyle(
               fontSize: 13,
               color: AppConstants.textSecondary,
@@ -236,6 +241,7 @@ class StatisticsScreen extends ConsumerWidget {
 
   Widget _buildBarChart(BuildContext context,
       AsyncValue<List<Map<String, dynamic>>> async, bool hideIncome) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -259,8 +265,8 @@ class StatisticsScreen extends ConsumerWidget {
                 Icon(Icons.trending_up_rounded,
                     size: 18, color: AppConstants.primaryDark),
                 const SizedBox(width: 8),
-                const Text(
-                  '近6个月收入趋势',
+                Text(
+                  l10n.recent6MonthsTrend,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -274,17 +280,17 @@ class StatisticsScreen extends ConsumerWidget {
               child: async.when(
                 data: (data) {
                   if (data.isEmpty) {
-                    return const Center(
-                      child: Text('暂无数据',
-                          style: TextStyle(color: AppConstants.textSecondary)),
+                    return Center(
+                      child: Text(l10n.noData,
+                          style: const TextStyle(color: AppConstants.textSecondary)),
                     );
                   }
-                  return _buildFlBarChart(data, hideIncome);
+                  return _buildFlBarChart(context, data, hideIncome);
                 },
                 loading: () => const Center(
                     child: CircularProgressIndicator(strokeWidth: 2)),
                 error: (err, _) => Center(
-                  child: Text('加载失败',
+                  child: Text(l10n.loadFailed,
                       style: TextStyle(
                           color: AppConstants.dangerRed.withValues(alpha: 0.8))),
                 ),
@@ -296,10 +302,12 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFlBarChart(List<Map<String, dynamic>> data, bool hideIncome) {
+  Widget _buildFlBarChart(BuildContext context, List<Map<String, dynamic>> data, bool hideIncome) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final sortedData = data.reversed.toList();
     if (sortedData.isEmpty) {
-      return const Center(child: Text('暂无数据'));
+      return Center(child: Text(l10n.noData));
     }
 
     double maxTotal = 0;
@@ -326,7 +334,7 @@ class StatisticsScreen extends ConsumerWidget {
                         sortedData[groupIndex]['month'] as String? ?? '';
                     final total = (rod.toY).toStringAsFixed(1);
                     return BarTooltipItem(
-                      '${Helpers.toDisplayMonth(month)}\n¥$total',
+                      '${Helpers.toDisplayMonth(month, locale)}\n¥$total',
                       const TextStyle(
                         color: Colors.white,
                         fontSize: 12,
@@ -349,7 +357,7 @@ class StatisticsScreen extends ConsumerWidget {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      '${parts[1]}月',
+                      locale == 'en' ? '${parts[1]}' : '${parts[1]}月',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -434,6 +442,8 @@ class StatisticsScreen extends ConsumerWidget {
     required int workDays,
     required bool hideIncome,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -464,7 +474,7 @@ class StatisticsScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  Helpers.toDisplayMonth(monthKey),
+                  Helpers.toDisplayMonth(monthKey, locale),
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
@@ -473,7 +483,7 @@ class StatisticsScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Text(
-                      '共$workDays次',
+                      l10n.workCount(workDays),
                       style: TextStyle(
                         fontSize: 13,
                         color: isDark
@@ -485,7 +495,7 @@ class StatisticsScreen extends ConsumerWidget {
                     Text(
                       hideIncome
                           ? '***'
-                          : Helpers.formatCurrency(monthlyTotal),
+                          : Helpers.formatCurrency(monthlyTotal, locale),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -500,71 +510,80 @@ class StatisticsScreen extends ConsumerWidget {
           ),
           // 日期条目列表
           ...notes.map((note) {
-            final displayDate = Helpers.toDisplayDate(note.date);
+            final displayDate = Helpers.toDisplayDate(note.date, locale);
             final date = Helpers.parseDate(note.date);
-            final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
+            final weekday = date != null ? Helpers.getWeekday(date, locale) : '';
 
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayDate,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      Text(
-                        weekday,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isDark
-                              ? AppConstants.textSecondaryDark
-                              : AppConstants.textSecondary,
-                        ),
-                      ),
-                    ],
+            return InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => DayEntriesScreen(dateStr: note.date),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      note.title.isNotEmpty ? note.title : '(无标题)',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: note.title.isNotEmpty
-                            ? null
-                            : AppConstants.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: Row(
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayDate,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          weekday,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        Helpers.formatHours(note.workHours),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        note.title.isNotEmpty ? note.title : l10n.noTitle,
                         style: TextStyle(
-                          fontSize: 12,
-                          color: isDark
-                              ? AppConstants.textSecondaryDark
+                          fontSize: 14,
+                          color: note.title.isNotEmpty
+                              ? null
                               : AppConstants.textSecondary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        hideIncome
-                            ? '***'
-                            : Helpers.formatCurrency(note.dailyWage),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppConstants.incomeGreen,
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          Helpers.formatHours(note.workHours),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? AppConstants.textSecondaryDark
+                                : AppConstants.textSecondary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(height: 2),
+                        Text(
+                          hideIncome
+                              ? '***'
+                              : Helpers.formatCurrency(note.dailyWage, locale),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppConstants.incomeGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             );
           }),

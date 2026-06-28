@@ -16,18 +16,30 @@ class Helpers {
   /// 将 DateTime 转为数据库日期字符串 YYYY-MM-DD
   static String formatDate(DateTime date) => _dateFormatter.format(date);
 
-  /// 数据库日期字符串转为展示格式 "2025年3月15日"
-  static String toDisplayDate(String dateStr) {
+  /// 数据库日期字符串转为展示格式
+  /// zh/zh_TW → "2025年3月15日", en → "Mar 15, 2025"
+  static String toDisplayDate(String dateStr, [String locale = 'zh']) {
     final date = parseDate(dateStr);
     if (date == null) return dateStr;
+    if (locale == 'en') {
+      return DateFormat('MMM d, yyyy').format(date);
+    }
     return _displayDateFormatter.format(date);
   }
 
-  /// 获取中文星期
-  static String getChineseWeekday(DateTime date) {
+  /// 获取星期名称
+  /// zh/zh_TW → 中文星期, en → English weekday
+  static String getWeekday(DateTime date, [String locale = 'zh']) {
+    if (locale == 'en') {
+      const enWeekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      return enWeekdays[date.weekday - 1];
+    }
     const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
     return weekdays[date.weekday - 1];
   }
+
+  /// 获取中文星期 (backward compatibility)
+  static String getChineseWeekday(DateTime date) => getWeekday(date);
 
   /// 获取日期的月格式字符串 YYYY-MM
   static String toMonthKey(DateTime date) {
@@ -37,12 +49,18 @@ class Helpers {
   /// 获取当前月 YYYY-MM
   static String currentMonthKey() => toMonthKey(DateTime.now());
 
-  /// 格式化月度显示 "2025年3月"
-  static String toDisplayMonth(String monthKey) {
+  /// 格式化月度显示
+  /// zh/zh_TW → "2025年3月", en → "March 2025"
+  static String toDisplayMonth(String monthKey, [String locale = 'zh']) {
     final parts = monthKey.split('-');
     if (parts.length != 2) return monthKey;
     final year = int.tryParse(parts[0]) ?? 0;
     final month = int.tryParse(parts[1]) ?? 0;
+    if (locale == 'en') {
+      const enMonths = ['', 'January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+      return '${enMonths[month]} $year';
+    }
     return '$year年$month月';
   }
 
@@ -84,11 +102,20 @@ class Helpers {
   }
 
   /// 格式化金额显示
-  static String formatCurrency(double amount) {
-    if (amount == amount.roundToDouble()) {
-      return '¥${amount.toInt()}';
+  /// zh → '¥', zh_TW → 'NT\$', en → '\$'
+  static String formatCurrency(double amount, [String locale = 'zh']) {
+    String prefix;
+    if (locale == 'en') {
+      prefix = '\$';
+    } else if (locale == 'zh_TW') {
+      prefix = 'NT\$';
+    } else {
+      prefix = '¥';
     }
-    return '¥${amount.toStringAsFixed(1)}';
+    if (amount == amount.roundToDouble()) {
+      return '$prefix${amount.toInt()}';
+    }
+    return '$prefix${amount.toStringAsFixed(1)}';
   }
 
   /// 格式化时长显示

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -28,18 +29,64 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final themeMode = ref.watch(themeModeProvider);
+    final currentLocale = ref.watch(localeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('设置'),
+        title: Text(l10n.settings),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          // ── 语言设置 ──
+          AppSectionLabel(title: l10n.language, icon: Icons.language_rounded),
+          const SizedBox(height: 8),
+          AppCard(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildLocaleRadioTile(
+                    null,
+                    currentLocale,
+                    Icons.phone_android_rounded,
+                    l10n.followSystem,
+                    '',
+                  ),
+                  _buildLocaleRadioTile(
+                    const Locale('zh'),
+                    currentLocale,
+                    Icons.language_rounded,
+                    l10n.chinese,
+                    '',
+                  ),
+                  _buildLocaleRadioTile(
+                    const Locale('en'),
+                    currentLocale,
+                    Icons.language_rounded,
+                    l10n.english,
+                    '',
+                  ),
+                  _buildLocaleRadioTile(
+                    const Locale('zh', 'TW'),
+                    currentLocale,
+                    Icons.language_rounded,
+                    l10n.traditionalChinese,
+                    '',
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
           // ── 主题设置 ──
-          AppSectionLabel(title: '外观', icon: Icons.brightness_6_rounded),
+          AppSectionLabel(title: l10n.appearance, icon: Icons.brightness_6_rounded),
           const SizedBox(height: 8),
           AppCard(
             child: Padding(
@@ -60,22 +107,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ThemeMode.system,
                           themeMode,
                           Icons.settings_suggest_rounded,
-                          '跟随系统',
-                          '自动跟随系统亮色/暗色设置',
+                          l10n.followSystem,
+                          l10n.followSystemSubtitle,
                         ),
                         _buildRadioTile(
                           ThemeMode.light,
                           themeMode,
                           Icons.light_mode_rounded,
-                          '浅色模式',
-                          '始终使用浅色主题',
+                          l10n.lightMode,
+                          l10n.lightModeSubtitle,
                         ),
                         _buildRadioTile(
                           ThemeMode.dark,
                           themeMode,
                           Icons.dark_mode_rounded,
-                          '深色模式',
-                          '始终使用暗色主题',
+                          l10n.darkMode,
+                          l10n.darkModeSubtitle,
                         ),
                       ],
                     ),
@@ -88,13 +135,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 隐私设置 ──
-          AppSectionLabel(title: '隐私', icon: Icons.shield_outlined),
+          AppSectionLabel(title: l10n.privacy, icon: Icons.shield_outlined),
           const SizedBox(height: 8),
           AppCard(
             child: _buildNavTile(
               icon: Icons.shield_outlined,
-              title: '隐私设置',
-              subtitle: '控制收入金额和统计数据的显示',
+              title: l10n.privacyNavTitle,
+              subtitle: l10n.privacyNavSubtitle,
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -108,15 +155,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 数据管理 ──
-          AppSectionLabel(title: '数据', icon: Icons.folder_outlined),
+          AppSectionLabel(title: l10n.data, icon: Icons.folder_outlined),
           const SizedBox(height: 8),
           AppCard(
             child: Column(
               children: [
                 _buildNavTile(
                   icon: Icons.file_download_outlined,
-                  title: '导出数据',
-                  subtitle: _isExporting ? '正在导出...' : '将全部工作笔记导出为文件',
+                  title: l10n.exportData,
+                  subtitle: _isExporting ? l10n.exporting : l10n.exportDataSubtitle,
                   trailing: _isExporting
                       ? const SizedBox(
                           width: 20,
@@ -130,8 +177,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildDivider(isDark),
                 _buildNavTile(
                   icon: Icons.backup_outlined,
-                  title: '备份与恢复',
-                  subtitle: _isBackingUp ? '处理中...' : '导出数据库备份或从备份恢复',
+                  title: l10n.backupAndRestore,
+                  subtitle: _isBackingUp ? l10n.processing : l10n.backupAndRestoreSubtitle,
                   trailing: _isBackingUp
                       ? const SizedBox(
                           width: 20,
@@ -145,8 +192,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildDivider(isDark),
                 _buildNavTile(
                   icon: Icons.cloud_outlined,
-                  title: '云备份 (WebDAV)',
-                  subtitle: '备份到坚果云或自定义服务器',
+                  title: l10n.cloudBackupWebDAV,
+                  subtitle: l10n.cloudBackupSubtitle,
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -162,22 +209,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 20),
 
           // ── 关于 ──
-          AppSectionLabel(title: '关于', icon: Icons.info_outline_rounded),
+          AppSectionLabel(title: l10n.about, icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
           AppCard(
             child: _buildNavTile(
               icon: Icons.info_outline_rounded,
-              title: '关于日程清单',
-              subtitle: '版本 1.0.0 —— 让每一份付出都有记录',
+              title: l10n.aboutAppTitle,
+              subtitle: l10n.aboutAppSubtitle,
               onTap: () {
                 showAboutDialog(
                   context: context,
-                  applicationName: '日程清单',
+                  applicationName: l10n.aboutAppName,
                   applicationVersion: '1.0.0',
-                  applicationLegalese: '帮助日结兼职人员轻松记录工作与收入',
+                  applicationLegalese: l10n.aboutAppLegalese,
                   children: [
                     const SizedBox(height: 12),
-                    const Text('温暖地记录每一天的辛劳，让付出可视化。'),
+                    Text(l10n.aboutAppBody),
                   ],
                 );
               },
@@ -301,6 +348,86 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildLocaleRadioTile(
+    Locale? value,
+    Locale? groupValue,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    final isSelected = value == groupValue ||
+        (value == null && groupValue == null) ||
+        (value != null &&
+            groupValue != null &&
+            value.languageCode == groupValue.languageCode &&
+            (value.countryCode ?? '') == (groupValue.countryCode ?? ''));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: () => ref.read(localeProvider.notifier).state = value,
+      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.only(bottom: 2),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppConstants.primaryColor.withValues(alpha: isDark ? 0.12 : 0.06)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+          border: isSelected
+              ? Border.all(
+                  color: AppConstants.primaryColor.withValues(alpha: 0.3),
+                  width: 0.5,
+                )
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? AppConstants.primaryColor.withValues(alpha: 0.15)
+                    : Colors.transparent,
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isSelected ? AppConstants.primaryDark : AppConstants.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected ? AppConstants.primaryDark : null,
+                ),
+              ),
+            ),
+            Radio<Locale?>(
+              value: value,
+              groupValue: groupValue,
+              onChanged: (v) {
+                ref.read(localeProvider.notifier).state = v;
+              },
+              fillColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppConstants.primaryColor;
+                }
+                return AppConstants.textSecondary;
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDivider(bool isDark) {
     return Container(
       height: 0.5,
@@ -310,29 +437,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showExportDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('选择导出格式'),
-        content: const Text('将全部工作笔记导出为文件，请选择格式：'),
+        title: Text(l10n.selectExportFormat),
+        content: Text(l10n.exportDialogContent),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _exportData(ExportHelper.csv);
             },
-            child: const Text('CSV'),
+            child: Text(l10n.csv),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _exportData(ExportHelper.json);
             },
-            child: const Text('JSON'),
+            child: Text(l10n.json),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
         ],
       ),
@@ -340,6 +468,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _exportData(String format) async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isExporting = true);
 
     try {
@@ -350,15 +479,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       await Share.shareXFiles(
         [XFile(filePath)],
-        subject: '日程清单数据导出',
-        text: '日程清单导出的工作笔记数据',
+        subject: l10n.exportShareSubject,
+        text: l10n.exportShareText,
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isExporting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('导出失败: $e'),
+          content: Text('${l10n.exportFailed}: $e'),
           backgroundColor: AppConstants.dangerRed,
           duration: const Duration(seconds: 3),
         ),
@@ -367,30 +496,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showBackupDialog() {
+    final l10n = AppLocalizations.of(context)!;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('备份与恢复'),
-        content:
-            const Text('备份：将数据库导出为文件\n恢复：从备份文件恢复数据（会覆盖当前数据）'),
+        title: Text(l10n.backupRestoreDialogTitle),
+        content: Text(l10n.backupRestoreDialogContent),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _backupDatabase();
             },
-            child: const Text('备份'),
+            child: Text(l10n.backup),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               _restoreDatabase();
             },
-            child: const Text('恢复'),
+            child: Text(l10n.restore),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
         ],
       ),
@@ -398,16 +527,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _backupDatabase() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isBackingUp = true);
     try {
       final dbPath = await DatabaseHelper.getDatabasePath();
       final dbFile = File(dbPath);
       if (!await dbFile.exists()) {
-        throw Exception('数据库文件不存在');
+        throw Exception(l10n.dbFileNotExist);
       }
       final tempDir = Directory.systemTemp;
       final backupName =
-          '日程清单_备份_${DateTime.now().toIso8601String().substring(0, 10)}.db';
+          '${l10n.backupFilePrefix}${DateTime.now().toIso8601String().substring(0, 10)}.db';
       final backupFile = File('${tempDir.path}/$backupName');
       await dbFile.copy(backupFile.path);
 
@@ -415,13 +545,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() => _isBackingUp = false);
 
       await Share.shareXFiles([XFile(backupFile.path)],
-          subject: '日程清单数据备份', text: '日程清单数据库备份文件');
+          subject: l10n.backupShareSubject, text: l10n.backupShareText);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('备份失败: $e'),
+          content: Text('${l10n.backupFailed}: $e'),
           backgroundColor: AppConstants.dangerRed,
         ),
       );
@@ -429,6 +559,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _restoreDatabase() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isBackingUp = true);
     try {
       final result = await FilePicker.pickFiles(
@@ -465,10 +596,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('恢复成功！请重启应用以加载数据'),
+        SnackBar(
+          content: Text(l10n.restoreSuccess),
           backgroundColor: AppConstants.incomeGreen,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
         ),
       );
     } catch (e) {
@@ -476,7 +607,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() => _isBackingUp = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('恢复失败: $e'),
+          content: Text('${l10n.restoreFailed}: $e'),
           backgroundColor: AppConstants.dangerRed,
         ),
       );

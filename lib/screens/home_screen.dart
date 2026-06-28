@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
 import 'calendar_screen.dart';
 import 'statistics_screen.dart';
 import 'settings_screen.dart';
@@ -45,6 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final hideStatistics = ref.watch(hideStatisticsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final theme = Theme.of(context);
@@ -55,17 +57,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // 日历 — 始终显示
     visiblePages.add(_allPages[0]);
-    navItems.add(_NavItem(icon: Icons.calendar_today_rounded, label: '日历'));
+    navItems.add(_NavItem(icon: Icons.calendar_today_rounded, label: l10n.calendarTab));
 
     // 统计 — 根据隐藏设置决定
     if (!hideStatistics) {
-      navItems.add(_NavItem(icon: Icons.show_chart_rounded, label: '统计'));
+      navItems.add(_NavItem(icon: Icons.show_chart_rounded, label: l10n.statisticsTab));
       visiblePages.add(_allPages[1]);
     }
 
     // 设置 — 始终显示
     visiblePages.add(_allPages.last);
-    navItems.add(_NavItem(icon: Icons.tune_rounded, label: '设置'));
+    navItems.add(_NavItem(icon: Icons.tune_rounded, label: l10n.settingsTab));
 
     // 如果当前选中索引超出范围，回退到 0
     if (_currentIndex >= navItems.length) {
