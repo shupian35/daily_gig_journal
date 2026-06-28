@@ -86,14 +86,6 @@ jobs:
     needs: [build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - name: 读取版本号
-        id: version
-        run: |
-          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -102,23 +94,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: "v${{ steps.version.outputs.version }}"
+          name: ${{ github.ref_name }}
           make_latest: true
-          body: |
-            ## v${{ steps.version.outputs.version }}
-
-            | 项目 | 值 |
-            |------|-----|
-            | **版本** | `${{ steps.version.outputs.version }}` |
-            | **构建编号** | `#${{ github.run_number }}` |
-            | **提交** | [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}) |
-
-            ### 产物
-
-            | 平台 | 文件 | 说明 |
-            |------|------|------|
-            | Android | `日程清单.apk` | 可直接安装 |
-            | iOS | `日程清单.ipa` | 未签名，需通过 AltStore / Sideloadly 等工具签名后安装 |
           files: |
             artifacts/android-apk/日程清单.apk
             artifacts/ios-ipa/日程清单.ipa
