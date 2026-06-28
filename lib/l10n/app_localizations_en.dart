@@ -252,6 +252,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Warmly recording each day\'s hard work, making efforts visible.';
 
   @override
+  String get projectHomepage => 'Project Homepage';
+
+  @override
+  String get projectHomepageSubtitle => 'View source code in browser';
+
+  @override
+  String get errorLog => 'Error Log';
+
+  @override
+  String get errorLogSubtitle => 'View application runtime errors';
+
+  @override
+  String get checkUpdate => 'Check for Updates';
+
+  @override
+  String get checkUpdateSubtitle => 'Check if a new version is available';
+
+  @override
+  String get noUpdatesAvailable => 'You are on the latest version';
+
+  @override
+  String updateAvailable(String version) {
+    return 'New version available: v$version';
+  }
+
+  @override
+  String get checkUpdateFailed => 'Failed to check for updates';
+
+  @override
+  String get noErrorLogs => 'No error logs';
+
+  @override
+  String get errorLogTitle => 'Error Log';
+
+  @override
   String get selectExportFormat => 'Select Export Format';
 
   @override

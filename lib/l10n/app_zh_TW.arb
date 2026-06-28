@@ -88,6 +88,22 @@
   "aboutAppName": "日程清單",
   "aboutAppLegalese": "幫助日結兼職人員輕鬆記錄工作與收入",
   "aboutAppBody": "溫暖地記錄每一天的辛勞，讓付出可視化。",
+  "projectHomepage": "項目主頁",
+  "projectHomepageSubtitle": "在瀏覽器中檢視原始碼",
+  "errorLog": "錯誤日誌",
+  "errorLogSubtitle": "檢視應用程式執行時的錯誤記錄",
+  "checkUpdate": "檢查更新",
+  "checkUpdateSubtitle": "檢查是否有新版本可用",
+  "noUpdatesAvailable": "目前已經是最新版本",
+  "updateAvailable": "發現新版本：v{version}",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "checkUpdateFailed": "檢查更新失敗",
+  "noErrorLogs": "暫無錯誤記錄",
+  "errorLogTitle": "錯誤日誌",
   "selectExportFormat": "選擇匯出格式",
   "exportDialogContent": "將全部工作筆記匯出為檔案，請選擇格式：",
   "csv": "CSV",

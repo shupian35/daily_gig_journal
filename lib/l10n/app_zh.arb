@@ -97,6 +97,22 @@
   "aboutAppName": "日程清单",
   "aboutAppLegalese": "帮助日结兼职人员轻松记录工作与收入",
   "aboutAppBody": "温暖地记录每一天的辛劳，让付出可视化。",
+  "projectHomepage": "项目主页",
+  "projectHomepageSubtitle": "在浏览器中查看源代码",
+  "errorLog": "错误日志",
+  "errorLogSubtitle": "查看应用运行时的错误记录",
+  "checkUpdate": "检查更新",
+  "checkUpdateSubtitle": "检查是否有新版本可用",
+  "noUpdatesAvailable": "当前已是最新版本",
+  "updateAvailable": "发现新版本：v{version}",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "checkUpdateFailed": "检查更新失败",
+  "noErrorLogs": "暂无错误记录",
+  "errorLogTitle": "错误日志",
   "selectExportFormat": "选择导出格式",
   "exportDialogContent": "将全部工作笔记导出为文件，请选择格式：",
   "csv": "CSV",

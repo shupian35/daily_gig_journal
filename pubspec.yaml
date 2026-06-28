@@ -32,6 +32,8 @@ dependencies:
   image: ^4.2.0
   # 系统分享（数据导出）
   share_plus: ^10.1.4
+  # 打开外部链接
+  url_launcher: ^6.3.1
   sqflite_common_ffi_web: ^1.1.1
   sqflite_common: ^2.5.7
   shared_preferences: ^2.5.5

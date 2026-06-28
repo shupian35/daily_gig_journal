@@ -88,6 +88,22 @@
   "aboutAppName": "Daily Gig Journal",
   "aboutAppLegalese": "Helping daily gig workers easily track work and income",
   "aboutAppBody": "Warmly recording each day's hard work, making efforts visible.",
+  "projectHomepage": "Project Homepage",
+  "projectHomepageSubtitle": "View source code in browser",
+  "errorLog": "Error Log",
+  "errorLogSubtitle": "View application runtime errors",
+  "checkUpdate": "Check for Updates",
+  "checkUpdateSubtitle": "Check if a new version is available",
+  "noUpdatesAvailable": "You are on the latest version",
+  "updateAvailable": "New version available: v{version}",
+  "@updateAvailable": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "checkUpdateFailed": "Failed to check for updates",
+  "noErrorLogs": "No error logs",
+  "errorLogTitle": "Error Log",
   "selectExportFormat": "Select Export Format",
   "exportDialogContent": "Export all work notes to a file. Please choose a format:",
   "csv": "CSV",

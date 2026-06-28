@@ -1,10 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../database/database_helper.dart';
 import '../providers/settings_provider.dart';
@@ -212,22 +215,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           AppSectionLabel(title: l10n.about, icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: _buildNavTile(
-              icon: Icons.info_outline_rounded,
-              title: l10n.aboutAppTitle,
-              subtitle: l10n.aboutAppSubtitle,
-              onTap: () {
-                showAboutDialog(
-                  context: context,
-                  applicationName: l10n.aboutAppName,
-                  applicationVersion: '1.0.0',
-                  applicationLegalese: l10n.aboutAppLegalese,
-                  children: [
-                    const SizedBox(height: 12),
-                    Text(l10n.aboutAppBody),
-                  ],
-                );
-              },
+            child: Column(
+              children: [
+                _buildNavTile(
+                  icon: Icons.info_outline_rounded,
+                  title: l10n.aboutAppTitle,
+                  subtitle: l10n.aboutAppSubtitle,
+                  onTap: () {
+                    showAboutDialog(
+                      context: context,
+                      applicationName: l10n.aboutAppName,
+                      applicationVersion: '1.0.0',
+                      applicationLegalese: l10n.aboutAppLegalese,
+                      children: [
+                        const SizedBox(height: 12),
+                        Text(l10n.aboutAppBody),
+                      ],
+                    );
+                  },
+                ),
+                _buildDivider(isDark),
+                _buildNavTile(
+                  icon: Icons.open_in_new_rounded,
+                  title: l10n.projectHomepage,
+                  subtitle: l10n.projectHomepageSubtitle,
+                  onTap: _openProjectHomepage,
+                ),
+                _buildDivider(isDark),
+                _buildNavTile(
+                  icon: Icons.bug_report_outlined,
+                  title: l10n.errorLog,
+                  subtitle: l10n.errorLogSubtitle,
+                  onTap: _showErrorLog,
+                ),
+                _buildDivider(isDark),
+                _buildNavTile(
+                  icon: Icons.system_update_rounded,
+                  title: l10n.checkUpdate,
+                  subtitle: l10n.checkUpdateSubtitle,
+                  onTap: _checkForUpdates,
+                ),
+              ],
             ),
           ),
         ],
@@ -608,6 +636,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${l10n.restoreFailed}: $e'),
+          backgroundColor: AppConstants.dangerRed,
+        ),
+      );
+    }
+  }
+
+  static const String _githubUrl =
+      'https://github.com/shupian35/daily_gig_journal';
+  static const String _githubApiUrl =
+      'https://api.github.com/repos/shupian35/daily_gig_journal/releases/latest';
+
+  Future<void> _openProjectHomepage() async {
+    final l10n = AppLocalizations.of(context)!;
+    final uri = Uri.parse(_githubUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.checkUpdateFailed),
+          backgroundColor: AppConstants.dangerRed,
+        ),
+      );
+    }
+  }
+
+  void _showErrorLog() {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.errorLogTitle),
+        content: Text(l10n.noErrorLogs),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l10n.cancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _checkForUpdates() async {
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      final response = await http.get(Uri.parse(_githubApiUrl));
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final tagName = data['tag_name'] as String? ?? '';
+        final latestVersion = tagName.replaceFirst('v', '');
+
+        if (latestVersion.isNotEmpty && latestVersion != '1.0.0') {
+          showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(l10n.updateAvailable(latestVersion)),
+              content: Text(data['body'] as String? ?? ''),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(l10n.cancel),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    launchUrl(
+                      Uri.parse('${_githubUrl}/releases/latest'),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  },
+                  child: Text(l10n.checkUpdate),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(l10n.noUpdatesAvailable),
+              backgroundColor: AppConstants.incomeGreen,
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.checkUpdateFailed),
+            backgroundColor: AppConstants.dangerRed,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${l10n.checkUpdateFailed}: $e'),
           backgroundColor: AppConstants.dangerRed,
         ),
       );

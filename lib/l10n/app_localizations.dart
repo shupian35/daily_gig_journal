@@ -561,6 +561,72 @@ abstract class AppLocalizations {
   /// **'温暖地记录每一天的辛劳，让付出可视化。'**
   String get aboutAppBody;
 
+  /// No description provided for @projectHomepage.
+  ///
+  /// In zh, this message translates to:
+  /// **'项目主页'**
+  String get projectHomepage;
+
+  /// No description provided for @projectHomepageSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在浏览器中查看源代码'**
+  String get projectHomepageSubtitle;
+
+  /// No description provided for @errorLog.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误日志'**
+  String get errorLog;
+
+  /// No description provided for @errorLogSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看应用运行时的错误记录'**
+  String get errorLogSubtitle;
+
+  /// No description provided for @checkUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查更新'**
+  String get checkUpdate;
+
+  /// No description provided for @checkUpdateSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查是否有新版本可用'**
+  String get checkUpdateSubtitle;
+
+  /// No description provided for @noUpdatesAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前已是最新版本'**
+  String get noUpdatesAvailable;
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现新版本：v{version}'**
+  String updateAvailable(String version);
+
+  /// No description provided for @checkUpdateFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查更新失败'**
+  String get checkUpdateFailed;
+
+  /// No description provided for @noErrorLogs.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无错误记录'**
+  String get noErrorLogs;
+
+  /// No description provided for @errorLogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误日志'**
+  String get errorLogTitle;
+
   /// No description provided for @selectExportFormat.
   ///
   /// In zh, this message translates to:

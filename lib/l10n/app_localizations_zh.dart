@@ -243,6 +243,41 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutAppBody => '温暖地记录每一天的辛劳，让付出可视化。';
 
   @override
+  String get projectHomepage => '项目主页';
+
+  @override
+  String get projectHomepageSubtitle => '在浏览器中查看源代码';
+
+  @override
+  String get errorLog => '错误日志';
+
+  @override
+  String get errorLogSubtitle => '查看应用运行时的错误记录';
+
+  @override
+  String get checkUpdate => '检查更新';
+
+  @override
+  String get checkUpdateSubtitle => '检查是否有新版本可用';
+
+  @override
+  String get noUpdatesAvailable => '当前已是最新版本';
+
+  @override
+  String updateAvailable(String version) {
+    return '发现新版本：v$version';
+  }
+
+  @override
+  String get checkUpdateFailed => '检查更新失败';
+
+  @override
+  String get noErrorLogs => '暂无错误记录';
+
+  @override
+  String get errorLogTitle => '错误日志';
+
+  @override
   String get selectExportFormat => '选择导出格式';
 
   @override
@@ -794,6 +829,41 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get aboutAppBody => '溫暖地記錄每一天的辛勞，讓付出可視化。';
+
+  @override
+  String get projectHomepage => '項目主頁';
+
+  @override
+  String get projectHomepageSubtitle => '在瀏覽器中檢視原始碼';
+
+  @override
+  String get errorLog => '錯誤日誌';
+
+  @override
+  String get errorLogSubtitle => '檢視應用程式執行時的錯誤記錄';
+
+  @override
+  String get checkUpdate => '檢查更新';
+
+  @override
+  String get checkUpdateSubtitle => '檢查是否有新版本可用';
+
+  @override
+  String get noUpdatesAvailable => '目前已經是最新版本';
+
+  @override
+  String updateAvailable(String version) {
+    return '發現新版本：v$version';
+  }
+
+  @override
+  String get checkUpdateFailed => '檢查更新失敗';
+
+  @override
+  String get noErrorLogs => '暫無錯誤記錄';
+
+  @override
+  String get errorLogTitle => '錯誤日誌';
 
   @override
   String get selectExportFormat => '選擇匯出格式';
