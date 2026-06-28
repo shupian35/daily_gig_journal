@@ -2,8 +2,9 @@ name: CD
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+    paths:
+      - 'pubspec.yaml'
 
 permissions:
   contents: write
@@ -16,7 +17,37 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_release: ${{ steps.check.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 读取版本号
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1 | tr -d ' ')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 检查版本是否变更
+        id: check
+        run: |
+          CURRENT_TAG="v${{ steps.version.outputs.version }}"
+          if git tag -l "$CURRENT_TAG" | grep -q "$CURRENT_TAG"; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $CURRENT_TAG already exists, skipping release"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            echo "Tag $CURRENT_TAG not found, will create release"
+          fi
+
   build-android:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +79,8 @@ jobs:
           retention-days: 30
 
   build-ios:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,9 +116,17 @@ jobs:
           retention-days: 30
 
   release:
-    needs: [build-android, build-ios]
+    needs: [check-version, build-android, build-ios]
+    if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: 创建 Tag
+        run: |
+          git tag "v${{ needs.check-version.outputs.version }}"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -93,8 +134,8 @@ jobs:
       - name: 创建正式发布
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
           make_latest: true
           files: |
             artifacts/android-apk/日程清单.apk
