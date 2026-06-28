@@ -540,7 +540,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutAppSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'版本 1.2.0 —— 让每一份付出都有记录'**
+  /// **'版本 1.0.0 —— 让每一份付出都有记录'**
   String get aboutAppSubtitle;
 
   /// No description provided for @aboutAppName.
