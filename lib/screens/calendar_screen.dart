@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/calendar_widget.dart';
 import '../widgets/wage_summary_card.dart';
 import '../providers/notes_provider.dart';
@@ -34,6 +35,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final workDatesAsync = ref.watch(workDatesProvider);
     final monthlyWageAsync = ref.watch(monthlyTotalWageProvider);
     final monthlyDaysAsync = ref.watch(monthlyWorkDaysProvider);
@@ -42,11 +45,11 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('日程清单'),
+        title: Text(l10n.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.today_rounded, size: 22),
-            tooltip: '回到今天',
+            tooltip: l10n.backToToday,
             onPressed: () {
               final today = DateTime.now();
               setState(() {
@@ -68,7 +71,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   width: 400,
                   child: SingleChildScrollView(
                     child: Column(children: [
-                      if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
+                      if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync, locale),
                       _buildCalendar(workDatesAsync),
                     ]),
                   ),
@@ -79,7 +82,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 ),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: _buildUpcomingWeekPlan(hideIncome),
+                    child: _buildUpcomingWeekPlan(hideIncome, locale),
                   ),
                 ),
               ],
@@ -87,9 +90,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           }
           return SingleChildScrollView(
             child: Column(children: [
-              if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync),
+              if (!hideIncome) _buildWageSummary(monthlyWageAsync, monthlyDaysAsync, locale),
               _buildCalendar(workDatesAsync),
-              _buildUpcomingWeekPlan(hideIncome),
+              _buildUpcomingWeekPlan(hideIncome, locale),
             ]),
           );
         },
@@ -99,7 +102,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           _navigateToDayEntries(Helpers.formatDate(DateTime.now()));
         },
         icon: const Icon(Icons.add_rounded, size: 22),
-        label: const Text('添加今日工作'),
+        label: Text(l10n.addTodayWork),
       ),
     );
   }
@@ -107,12 +110,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget _buildWageSummary(
     AsyncValue<double> wageAsync,
     AsyncValue<int> daysAsync,
+    String locale,
   ) {
     return wageAsync.when(
       data: (totalWage) {
         final workDays = daysAsync.asData?.value ?? 0;
         final monthDisplay =
-            Helpers.toDisplayMonth(Helpers.toMonthKey(_focusedDay));
+            Helpers.toDisplayMonth(Helpers.toMonthKey(_focusedDay), locale);
         return WageSummaryCard(
           totalWage: totalWage,
           workDays: workDays,
@@ -168,7 +172,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     );
   }
 
-  Widget _buildUpcomingWeekPlan(bool hideIncome) {
+  Widget _buildUpcomingWeekPlan(bool hideIncome, String locale) {
+    final l10n = AppLocalizations.of(context)!;
     final today = DateTime.now();
     final todayStr = Helpers.formatDate(today);
     final endDay = today.add(const Duration(days: 6));
@@ -185,7 +190,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           grouped.putIfAbsent(note.date, () => []).add(_PlanItem(
                 noteId: note.id!,
                 date: note.date,
-                title: note.title.isNotEmpty ? note.title : '(无标题)',
+                title: note.title.isNotEmpty ? note.title : l10n.noTitle,
                 workLocation: note.workLocation,
                 contact: note.contact,
                 timeRange: '${note.startTime}-${note.endTime}',
@@ -218,8 +223,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    const Text(
-                      '未来一周',
+                    Text(
+                      l10n.nextWeek,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -234,9 +239,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 final items = entry.value;
                 final date = Helpers.parseDate(ds);
                 final displayDate =
-                    date != null ? Helpers.toDisplayDate(ds) : ds;
+                    date != null ? Helpers.toDisplayDate(ds, locale) : ds;
                 final weekday =
-                    date != null ? Helpers.getChineseWeekday(date) : '';
+                    date != null ? Helpers.getWeekday(date, locale) : '';
                 final isToday = ds == todayStr;
                 final dailyTotal =
                     items.fold(0.0, (sum, item) => sum + item.wage);
@@ -259,13 +264,14 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
         child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
       ),
       error: (err, _) => Center(
-        child: Text('加载失败: $err',
+        child: Text('${l10n.loadFailed}: $err',
             style: const TextStyle(color: AppConstants.dangerRed)),
       ),
     );
   }
 
   Widget _buildEmptyWeekState() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40),
       child: Column(
@@ -284,8 +290,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            '未来一周暂无工作安排',
+          Text(
+            l10n.nextWeekEmpty,
             style: TextStyle(
               fontSize: 14,
               color: AppConstants.textSecondary,
@@ -305,6 +311,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     required double dailyTotal,
     required bool hideIncome,
   }) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -335,8 +343,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       color: AppConstants.primaryColor,
                       borderRadius: BorderRadius.circular(AppConstants.radiusXs),
                     ),
-                    child: const Text(
-                      '今天',
+                    child: Text(
+                      l10n.today,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -364,7 +372,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 const Spacer(),
                 if (!hideIncome)
                   Text(
-                    '合计 ${Helpers.formatCurrency(dailyTotal)}',
+                    '${l10n.total} ${Helpers.formatCurrency(dailyTotal, locale)}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -469,7 +477,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         if (!hideIncome) ...[
                           const SizedBox(width: 10),
                           Text(
-                            Helpers.formatCurrency(item.wage),
+                            Helpers.formatCurrency(item.wage, locale),
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,

@@ -1,13 +1,16 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common/sqflite.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
+import 'services/settings_service.dart';
 import 'utils/constants.dart';
 
 /// 日程清单
@@ -20,8 +23,13 @@ void main() async {
     databaseFactory = databaseFactoryFfiWeb;
   }
 
-  // 初始化 intl 区域数据（table_calendar / flutter_quill 中文显示需要）
-  await initializeDateFormatting('zh_CN', null);
+  // 根据持久化的语言设置初始化 intl 区域数据
+  final prefs = await SharedPreferences.getInstance();
+  final localeCode = prefs.getString(keyLocale) ?? '';
+  final dateLocale = localeCode.isEmpty
+      ? 'zh_CN'
+      : (localeCode == 'en' ? 'en_US' : localeCode);
+  await initializeDateFormatting(dateLocale, null);
 
   runApp(
     const ProviderScope(
@@ -66,11 +74,15 @@ class _DailyGigAppState extends ConsumerState<DailyGigApp> {
     ref.listenManual(autoBackupProvider, (prev, next) {
       saveAutoBackup(next);
     });
+    ref.listenManual(localeProvider, (prev, next) {
+      saveLocale(next);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
 
     return MaterialApp(
       title: '日程清单',
@@ -80,17 +92,15 @@ class _DailyGigAppState extends ConsumerState<DailyGigApp> {
       darkTheme: AppConstants.darkTheme,
       themeMode: themeMode,
 
-      locale: const Locale('zh'),
+      locale: locale,
       localizationsDelegates: const [
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
         FlutterQuillLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('zh', 'CN'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
 
       home: const HomeScreen(),
     );

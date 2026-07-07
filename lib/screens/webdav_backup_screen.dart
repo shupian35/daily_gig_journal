@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/database_helper.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/webdav_helper.dart';
@@ -58,17 +59,18 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isConfigured = ref.watch(webDavConfiguredProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('云备份'),
+        title: Text(l10n.cloudBackup),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           // ── 说明卡片 ──
-          AppSectionLabel(title: '说明', icon: Icons.info_outline_rounded),
+          AppSectionLabel(title: l10n.instructions, icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
           AppCard(
             child: Padding(
@@ -78,17 +80,17 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                 children: [
                   _buildInfoRow(
                     Icons.cloud_outlined,
-                    '支持坚果云等标准 WebDAV 服务器',
+                    l10n.webdavInfo,
                   ),
                   const SizedBox(height: 8),
                   _buildInfoRow(
                     Icons.vpn_key_outlined,
-                    '坚果云用户请在「账户信息 → 安全选项」中生成应用密码',
+                    l10n.jianguoyunInfo,
                   ),
                   const SizedBox(height: 8),
                   _buildInfoRow(
                     Icons.backup_outlined,
-                    '备份文件将存储在云盘 daily_gig_journal 目录下',
+                    l10n.backupPathInfo,
                   ),
                 ],
               ),
@@ -98,7 +100,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           const SizedBox(height: 20),
 
           // ── 服务器配置 ──
-          AppSectionLabel(title: '服务器配置', icon: Icons.dns_outlined),
+          AppSectionLabel(title: l10n.serverConfig, icon: Icons.dns_outlined),
           const SizedBox(height: 8),
           AppCard(
             child: Padding(
@@ -106,7 +108,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFieldLabel('服务器地址'),
+                  _buildFieldLabel(l10n.serverAddress),
                   const SizedBox(height: 6),
                   _buildTextField(
                     controller: _urlController,
@@ -116,7 +118,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  _buildFieldLabel('账号（坚果云为注册邮箱）'),
+                  _buildFieldLabel(l10n.accountLabel),
                   const SizedBox(height: 6),
                   _buildTextField(
                     controller: _usernameController,
@@ -126,11 +128,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                     },
                   ),
                   const SizedBox(height: 14),
-                  _buildFieldLabel('密码（坚果云需使用应用密码）'),
+                  _buildFieldLabel(l10n.passwordLabel),
                   const SizedBox(height: 6),
                   _buildTextField(
                     controller: _passwordController,
-                    hint: '应用密码（非登录密码）',
+                    hint: l10n.appPasswordHint,
                     obscure: _obscurePassword,
                     suffix: IconButton(
                       icon: Icon(
@@ -163,7 +165,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.wifi_find_rounded, size: 18),
-                      label: Text(_isTesting ? '测试中...' : '测试连接'),
+                      label: Text(_isTesting ? l10n.testing : l10n.testConnection),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppConstants.primaryDark,
                         side: const BorderSide(color: AppConstants.primaryColor),
@@ -187,7 +189,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           const SizedBox(height: 20),
 
           // ── 备份操作 ──
-          AppSectionLabel(title: '操作', icon: Icons.sync_rounded),
+          AppSectionLabel(title: l10n.actions, icon: Icons.sync_rounded),
           const SizedBox(height: 8),
           AppCard(
             child: Padding(
@@ -210,7 +212,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                               ),
                             )
                           : const Icon(Icons.cloud_upload_rounded, size: 18),
-                      label: Text(_isBackingUp ? '备份中...' : '备份到云盘'),
+                      label: Text(_isBackingUp ? l10n.backingUp : l10n.backupToCloud),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppConstants.primaryColor,
                         foregroundColor: Colors.white,
@@ -236,7 +238,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.cloud_download_rounded, size: 18),
-                      label: Text(_isRestoring ? '恢复中...' : '从云盘恢复'),
+                      label: Text(_isRestoring ? l10n.restoring : l10n.restoreFromCloud),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppConstants.incomeGreen,
                         side: const BorderSide(color: AppConstants.incomeGreen),
@@ -258,15 +260,15 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           ),
 
           // ── 自动备份 ──
-          AppSectionLabel(title: '自动备份', icon: Icons.auto_mode_rounded),
+          AppSectionLabel(title: l10n.autoBackup, icon: Icons.auto_mode_rounded),
           const SizedBox(height: 8),
           AppCard(
             child: SwitchListTile(
               secondary: const Icon(Icons.sync_rounded,
                   size: 22, color: AppConstants.primaryDark),
-              title: const Text('保存/删除时自动备份',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: const Text('开启后，每次新增、修改或删除日程时自动备份到云盘'),
+              title: Text(l10n.autoBackupTitle,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              subtitle: Text(l10n.autoBackupSubtitle),
               value: ref.watch(autoBackupProvider),
               onChanged: isConfigured
                   ? (v) => ref.read(autoBackupProvider.notifier).state = v
@@ -433,7 +435,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
-      _showOpStatus('备份失败: $e', error: true);
+      _showOpStatus('${AppLocalizations.of(context)!.backupFailedCloud}: $e', error: true);
     }
   }
 
@@ -458,26 +460,27 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   }
 
   Future<void> _restoreSelectedFile(WebDavFileInfo file) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('确认恢复'),
+        title: Text(l10n.confirmRestore),
         content: Text(
           '即将从云盘恢复备份文件：\n\n${file.name}\n'
           '${file.formattedSize}  |  ${file.formattedDate}\n\n'
-          '恢复数据将覆盖当前所有数据，此操作不可撤销。\n建议先备份当前数据再执行恢复。',
+          '${l10n.confirmRestoreDialogContent}',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
               foregroundColor: AppConstants.dangerRed,
             ),
-            child: const Text('确认恢复'),
+            child: Text(l10n.confirmRestoreButton),
           ),
         ],
       ),
@@ -498,14 +501,14 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       setState(() => _isRestoring = false);
       _showOpStatus(
         result.isSuccess
-            ? '恢复成功！请重启应用以加载恢复的数据'
+            ? l10n.restoreSuccessCloud
             : result.message,
         error: !result.isSuccess,
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showOpStatus('恢复失败: $e', error: true);
+      _showOpStatus('${l10n.restoreFailedCloud}: $e', error: true);
     }
   }
 }
@@ -542,7 +545,7 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
       if (result.isSuccess) {
         _files = result.files;
       } else {
-        _error = result.errorMessage ?? '获取文件列表失败';
+        _error = result.errorMessage ?? AppLocalizations.of(context)!.fetchFileListFailed;
       }
     });
   }
@@ -573,13 +576,13 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                '选择备份文件',
+              Text(
+                AppLocalizations.of(context)!.selectBackupFile,
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
               Text(
-                '点击文件即可恢复该日期的备份',
+                AppLocalizations.of(context)!.selectBackupFileSubtitle,
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade500,
@@ -599,14 +602,14 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (_loading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(strokeWidth: 2),
-            SizedBox(height: 12),
-            Text('正在获取备份文件列表...',
-                style: TextStyle(fontSize: 13, color: AppConstants.textSecondary)),
+            const CircularProgressIndicator(strokeWidth: 2),
+            const SizedBox(height: 12),
+            Text(AppLocalizations.of(context)!.fetchingFileList,
+                style: const TextStyle(fontSize: 13, color: AppConstants.textSecondary)),
           ],
         ),
       );
@@ -630,7 +633,7 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
                 _fetchFiles();
               },
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('重试'),
+              label: Text(AppLocalizations.of(context)!.retry),
             ),
           ],
         ),
@@ -645,7 +648,7 @@ class _CloudFileListSheetState extends State<_CloudFileListSheet> {
             Icon(Icons.inbox_rounded, size: 48,
                 color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
             const SizedBox(height: 12),
-            Text('云端没有找到备份文件',
+            Text(AppLocalizations.of(context)!.noBackupFiles,
                 style: TextStyle(
                     color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
           ],

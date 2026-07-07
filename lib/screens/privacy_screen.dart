@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 
@@ -9,13 +10,14 @@ class PrivacyScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final hideIncome = ref.watch(hideIncomeProvider);
     final hideStatistics = ref.watch(hideStatisticsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('隐私设置'),
+        title: Text(l10n.privacySettings),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -49,10 +51,9 @@ class PrivacyScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      '隐私设置帮助你控制在应用中显示的敏感信息。'
-                      '开启隐藏后，相关数据将以"***"代替。',
+                      l10n.privacyDescription,
                       style: TextStyle(
                         fontSize: 13,
                         color: AppConstants.textSecondary,
@@ -93,9 +94,9 @@ class PrivacyScreen extends ConsumerWidget {
                   size: 20,
                 ),
               ),
-              title: const Text('隐藏收入金额',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: const Text('开启后，所有页面的收入金额将显示为"***"'),
+              title: Text(l10n.hideIncomeAmount,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              subtitle: Text(l10n.hideIncomeAmountSubtitle),
               value: hideIncome,
               onChanged: (value) {
                 ref.read(hideIncomeProvider.notifier).state = value;
@@ -134,9 +135,9 @@ class PrivacyScreen extends ConsumerWidget {
                   size: 20,
                 ),
               ),
-              title: const Text('隐藏统计页面',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: const Text('开启后，统计Tab将显示为空状态，保护你的收入数据隐私'),
+              title: Text(l10n.hideStatisticsPage,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+              subtitle: Text(l10n.hideStatisticsPageSubtitle),
               value: hideStatistics,
               onChanged: (value) {
                 ref.read(hideStatisticsProvider.notifier).state = value;
@@ -149,9 +150,9 @@ class PrivacyScreen extends ConsumerWidget {
           const SizedBox(height: 24),
 
           // 底部提示
-          const Center(
+          Center(
             child: Text(
-              '隐私设置即时生效，无需重启应用',
+              l10n.privacyHint,
               style: TextStyle(
                 fontSize: 12,
                 color: AppConstants.textSecondary,

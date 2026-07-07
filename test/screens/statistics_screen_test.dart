@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/models/work_entry.dart';
 import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/statistics_screen.dart';
@@ -12,8 +13,11 @@ void main() {
         overrides: [
           wageNotesProvider.overrideWith((ref) => []),
         ],
-        child: const MaterialApp(
-          home: StatisticsScreen(),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const StatisticsScreen(),
         ),
       ),
     );
@@ -40,8 +44,11 @@ void main() {
             {'month': '2025-06', 'total': 270.0, 'work_days': 1},
           ]),
         ],
-        child: const MaterialApp(
-          home: StatisticsScreen(),
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const StatisticsScreen(),
         ),
       ),
     );

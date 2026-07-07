@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
@@ -18,6 +19,8 @@ class WageSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
@@ -80,7 +83,7 @@ class WageSummaryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$monthDisplay 预计收入',
+                    '$monthDisplay ${l10n.estimatedIncome}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -92,7 +95,7 @@ class WageSummaryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    Helpers.formatCurrency(totalWage),
+                    Helpers.formatCurrency(totalWage, locale),
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w700,
@@ -128,7 +131,7 @@ class WageSummaryCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '工作次',
+                    l10n.workTimes,
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,

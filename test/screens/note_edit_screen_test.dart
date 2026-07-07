@@ -5,14 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:daily_gig_journal/database/database_helper.dart';
+import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/screens/note_edit_screen.dart';
 
 Widget _buildTestApp(Widget home) {
   return ProviderScope(
     child: MaterialApp(
-      localizationsDelegates: const [
+      localizationsDelegates: [
+        ...AppLocalizations.localizationsDelegates,
         FlutterQuillLocalizations.delegate,
       ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      locale: const Locale('zh'),
       home: home,
     ),
   );

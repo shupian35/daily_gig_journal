@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
 import '../utils/helpers.dart';
@@ -14,10 +15,12 @@ class DayEntriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final entriesAsync = ref.watch(notesByDateListProvider(dateStr));
-    final displayDate = Helpers.toDisplayDate(dateStr);
+    final displayDate = Helpers.toDisplayDate(dateStr, locale);
     final date = Helpers.parseDate(dateStr);
-    final weekday = date != null ? Helpers.getChineseWeekday(date) : '';
+    final weekday = date != null ? Helpers.getWeekday(date, locale) : '';
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
@@ -48,7 +51,7 @@ class DayEntriesScreen extends ConsumerWidget {
             _navigateToEdit(context, ref, dateStr, null);
           },
           icon: const Icon(Icons.add_rounded, size: 22),
-          label: const Text('添加工作'),
+          label: Text(l10n.addWork),
         ),
         body: entriesAsync.when(
           data: (entries) {
@@ -73,7 +76,7 @@ class DayEntriesScreen extends ConsumerWidget {
                       size: 28, color: AppConstants.dangerRed),
                 ),
                 const SizedBox(height: 16),
-                Text('加载失败: $err',
+                Text('${l10n.loadFailed}: $err',
                     style: const TextStyle(color: AppConstants.dangerRed)),
               ],
             ),
@@ -84,6 +87,7 @@ class DayEntriesScreen extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -102,8 +106,8 @@ class DayEntriesScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            '当天还没有工作安排',
+          Text(
+            l10n.noWorkTitle,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
@@ -111,8 +115,8 @@ class DayEntriesScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            '点击下方按钮添加工作',
+          Text(
+            l10n.noWorkSubtitle,
             style: TextStyle(
               fontSize: 13,
               color: AppConstants.textSecondary,
@@ -145,6 +149,8 @@ class DayEntriesScreen extends ConsumerWidget {
     int index,
     int total,
   ) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
     final totalWage = entry.dailyWage;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = index == total - 1;
@@ -199,7 +205,7 @@ class DayEntriesScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      entry.title.isNotEmpty ? entry.title : '(无标题)',
+                      entry.title.isNotEmpty ? entry.title : l10n.noTitle,
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -299,7 +305,7 @@ class DayEntriesScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    Helpers.formatCurrency(totalWage),
+                    Helpers.formatCurrency(totalWage, locale),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -334,25 +340,27 @@ class DayEntriesScreen extends ConsumerWidget {
     WidgetRef ref,
     WorkEntry entry,
   ) async {
-    final displayDate = Helpers.toDisplayDate(entry.date);
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
+    final displayDate = Helpers.toDisplayDate(entry.date, locale);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('确认删除'),
+        title: Text(l10n.confirmDelete),
         content: Text(
-          '确定要删除 $displayDate 的\n"${entry.title.isNotEmpty ? entry.title : '(无标题)'}" 吗？\n此操作不可撤销。',
+          '确定要删除 $displayDate 的\n"${entry.title.isNotEmpty ? entry.title : l10n.noTitle}" 吗？\n此操作不可撤销。',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('取消'),
+            child: Text(l10n.cancel),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(
               foregroundColor: AppConstants.dangerRed,
             ),
-            child: const Text('删除'),
+            child: Text(l10n.delete),
           ),
         ],
       ),
@@ -366,9 +374,9 @@ class DayEntriesScreen extends ConsumerWidget {
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('已删除'),
-            duration: Duration(seconds: 1),
+          SnackBar(
+            content: Text(l10n.deleted),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -376,7 +384,7 @@ class DayEntriesScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('删除失败: $e'),
+            content: Text('${l10n.deleteFailed}: $e'),
             backgroundColor: AppConstants.dangerRed,
           ),
         );

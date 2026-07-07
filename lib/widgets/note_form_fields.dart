@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
@@ -35,6 +36,7 @@ class NoteFormFields extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sectionSpacing = const SizedBox(height: 20);
 
@@ -42,33 +44,33 @@ class NoteFormFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── 基本信息 ──
-        _buildSectionHeader('基本信息', Icons.work_outline_rounded),
+        _buildSectionHeader(l10n.basicInfo, Icons.work_outline_rounded),
         const SizedBox(height: 14),
-        _buildFieldLabel('工作标题'),
+        _buildFieldLabel(l10n.workTitle),
         const SizedBox(height: 6),
         TextFormField(
           controller: titleController,
-          decoration: _inputDecoration('例如：会展协助、发传单、家教'),
+          decoration: _inputDecoration(l10n.workTitleHint),
         ),
         const SizedBox(height: 16),
-        _buildFieldLabel('工作地点'),
+        _buildFieldLabel(l10n.workLocation),
         const SizedBox(height: 6),
         TextFormField(
           controller: workLocationController,
-          decoration: _inputDecoration('例如：会展中心A馆、解放路步行街'),
+          decoration: _inputDecoration(l10n.workLocationHint),
         ),
         const SizedBox(height: 16),
-        _buildFieldLabel('对接人'),
+        _buildFieldLabel(l10n.contactPerson),
         const SizedBox(height: 6),
         TextFormField(
           controller: contactController,
-          decoration: _inputDecoration('例如：张三、李经理'),
+          decoration: _inputDecoration(l10n.contactPersonHint),
         ),
 
         sectionSpacing,
 
         // ── 工作时间 ──
-        _buildSectionHeader('工作时间', Icons.access_time_rounded),
+        _buildSectionHeader(l10n.workTime, Icons.access_time_rounded),
         const SizedBox(height: 14),
         Row(
           children: [
@@ -76,7 +78,7 @@ class NoteFormFields extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFieldLabel('开始时间'),
+                  _buildFieldLabel(l10n.startTime),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: startTimeController,
@@ -114,7 +116,7 @@ class NoteFormFields extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFieldLabel('结束时间'),
+                  _buildFieldLabel(l10n.endTime),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: endTimeController,
@@ -132,7 +134,7 @@ class NoteFormFields extends StatelessWidget {
         if (!hideIncome) ...[
           sectionSpacing,
           // ── 收入详情 ──
-          _buildSectionHeader('收入详情', Icons.payments_outlined),
+          _buildSectionHeader(l10n.incomeDetails, Icons.payments_outlined),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -140,7 +142,7 @@ class NoteFormFields extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFieldLabel('时薪 (¥)'),
+                    _buildFieldLabel(l10n.hourlyRate),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: hourlyWageController,
@@ -157,7 +159,7 @@ class NoteFormFields extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFieldLabel('工作时长 (h)'),
+                    _buildFieldLabel(l10n.workHours),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: workHoursController,
@@ -172,14 +174,14 @@ class NoteFormFields extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildFieldLabel('日工资 (¥)'),
+          _buildFieldLabel(l10n.dailyWage),
           const SizedBox(height: 6),
           TextFormField(
             controller: dailyWageController,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
             decoration: _inputDecoration('0.00').copyWith(
-              helperText: '填时薪自动算日工资，填日工资反推时薪',
+              helperText: l10n.wageHelperText,
               helperStyle: const TextStyle(fontSize: 11, color: AppConstants.textSecondary),
             ),
             onChanged: (_) => onDailyWageChanged?.call(),

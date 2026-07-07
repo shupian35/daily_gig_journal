@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'drawing_data.dart';
@@ -166,7 +167,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('导入图片失败: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalizations.of(context)!.importImageFailed}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -398,13 +399,13 @@ class _DrawingScreenState extends State<DrawingScreen> {
       await draft.saveToFile(filePath);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('草稿已保存'), duration: Duration(seconds: 1)),
+          SnackBar(content: Text(AppLocalizations.of(context)!.draftSaved), duration: const Duration(seconds: 1)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存草稿失败: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalizations.of(context)!.saveDraftFailed}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -432,13 +433,13 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('草稿已加载'), duration: Duration(seconds: 1)),
+          SnackBar(content: Text(AppLocalizations.of(context)!.draftLoaded), duration: const Duration(seconds: 1)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('加载草稿失败: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalizations.of(context)!.loadDraftFailed}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -461,6 +462,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
   }
 
   void _showSaveOptions() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -470,11 +472,11 @@ class _DrawingScreenState extends State<DrawingScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('保存方式', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(l10n.saveMethod, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
               ListTile(
                 leading: const Icon(Icons.image, color: AppConstants.primaryColor),
-                title: const Text('包含图片和批示'),
+                title: Text(l10n.saveWithImage),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusSm)),
                 tileColor: AppConstants.primaryColor.withValues(alpha: 0.08),
                 onTap: () { Navigator.pop(ctx); _saveAsImage(showImages: true); },
@@ -482,7 +484,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
               const SizedBox(height: 8),
               ListTile(
                 leading: const Icon(Icons.edit_note, color: AppConstants.primaryDark),
-                title: const Text('仅插入批示'),
+                title: Text(l10n.saveAnnotationOnly),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppConstants.radiusSm)),
                 tileColor: AppConstants.primaryDark.withValues(alpha: 0.08),
                 onTap: () { Navigator.pop(ctx); _saveAsImage(showImages: false); },
@@ -531,7 +533,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('${AppLocalizations.of(context)!.saveFailedCanvas}: $e'), backgroundColor: Colors.red),
         );
       }
     }
@@ -562,6 +564,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
 
   // ======================== 图层面板 ========================
   void _showLayerPanel() {
+    final l10n = AppLocalizations.of(context)!;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -584,14 +587,14 @@ class _DrawingScreenState extends State<DrawingScreen> {
                     children: [
                       Row(
                         children: [
-                          const Text('图层面板', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                          Text(l10n.layerPanel, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                           const Spacer(),
                           TextButton(
                             onPressed: () {
                               _importImage();
                               Navigator.pop(ctx);
                             },
-                            child: const Text('+ 添加照片'),
+                            child: Text(l10n.addPhoto),
                           ),
                         ],
                       ),
@@ -600,7 +603,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Center(
-                            child: Text('暂无图层', style: TextStyle(color: Colors.grey.shade400)),
+                            child: Text(l10n.noLayers, style: TextStyle(color: Colors.grey.shade400)),
                           ),
                         )
                       else
@@ -682,6 +685,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
   // ======================== UI ========================
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -750,7 +754,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(color: AppConstants.primaryColor.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(10)),
-                child: const Text('拖动选中图层到目标位置，再次点击"移动"确认', style: TextStyle(color: Colors.white, fontSize: 12)),
+                child: Text(l10n.moveModeHint, style: const TextStyle(color: Colors.white, fontSize: 12)),
               ),
             ),
           if (_isCropping)
@@ -759,7 +763,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(8)),
-                child: const Text('拖拽选择裁切区域，点击✓确认', style: TextStyle(color: Colors.white, fontSize: 12)),
+                child: Text(l10n.cropModeHint, style: const TextStyle(color: Colors.white, fontSize: 12)),
               ),
             ),
 
@@ -787,6 +791,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
   }
 
   Widget _buildFloatingToolbar(bool isDark) {
+    final l10n = AppLocalizations.of(context)!;
     final selLayer = _selectedLayer;
 
     return Material(
@@ -847,21 +852,21 @@ class _DrawingScreenState extends State<DrawingScreen> {
                   ),
                 )),
                 const Spacer(),
-                _toolBtn(Icons.undo, _undoLastPath, '撤销'),
+                _toolBtn(Icons.undo, _undoLastPath, l10n.undo),
                 const SizedBox(width: 4),
-                _toolBtn(Icons.add_photo_alternate, _importImage, '图片'),
+                _toolBtn(Icons.add_photo_alternate, _importImage, l10n.imageTool),
                 const SizedBox(width: 4),
                 if (_imageLayers.isNotEmpty) ...[
-                  _toolBtn(Icons.layers, _showLayerPanel, '图层', _imageLayers.length > 1 ? AppConstants.primaryDark : null),
+                  _toolBtn(Icons.layers, _showLayerPanel, l10n.layerTool, _imageLayers.length > 1 ? AppConstants.primaryDark : null),
                   const SizedBox(width: 4),
                 ],
                 if (selLayer != null) ...[
-                  _toolBtn(Icons.open_with, _toggleImageMove, '移动', _isMovingSelectedLayer ? Colors.orange : null),
+                  _toolBtn(Icons.open_with, _toggleImageMove, l10n.moveTool, _isMovingSelectedLayer ? Colors.orange : null),
                   const SizedBox(width: 4),
                 ],
-                _toolBtn(Icons.crop, _toggleCrop, '裁切', _isCropping ? Colors.green : null),
+                _toolBtn(Icons.crop, _toggleCrop, l10n.cropTool, _isCropping ? Colors.green : null),
                 const SizedBox(width: 4),
-                _toolBtn(Icons.delete_outline, _clearCanvas, '清空', Colors.red),
+                _toolBtn(Icons.delete_outline, _clearCanvas, l10n.clearTool, Colors.red),
               ],
             ),
             // 选中图层的透明度 & 缩放滑块

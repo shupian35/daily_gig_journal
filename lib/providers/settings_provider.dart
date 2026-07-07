@@ -42,6 +42,11 @@ final autoBackupProvider = StateProvider<bool>((ref) {
   return false;
 });
 
+/// 语言设置 (null = 跟随系统)
+final localeProvider = StateProvider<Locale?>((ref) {
+  return null;
+});
+
 /// WebDAV 是否已配置（至少填写了地址和账号）
 final webDavConfiguredProvider = Provider<bool>((ref) {
   final url = ref.watch(webDavUrlProvider);
@@ -68,6 +73,16 @@ Future<void> loadSettings(WidgetRef ref) async {
       await SettingsService.loadString(keyWebDavPassword, '');
   ref.read(autoBackupProvider.notifier).state =
       await SettingsService.loadBool(keyAutoBackup, false);
+
+  // 加载语言设置
+  final localeCode = await SettingsService.loadString(keyLocale, '');
+  if (localeCode.isEmpty) {
+    ref.read(localeProvider.notifier).state = null;
+  } else if (localeCode == 'zh_TW') {
+    ref.read(localeProvider.notifier).state = const Locale('zh', 'TW');
+  } else {
+    ref.read(localeProvider.notifier).state = Locale(localeCode);
+  }
 }
 
 /// 保存主题模式
@@ -97,3 +112,15 @@ Future<void> saveWebDavPassword(String value) =>
 /// 保存自动备份开关
 Future<void> saveAutoBackup(bool value) =>
     SettingsService.saveBool(keyAutoBackup, value);
+
+/// 保存语言设置
+Future<void> saveLocale(Locale? locale) {
+  if (locale == null) {
+    return SettingsService.saveString(keyLocale, '');
+  }
+  if (locale.countryCode != null && locale.countryCode!.isNotEmpty) {
+    return SettingsService.saveString(
+        keyLocale, '${locale.languageCode}_${locale.countryCode}');
+  }
+  return SettingsService.saveString(keyLocale, locale.languageCode);
+}
