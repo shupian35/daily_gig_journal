@@ -2,9 +2,11 @@ name: CD
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'pubspec.yaml'
+    branches: [main, dev]
+    paths-ignore:
+      - '**.md'
+      - '.claude/**'
+      - '.gitignore'
 
 permissions:
   contents: write
@@ -17,37 +19,65 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  check-version:
+  plan:
+    name: 解析分支与版本
     runs-on: ubuntu-latest
     outputs:
+      branch_type: ${{ steps.classify.outputs.branch_type }}
       version: ${{ steps.version.outputs.version }}
+      build_number: ${{ steps.version.outputs.build_number }}
+      short_sha: ${{ steps.sha.outputs.short_sha }}
       should_release: ${{ steps.check.outputs.should_release }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: 读取版本号
+      - name: 判断分支类型
+        id: classify
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "branch_type=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch_type=preview" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 读取 pubspec 版本
         id: version
         run: |
-          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1 | tr -d ' ')
+          FULL=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=$(echo "$FULL" | cut -d'+' -f1)
+          BUILD=$(echo "$FULL" | cut -d'+' -f2)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD" >> "$GITHUB_OUTPUT"
 
-      - name: 检查版本是否变更
+      - name: 读取 git 短 hash
+        id: sha
+        run: |
+          SHORT_SHA=$(git rev-parse --short "${{ github.sha }}")
+          echo "short_sha=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: 判断是否触发发版
         id: check
         run: |
-          CURRENT_TAG="v${{ steps.version.outputs.version }}"
-          if git tag -l "$CURRENT_TAG" | grep -q "$CURRENT_TAG"; then
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "Tag $CURRENT_TAG already exists, skipping release"
+          if [ "${{ steps.classify.outputs.branch_type }}" = "main" ]; then
+            CURRENT_TAG="v${{ steps.version.outputs.version }}"
+            if git tag -l "$CURRENT_TAG" | grep -q "$CURRENT_TAG"; then
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+              echo "Tag v${{ steps.version.outputs.version }} 已存在，跳过正式发版"
+            else
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+              echo "Tag v${{ steps.version.outputs.version }} 不存在，将创建正式发版"
+            fi
           else
+            # dev 分支每次推送都生成 preview
             echo "should_release=true" >> "$GITHUB_OUTPUT"
-            echo "Tag $CURRENT_TAG not found, will create release"
           fi
 
   build-android:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
+    name: 构建 Android APK
+    needs: plan
+    if: needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -79,8 +109,9 @@ jobs:
           retention-days: 30
 
   build-ios:
-    needs: check-version
-    if: needs.check-version.outputs.should_release == 'true'
+    name: 构建 iOS IPA
+    needs: plan
+    if: needs.plan.outputs.should_release == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,7 +130,7 @@ jobs:
 
       - run: flutter pub get
 
-      - name: 构建 iOS (无签名)
+      - name: 构建 iOS（无签名）
         run: flutter build ios --release --no-codesign
 
       - name: 打包 IPA
@@ -113,30 +144,65 @@ jobs:
         with:
           name: ios-ipa
           path: build/ios/iphoneos/日程清单.ipa
-          retention-days: 30
+        retention-days: 30
 
-  release:
-    needs: [check-version, build-android, build-ios]
-    if: needs.check-version.outputs.should_release == 'true'
+  release-main:
+    name: 正式发版 (main)
+    needs: [plan, build-android, build-ios]
+    if: needs.plan.outputs.branch_type == 'main' && needs.plan.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 创建 Tag
+      - name: 创建正式 Tag
         run: |
-          git tag "v${{ needs.check-version.outputs.version }}"
-          git push origin "v${{ needs.check-version.outputs.version }}"
+          git tag "v${{ needs.plan.outputs.version }}"
+          git push origin "v${{ needs.plan.outputs.version }}"
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: 创建正式发布
+      - name: 发布正式版
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check-version.outputs.version }}
-          name: v${{ needs.check-version.outputs.version }}
-          make_latest: true
+          tag_name: v${{ needs.plan.outputs.version }}
+          name: v${{ needs.plan.outputs.version }}
+          make_latest: 'true'
+          prerelease: 'false'
+          files: |
+            artifacts/android-apk/日程清单.apk
+            artifacts/ios-ipa/日程清单.ipa
+
+  release-preview:
+    name: 预发布 (dev)
+    needs: [plan, build-android, build-ios]
+    if: needs.plan.outputs.branch_type == 'preview'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 创建 preview Tag
+        run: |
+          FULL="v${{ needs.plan.outputs.version }}+${{ needs.plan.outputs.build_number }}-${{ needs.plan.outputs.short_sha }}"
+          git tag "preview/$FULL"
+          git push origin "preview/$FULL"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 发布预发布版
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: preview/v${{ needs.plan.outputs.version }}+${{ needs.plan.outputs.build_number }}-${{ needs.plan.outputs.short_sha }}
+          name: preview/v${{ needs.plan.outputs.version }}+${{ needs.plan.outputs.build_number }}-${{ needs.plan.outputs.short_sha }}
+          make_latest: 'false'
+          prerelease: 'true'
           files: |
             artifacts/android-apk/日程清单.apk
             artifacts/ios-ipa/日程清单.ipa

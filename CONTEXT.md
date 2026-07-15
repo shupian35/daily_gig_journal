@@ -2,7 +2,7 @@
 
 领域词汇表 (domain glossary)。单 context 仓库；更细的格式约定见 `docs/agents/domain.md`。
 
-> 最后修订：2026-07-15 · 由 `grill-with-docs` 流程结晶产生；当日跟进 iOS 系统组件本地化 bug fix
+> 最后修订：2026-07-15 · 由 `grill-with-docs` 流程结晶产生；当日跟进 iOS 系统组件本地化 bug fix 与 CI/CD 分支配置
 
 ## 核心术语
 
@@ -17,6 +17,7 @@
 | **EntryCoordinator** | 集中所有 WorkEntry 写入与未来 archive/duplicate/merge 的 Notifier；同地点触发失效图谱与自动备份 | `lib/providers/entry_coordinator.dart`（待新建，见 ADR-0001） |
 | **Worker Hours** | `startTime - endTime` 的小时数（小数保留 1 位） | `Helpers.calculateWorkHours(start, end)` |
 | **Work Week Plan** | 今天起未来一周的条目预览，按日期聚组 | `CalendarScreen._buildUpcomingWeekPlan` |
+| **Preview Build** | dev 分支每次推送产出的预发布 artifact；tag 命名空间 `preview/vX.Y.Z+N-sha`，GitHub Release 标 `prerelease: true` | `.github/workflows/cd.yaml` 的 release-preview job |
 | **iOS Native UI Surface** | iOS 系统渲染的 UI 组件（不在 Flutter 树里）。iOS 用 Info.plist `CFBundleLocalizations` 决定走哪国语言 | 长按输入框的 UIEditMenuInteraction、`image_picker` 的 UIImagePickerController、系统分享面板 |
 
 ## 概念上的提法
@@ -26,6 +27,7 @@
 - **一天可多条**：库 `date` 字段无 UNIQUE 约束（v3 迁移引入）。
 - **Note Body 永远序列化为字符串**（Quill Delta JSON）——不要直接保存 `Document` 对象。
 - "**iOS 原生 UI 的语言**" 由 Info.plist 的 `CFBundleLocalizations` 决定，**不归 Flutter 管**——和 `MaterialApp.locale` 是两套机制。改动 Info.plist 时注意保留原有 `CFBundleDisplayName` 等硬编码值。
+- "**CI/CD 按分支分两套**"：main 上 CI + CD（pubspec 变才 release，tag `v...`）；dev 上 CI + 每次 push 都 release preview artifact（tag `preview/v...-sha`，Release 标 `prerelease: true`）。详见 ADR-0004。
 
 ## 与外部依赖的边界
 
@@ -39,3 +41,4 @@
 | --------- | --------------------------------------- | ---------------------- |
 | 2026-07-15 | 首次落稿；新增 EntryCoordinator 词条    | grill-with-docs Q1-Q4  |
 | 2026-07-15 | 新增 iOS Native UI Surface 词条 + CFBundleLocalizations 概念 | grill-with-docs (iOS bug fix 跟进) |
+| 2026-07-15 | 新增 Preview Build 词条 + CI/CD 按分支概念 | grill-with-docs (CI/CD 配置改 Q1-Q5) |
