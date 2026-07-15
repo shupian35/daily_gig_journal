@@ -12,6 +12,7 @@ import '../widgets/drawing_canvas.dart';
 import '../widgets/image_gallery_viewer.dart';
 import '../widgets/image_file_embed_builder.dart';
 import '../providers/notes_provider.dart';
+import '../providers/entry_coordinator.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
@@ -151,7 +152,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         noteContent: quillJson,
       );
 
-      await ref.read(saveNoteProvider(note).future);
+      await ref.read(entryCoordinatorProvider.notifier).save(note);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,10 +209,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     if (confirmed != true) return;
 
     try {
-      await ref.read(
-        deleteNoteProvider(
-          (id: _existingNoteId!, date: widget.dateStr),
-        ).future,
+      await ref.read(entryCoordinatorProvider.notifier).delete(
+        id: _existingNoteId!,
+        date: widget.dateStr,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -363,6 +363,22 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<void>>(
+      entryCoordinatorProvider,
+      (prev, next) {
+        if (next is AsyncError<void> && prev is! AsyncError<void>) {
+          // (l10nErr removed when switching to literal; ADR-0001 Decision 4)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '操作失败: ${next.error}'  // TODO: l10n 化 operationFailed 后迁移,
+              ),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
+      },
+    );
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final date = Helpers.parseDate(widget.dateStr);

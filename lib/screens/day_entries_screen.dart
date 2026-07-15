@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
+import '../providers/entry_coordinator.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'note_edit_screen.dart';
@@ -15,6 +16,22 @@ class DayEntriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<void>>(
+      entryCoordinatorProvider,
+      (prev, next) {
+        if (next is AsyncError<void> && prev is! AsyncError<void>) {
+          // (l10nErr removed when switching to literal; ADR-0001 Decision 4)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '操作失败: ${next.error}'  // TODO: l10n 化 operationFailed 后迁移,
+              ),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
+      },
+    );
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final entriesAsync = ref.watch(notesByDateListProvider(dateStr));
@@ -369,8 +386,9 @@ class DayEntriesScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(
-        deleteNoteProvider((id: entry.id!, date: entry.date)).future,
+      await ref.read(entryCoordinatorProvider.notifier).delete(
+        id: entry.id!,
+        date: entry.date,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -405,7 +423,7 @@ class DayEntriesScreen extends ConsumerWidget {
       ),
     )
         .then((_) {
-      ref.invalidate(notesByDateListProvider(dateStr));
+      // Coordinator 已清缓存（ADR-0002 / save 后 _invalidateFor 已触发 notesByDateListProvider(dateStr)）
     });
   }
 }

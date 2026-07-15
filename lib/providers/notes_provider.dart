@@ -2,9 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/work_entry.dart';
 import '../database/database_helper.dart';
 import '../utils/helpers.dart';
-import '../services/backup_service.dart';
 
-/// 数据库帮助类实例（单例）
+/// 数据库辅助类实例（单例）
 final databaseHelperProvider = Provider<DatabaseHelper>((ref) {
   return DatabaseHelper();
 });
@@ -15,7 +14,7 @@ final wageNotesProvider = FutureProvider<List<WorkEntry>>((ref) async {
   return await db.getNotesWithWage();
 });
 
-/// 最近N个月的月度汇总（用于统计图表）
+/// 最近 N 个月的月度汇总（用于统计图表）
 final monthlySummaryProvider =
     FutureProvider.family<List<Map<String, dynamic>>, int>((ref, months) async {
   final db = ref.watch(databaseHelperProvider);
@@ -76,46 +75,6 @@ final notesByDateRangeProvider = FutureProvider.autoDispose
   return await db.getNotesByDateRange(range.start, range.end);
 });
 
-Future<void> _tryAutoBackup(Ref ref) => BackupService.autoBackup(ref);
-
-/// 笔记保存操作（mutation）
-/// id 不为 null 则更新，否则插入
-final saveNoteProvider = FutureProvider.autoDispose
-    .family<void, WorkEntry>((ref, note) async {
-  final db = ref.watch(databaseHelperProvider);
-  if (note.id != null) {
-    await db.updateNote(note);
-  } else {
-    await db.insertNote(note);
-  }
-  // 使相关缓存失效
-  ref.invalidate(workDatesProvider);
-  ref.invalidate(wageNotesProvider);
-  ref.invalidate(monthlySummaryProvider);
-  ref.invalidate(monthlyTotalWageProvider);
-  ref.invalidate(monthlyWorkDaysProvider);
-  ref.invalidate(notesByDateListProvider(note.date));
-  ref.invalidate(notesByDateRangeProvider);
-
-  // 自动备份
-  await _tryAutoBackup(ref);
-});
-
-/// 笔记删除操作（mutation）
-final deleteNoteProvider =
-    FutureProvider.autoDispose.family<void, ({int id, String date})>(
-        (ref, params) async {
-  final db = ref.watch(databaseHelperProvider);
-  await db.deleteNote(params.id);
-  // 使相关缓存失效
-  ref.invalidate(workDatesProvider);
-  ref.invalidate(wageNotesProvider);
-  ref.invalidate(monthlySummaryProvider);
-  ref.invalidate(monthlyTotalWageProvider);
-  ref.invalidate(monthlyWorkDaysProvider);
-  ref.invalidate(notesByDateListProvider(params.date));
-  ref.invalidate(notesByDateRangeProvider);
-
-  // 自动备份
-  await _tryAutoBackup(ref);
-});
+// 注意：save/delete mutation 已迁出到 lib/providers/entry_coordinator.dart。
+// 任何写入操作请走 `entryCoordinatorProvider`，不要再加旧式 mutation。
+// 历史背景与决策记录见 ADR-0001 / ADR-0002。
