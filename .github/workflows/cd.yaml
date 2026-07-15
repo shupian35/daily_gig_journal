@@ -145,7 +145,7 @@ jobs:
         with:
           name: ios-ipa
           path: build/ios/iphoneos/日程清单.ipa
-        retention-days: 30
+          retention-days: 30
 
   release-main:
     name: 正式发版 (main)
