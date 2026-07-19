@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/models/work_entry.dart';
+import 'package:daily_gig_journal/data/work_entry_repository.dart';
 import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/statistics_screen.dart';
 
@@ -41,7 +42,7 @@ void main() {
             ),
           ]),
           monthlySummaryProvider(6).overrideWith((ref) => [
-            {'month': '2025-06', 'total': 270.0, 'work_days': 1},
+            const MonthSummary(month: '2025-06', total: 270.0, workDays: 1),
           ]),
         ],
         child: MaterialApp(

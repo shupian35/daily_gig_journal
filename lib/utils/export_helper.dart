@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
-import '../database/database_helper.dart';
+import '../data/work_entry_repository.dart';
 import '../models/work_entry.dart';
 
 /// 数据导出工具类
@@ -18,9 +18,8 @@ class ExportHelper {
 
   /// 执行导出，返回导出文件路径
   /// [format] 取值 'csv' 或 'json'
-  static Future<String> exportToFile(String format) async {
-    final db = DatabaseHelper();
-    final notes = await db.getAllNotes();
+  static Future<String> exportToFile(String format, WorkEntryRepository repo) async {
+    final notes = await repo.findAllWithWage();
 
     return switch (format) {
       csv => _exportCsv(notes),

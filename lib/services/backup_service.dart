@@ -2,7 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../database/database_helper.dart';
+import '../data/work_entry_repository.dart';
+import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/webdav_helper.dart';
 
@@ -12,7 +13,7 @@ class BackupService {
   BackupService._();
 
   /// 获取数据库文件路径
-  static Future<String> get dbPath => DatabaseHelper.getDatabasePath();
+  static Future<String> getDbPath(WorkEntryRepository repo) async => repo.filePath();
 
   /// 安全覆盖：先备份当前文件到 .bak，再写入新内容
   /// 写入失败时自动回滚
@@ -63,8 +64,8 @@ class BackupService {
   }
 
   /// 备份数据库到本地临时文件，返回文件路径
-  static Future<String> backupToLocalFile() async {
-    final db = await dbPath;
+  static Future<String> backupToLocalFile(WorkEntryRepository repo) async {
+    final db = await repo.filePath();
     final file = File(db);
     if (!await file.exists()) {
       throw Exception('数据库文件不存在');
@@ -101,7 +102,8 @@ class BackupService {
       if (!enabled || !configured) return;
 
       final helper = buildWebDavHelper(ref);
-      final localPath = await dbPath;
+      final repo = ref.read(workEntryRepositoryProvider);
+      final localPath = await repo.filePath();
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')

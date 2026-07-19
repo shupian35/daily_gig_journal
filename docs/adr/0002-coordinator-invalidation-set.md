@@ -1,6 +1,7 @@
 ---
-status: Proposed
+status: Superseded by ADR-0006
 date: 2026-07-15
+superseded-date: 2026-07-20
 deciders: (grill-with-docs 流程用户)
 parent: ADR-0001
 ---
@@ -135,3 +136,12 @@ Proposed（与 ADR-0001 同步推进）。Implementation 落地后两条 ADR 同
 
 - **ADR-0001**（父）：集中 WorkEntry 变更语义——高层 4 条决策（A / N / γ / S）
 - **ADR-0003**（待起）：仅作"AGENTS.md 旧规则曾存在"的备忘；落地于 Coordinator + 8 屏迁移完成后
+
+## Superseded notice (2026-07-20)
+
+本 ADR 的"静态失效清单"主张被 **ADR-0006** 的 watch 事件驱动路径替代：
+- ADR-0002 的 `_invalidateFor` / `_invalidateForDate` 整体下沉到 `WorkEntryRepository.watch()` 事件监听
+- "什么变了" 由 repository 在 add/update/remove 后通过 `Stream<WorkEntryChange>` 发出
+- "谁要失效" 仍由 EntryCoordinator 决策，但触发点从写入同步路径改为 watch 异步路径
+
+历史 ADR 保留以记录此前的设计取舍与备选方案。后续探索者请直接阅读 ADR-0006。

@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../database/database_helper.dart';
+import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/export_helper.dart';
@@ -500,7 +500,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _isExporting = true);
 
     try {
-      final filePath = await ExportHelper.exportToFile(format);
+      final repo = ref.read(workEntryRepositoryProvider);
+      final filePath = await ExportHelper.exportToFile(format, repo);
 
       if (!mounted) return;
       setState(() => _isExporting = false);
@@ -558,7 +559,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final l10n = AppLocalizations.of(context)!;
     setState(() => _isBackingUp = true);
     try {
-      final dbPath = await DatabaseHelper.getDatabasePath();
+      final repo = ref.read(workEntryRepositoryProvider);
+      final dbPath = await repo.filePath();
       final dbFile = File(dbPath);
       if (!await dbFile.exists()) {
         throw Exception(l10n.dbFileNotExist);
@@ -605,8 +607,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return;
       }
 
-      final dbPath = await DatabaseHelper.getDatabasePath();
-      final bakPath = '$dbPath.bak';
+      final repo = ref.read(workEntryRepositoryProvider);
+      final dbPath = await repo.filePath();
+      final bakPath = '.bak';
       final dbFile = File(dbPath);
       if (await dbFile.exists()) {
         await dbFile.copy(bakPath);

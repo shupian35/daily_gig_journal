@@ -1,67 +1,59 @@
-import 'dart:async' show unawaited;
+﻿import 'dart:async' show StreamSubscription, unawaited;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/work_entry_change.dart';
 import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
 import '../services/backup_service.dart';
 
-/// WorkEntry 写入与失效协调 Notifier。
+/// WorkEntry 写入协调与派生缓存失效驱动器。
 ///
-/// 集中所有 save / delete 调用，同地点触发派生缓存失效与自动备份。
-/// 设计见 ADR-0001（高层 A/N/γ/S 四决策）与 ADR-0002（H1 清单 + P 粒度）。
+/// 设计动机与决策见 ADR-0001（集中写入）、ADR-0006（watch 事件驱动失效）。
+/// 当前职责：
+///   * 集中所有 save / delete mutation 入口
+///   * build() 单一挂 `WorkEntryRepository.watch()` 订阅做派生缓存失效
+///   * 同步触发自动备份（fire-and-forget，leading-edge 30s 节流；见 ADR-0005）
 class EntryCoordinator extends Notifier<AsyncValue<void>> {
-  /// 自动备份 leading-edge 节流窗口。
-  ///
-  /// 窗口从**上一次备份完成**算起——备份本身耗时再加 30s 缓冲。Leading
-  /// edge 让单次保存不等窗口立刻备份；trailing edge 会让单次保存延迟
-  /// 30s，UX 反而退步。
+  /// 自动备份 leading-edge 节流窗口。窗口从上次备份**完成**算起。
   static const _backupThrottleWindow = Duration(seconds: 30);
 
   bool _isBackupRunning = false;
   DateTime? _lastBackupCompletedAt;
+  StreamSubscription<WorkEntryChange>? _watchSub;
 
   @override
   AsyncValue<void> build() {
+    // 单一 watch 订阅点：派生缓存失效清单整体下沉到事件 listener。
+    // ADR-0002 的静态 _invalidateFor/_invalidateForDate 已删除。
+    _watchSub =
+        ref.read(workEntryRepositoryProvider).watch().listen(_onRepoChange);
+    ref.onDispose(() {
+      _watchSub?.cancel();
+      _watchSub = null;
+    });
     return const AsyncData<void>(null);
   }
 
-  /// 清空所有"每次写都受影响"的派生缓存。
-  /// 注：保留为方法而非 const List 是因为 family provider 的静态类型与
-  /// `ProviderListenable<T>` 列表无法对齐，硬编码调用可读性反而更佳。
-  /// 见 ADR-0002 H1 决议。
-  void _invalidateCommon() {
+  /// write event → invalidate 影响到的派生 provider。
+  void _onRepoChange(WorkEntryChange change) {
+    // 精准：按 change.date 失效该日 list 的 family 项。
+    ref.invalidate(notesByDateListProvider(change.date));
+    // 表级：6 个聚合 provider（任何写都影响）。
     ref.invalidate(workDatesProvider);
     ref.invalidate(wageNotesProvider);
     ref.invalidate(monthlySummaryProvider);
     ref.invalidate(monthlyTotalWageProvider);
     ref.invalidate(monthlyWorkDaysProvider);
     ref.invalidate(notesByDateRangeProvider);
-    ref.invalidate(notesByDateListProvider);
   }
 
-  /// save 用：note 已知日期 → 公共清单 + 单日期精准清空。
-  void _invalidateFor(WorkEntry note) {
-    _invalidateCommon();
-    ref.invalidate(notesByDateListProvider(note.date));
-  }
-
-  /// delete 用：date 已知 → 公共清单 + 单日期精准清空。
-  void _invalidateForDate(String date) {
-    _invalidateCommon();
-    ref.invalidate(notesByDateListProvider(date));
-  }
-
-  /// 自动备份 —— 后台异步触发，不阻塞 save / delete 关键路径。
+  /// 自动备份：后台异步触发，不阻塞 save/delete 关键路径。
   ///
-  /// 之前 `await _tryAutoBackup()` 把云端 WebDAV 上传 + 列目录 + 清旧档
-  /// 串在 mutation 关键路径里，用户体感"保存时间 = WebDAV 往返耗时"。
-  /// 现改为 `unawaited()` —— save / delete 立刻返回，备份在事件循环里
-  /// 自己跑完。
-  ///
-  /// 节流（leading edge）：1) 有备份在跑 → 跳过；2) 最近 30s 内刚跑完
-  /// → 跳过；3) 否则发起新一次。备份失败被 `BackupService.autoBackup`
-  /// 内部 try/catch 吞掉，对外无副作用。
+  /// 节流（leading-edge）：
+  ///   1) 有备份在跑 → 跳过；
+  ///   2) 最近 30s 内刚跑完 → 跳过；
+  ///   3) 否则发起新一次。失败被 [BackupService.autoBackup] 内部 try/catch 吞掉。
   void _tryAutoBackup() {
     if (_isBackupRunning) return;
     final last = _lastBackupCompletedAt;
@@ -82,17 +74,17 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
     }
   }
 
-  /// 保存或插入一个 WorkEntry。错误统一从 `AsyncError` 流走，不抛。
+  /// 保存或插入一个 WorkEntry。显式 add/update 不变式由接口保证。
+  /// 错误统一以 `AsyncError` 流转，不抛出。
   Future<void> save(WorkEntry note) async {
     state = AsyncLoading<void>().copyWithPrevious(state);
     try {
-      final db = ref.read(databaseHelperProvider);
-      if (note.id != null) {
-        await db.updateNote(note);
+      final repo = ref.read(workEntryRepositoryProvider);
+      if (note.id == null) {
+        await repo.add(note);
       } else {
-        await db.insertNote(note);
+        await repo.update(note);
       }
-      _invalidateFor(note);
       _tryAutoBackup();
       state = const AsyncData<void>(null);
     } catch (e, st) {
@@ -100,13 +92,13 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
     }
   }
 
-  /// 删除一个 WorkEntry。错误统一从 `AsyncError` 流走，不抛。
-  Future<void> delete({required int id, required String date}) async {
+  /// 按 id 删除一个 WorkEntry。date 不再需要——repo 内部查出来发事件用。
+  /// 错误统一以 `AsyncError` 流转，不抛出。
+  Future<void> delete({required int id}) async {
     state = AsyncLoading<void>().copyWithPrevious(state);
     try {
-      final db = ref.read(databaseHelperProvider);
-      await db.deleteNote(id);
-      _invalidateForDate(date);
+      final repo = ref.read(workEntryRepositoryProvider);
+      await repo.remove(id);
       _tryAutoBackup();
       state = const AsyncData<void>(null);
     } catch (e, st) {
@@ -115,6 +107,6 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
   }
 }
 
-/// Coordinator 的唯一入口。任何写操作都必须经过这里。
+/// Coordinator 的唯一入口。任何写操作必须经过这里。
 final entryCoordinatorProvider =
     NotifierProvider<EntryCoordinator, AsyncValue<void>>(EntryCoordinator.new);

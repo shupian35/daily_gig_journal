@@ -8,7 +8,7 @@ import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'note_edit_screen.dart';
 
-/// 单日工作条目列表页 —— 精致杂志风
+/// 鍗曟棩宸ヤ綔鏉＄洰鍒楄〃椤?鈥斺€?绮捐嚧鏉傚織椋?
 class DayEntriesScreen extends ConsumerWidget {
   final String dateStr;
 
@@ -24,7 +24,7 @@ class DayEntriesScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '操作失败: ${next.error}'  // TODO: l10n 化 operationFailed 后迁移,
+                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
               ),
               backgroundColor: AppConstants.dangerRed,
             ),
@@ -192,7 +192,7 @@ class DayEntriesScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // 序号指示器
+              // 搴忓彿鎸囩ず鍣?
               Container(
                 width: 40,
                 height: 40,
@@ -216,7 +216,7 @@ class DayEntriesScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // 内容
+              // 鍐呭
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +317,7 @@ class DayEntriesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              // 工资 & 操作
+              // 宸ヨ祫 & 鎿嶄綔
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -365,7 +365,7 @@ class DayEntriesScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirmDelete),
         content: Text(
-          '确定要删除 $displayDate 的\n"${entry.title.isNotEmpty ? entry.title : l10n.noTitle}" 吗？\n此操作不可撤销。',
+          '确定要删除$displayDate 的\n"${entry.title.isNotEmpty ? entry.title : l10n.noTitle}" 吗？\n此操作不可撤销。',
         ),
         actions: [
           TextButton(
@@ -386,10 +386,7 @@ class DayEntriesScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(entryCoordinatorProvider.notifier).delete(
-        id: entry.id!,
-        date: entry.date,
-      );
+      await ref.read(entryCoordinatorProvider.notifier).delete(id: entry.id!);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -423,7 +420,7 @@ class DayEntriesScreen extends ConsumerWidget {
       ),
     )
         .then((_) {
-      // Coordinator 已清缓存（ADR-0002 / save 后 _invalidateFor 已触发 notesByDateListProvider(dateStr)）
+      // Coordinator 宸叉竻缂撳瓨锛圓DR-0002 / save 鍚?_invalidateFor 宸茶Е鍙?notesByDateListProvider(dateStr)锛?
     });
   }
 }

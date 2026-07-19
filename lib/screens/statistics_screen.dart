@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
+import '../data/work_entry_repository.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
@@ -156,7 +157,7 @@ class StatisticsScreen extends ConsumerWidget {
   Widget _buildContent(
     BuildContext context,
     List<WorkEntry> notes,
-    AsyncValue<List<Map<String, dynamic>>> monthlySummaryAsync,
+    AsyncValue<List<MonthSummary>> monthlySummaryAsync,
     bool hideIncome,
   ) {
     final grouped = _groupByMonth(notes);
@@ -240,7 +241,7 @@ class StatisticsScreen extends ConsumerWidget {
   }
 
   Widget _buildBarChart(BuildContext context,
-      AsyncValue<List<Map<String, dynamic>>> async, bool hideIncome) {
+      AsyncValue<List<MonthSummary>> async, bool hideIncome) {
     final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -302,7 +303,7 @@ class StatisticsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildFlBarChart(BuildContext context, List<Map<String, dynamic>> data, bool hideIncome) {
+  Widget _buildFlBarChart(BuildContext context, List<MonthSummary> data, bool hideIncome) {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final sortedData = data.reversed.toList();
@@ -312,7 +313,7 @@ class StatisticsScreen extends ConsumerWidget {
 
     double maxTotal = 0;
     for (final d in sortedData) {
-      final total = (d['total'] as num?)?.toDouble() ?? 0.0;
+      final total = d.total;
       if (total > maxTotal) maxTotal = total;
     }
     maxTotal = maxTotal > 0 ? maxTotal * 1.2 : 100;
@@ -331,7 +332,7 @@ class StatisticsScreen extends ConsumerWidget {
                       return null;
                     }
                     final month =
-                        sortedData[groupIndex]['month'] as String? ?? '';
+                        sortedData[groupIndex].month;
                     final total = (rod.toY).toStringAsFixed(1);
                     return BarTooltipItem(
                       '${Helpers.toDisplayMonth(month, locale)}\n¥$total',
@@ -352,7 +353,7 @@ class StatisticsScreen extends ConsumerWidget {
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < sortedData.length) {
-                  final month = sortedData[index]['month'] as String;
+                  final month = sortedData[index].month;
                   final parts = month.split('-');
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
@@ -406,7 +407,7 @@ class StatisticsScreen extends ConsumerWidget {
         barGroups: sortedData.asMap().entries.map((entry) {
           final index = entry.key;
           final d = entry.value;
-          final total = (d['total'] as num?)?.toDouble() ?? 0.0;
+          final total = d.total;
           return BarChartGroupData(
             x: index,
             barRods: [
