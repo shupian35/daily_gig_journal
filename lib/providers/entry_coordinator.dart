@@ -1,3 +1,5 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/work_entry.dart';
@@ -9,6 +11,16 @@ import '../services/backup_service.dart';
 /// 集中所有 save / delete 调用，同地点触发派生缓存失效与自动备份。
 /// 设计见 ADR-0001（高层 A/N/γ/S 四决策）与 ADR-0002（H1 清单 + P 粒度）。
 class EntryCoordinator extends Notifier<AsyncValue<void>> {
+  /// 自动备份 leading-edge 节流窗口。
+  ///
+  /// 窗口从**上一次备份完成**算起——备份本身耗时再加 30s 缓冲。Leading
+  /// edge 让单次保存不等窗口立刻备份；trailing edge 会让单次保存延迟
+  /// 30s，UX 反而退步。
+  static const _backupThrottleWindow = Duration(seconds: 30);
+
+  bool _isBackupRunning = false;
+  DateTime? _lastBackupCompletedAt;
+
   @override
   AsyncValue<void> build() {
     return const AsyncData<void>(null);
@@ -40,12 +52,33 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
     ref.invalidate(notesByDateListProvider(date));
   }
 
-  /// 自动备份。失败不阻断 mutation 主流程——与现状 BackupService 一致。
-  Future<void> _tryAutoBackup() async {
+  /// 自动备份 —— 后台异步触发，不阻塞 save / delete 关键路径。
+  ///
+  /// 之前 `await _tryAutoBackup()` 把云端 WebDAV 上传 + 列目录 + 清旧档
+  /// 串在 mutation 关键路径里，用户体感"保存时间 = WebDAV 往返耗时"。
+  /// 现改为 `unawaited()` —— save / delete 立刻返回，备份在事件循环里
+  /// 自己跑完。
+  ///
+  /// 节流（leading edge）：1) 有备份在跑 → 跳过；2) 最近 30s 内刚跑完
+  /// → 跳过；3) 否则发起新一次。备份失败被 `BackupService.autoBackup`
+  /// 内部 try/catch 吞掉，对外无副作用。
+  void _tryAutoBackup() {
+    if (_isBackupRunning) return;
+    final last = _lastBackupCompletedAt;
+    if (last != null &&
+        DateTime.now().difference(last) < _backupThrottleWindow) {
+      return;
+    }
+    _isBackupRunning = true;
+    unawaited(_runBackup());
+  }
+
+  Future<void> _runBackup() async {
     try {
       await BackupService.autoBackup(ref);
-    } catch (_) {
-      // 自动备份失败不打断 mutation 主流程（与现状一致）
+    } finally {
+      _isBackupRunning = false;
+      _lastBackupCompletedAt = DateTime.now();
     }
   }
 
@@ -60,7 +93,7 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
         await db.insertNote(note);
       }
       _invalidateFor(note);
-      await _tryAutoBackup();
+      _tryAutoBackup();
       state = const AsyncData<void>(null);
     } catch (e, st) {
       state = AsyncError<void>(e, st);
@@ -74,7 +107,7 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
       final db = ref.read(databaseHelperProvider);
       await db.deleteNote(id);
       _invalidateForDate(date);
-      await _tryAutoBackup();
+      _tryAutoBackup();
       state = const AsyncData<void>(null);
     } catch (e, st) {
       state = AsyncError<void>(e, st);
