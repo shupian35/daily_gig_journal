@@ -15,6 +15,8 @@ import '../utils/constants.dart';
 import '../utils/export_helper.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_section_label.dart';
+import 'appearance_screen.dart';
+import 'language_screen.dart';
 import 'privacy_screen.dart';
 import 'webdav_backup_screen.dart';
 
@@ -44,50 +46,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          // ── 语言设置 ──
+          // === ???? ===
           AppSectionLabel(title: l10n.language, icon: Icons.language_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: _buildDropdownRow<Locale?>(
+            child: _buildNavTile(
               icon: Icons.language_rounded,
-              value: currentLocale,
-              items: const [null, Locale('zh'), Locale('en'), Locale('zh', 'TW')],
-              labelFor: (locale) {
-                if (locale == null) return l10n.followSystem;
-                if (locale.languageCode == 'zh' && locale.countryCode == 'TW') {
-                  return l10n.traditionalChinese;
-                }
-                if (locale.languageCode == 'zh') return l10n.chinese;
-                return l10n.english;
+              title: l10n.language,
+              subtitle: _currentLocaleLabel(l10n, currentLocale),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LanguageScreen(),
+                  ),
+                );
               },
-              onChanged: (v) => ref.read(localeProvider.notifier).state = v,
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // ── 主题设置 ──
+          // === ???? ===
           AppSectionLabel(title: l10n.appearance, icon: Icons.brightness_6_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: _buildDropdownRow<ThemeMode>(
+            child: _buildNavTile(
               icon: Icons.brightness_6_rounded,
-              value: themeMode,
-              items: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
-              labelFor: (mode) {
-                switch (mode) {
-                  case ThemeMode.light:
-                    return l10n.lightMode;
-                  case ThemeMode.dark:
-                    return l10n.darkMode;
-                  case ThemeMode.system:
-                    return l10n.followSystem;
-                }
-              },
-              onChanged: (v) {
-                if (v != null) {
-                  ref.read(themeModeProvider.notifier).state = v;
-                }
+              title: l10n.appearance,
+              subtitle: _currentThemeLabel(l10n, themeMode),
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const AppearanceScreen(),
+                  ),
+                );
               },
             ),
           ),
@@ -245,42 +237,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  /// 通用下拉框行：图标 + 当前值。接缝处只用 ref.watch 的当前值与 onChanged 回调。
-  Widget _buildDropdownRow<T>({
-    required IconData icon,
-    required T value,
-    required List<T> items,
-    required String Function(T) labelFor,
-    required void Function(T) onChanged,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: AppConstants.primaryDark),
-          const SizedBox(width: 12),
-          Expanded(
-            child: DropdownButton<T>(
-              value: value,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              icon: const Icon(Icons.expand_more_rounded, size: 18),
-              dropdownColor: isDark ? AppConstants.cardDark : Colors.white,
-              items: items
-                  .map((item) => DropdownMenuItem<T>(
-                        value: item,
-                        child: Text(labelFor(item)),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) onChanged(v);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
+  /// ??? Locale? ???????????? nav tile ????
+  String _currentLocaleLabel(AppLocalizations l10n, Locale? locale) {
+    if (locale == null) return l10n.followSystem;
+    if (locale.languageCode == 'zh' && locale.countryCode == 'TW') {
+      return l10n.traditionalChinese;
+    }
+    if (locale.languageCode == 'zh') return l10n.chinese;
+    return l10n.english;
+  }
+
+  /// ??? ThemeMode ???????????? nav tile ????
+  String _currentThemeLabel(AppLocalizations l10n, ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light:
+        return l10n.lightMode;
+      case ThemeMode.dark:
+        return l10n.darkMode;
+      case ThemeMode.system:
+        return l10n.followSystem;
+    }
   }
   Widget _buildDivider(bool isDark) {
     return Container(

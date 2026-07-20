@@ -123,6 +123,8 @@
   "restoreSuccess": "Restore successful! Please restart the app to load data",
   "restoreFailed": "Restore failed",
   "language": "Language",
+  "languageSettings": "Language Settings",
+  "appearanceSettings": "Appearance Settings",
   "chinese": "中文",
   "english": "English",
   "traditionalChinese": "繁體中文",

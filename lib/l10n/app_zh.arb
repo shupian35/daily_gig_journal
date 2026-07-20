@@ -132,6 +132,8 @@
   "restoreSuccess": "恢复成功！请重启应用以加载数据",
   "restoreFailed": "恢复失败",
   "language": "语言",
+  "languageSettings": "语言设置",
+  "appearanceSettings": "外观设置",
   "chinese": "中文",
   "english": "English",
   "traditionalChinese": "繁體中文",
