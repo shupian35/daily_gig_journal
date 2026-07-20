@@ -48,41 +48,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           AppSectionLabel(title: l10n.language, icon: Icons.language_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildLocaleRadioTile(
-                    null,
-                    currentLocale,
-                    Icons.phone_android_rounded,
-                    l10n.followSystem,
-                    '',
-                  ),
-                  _buildLocaleRadioTile(
-                    const Locale('zh'),
-                    currentLocale,
-                    Icons.language_rounded,
-                    l10n.chinese,
-                    '',
-                  ),
-                  _buildLocaleRadioTile(
-                    const Locale('en'),
-                    currentLocale,
-                    Icons.language_rounded,
-                    l10n.english,
-                    '',
-                  ),
-                  _buildLocaleRadioTile(
-                    const Locale('zh', 'TW'),
-                    currentLocale,
-                    Icons.language_rounded,
-                    l10n.traditionalChinese,
-                    '',
-                  ),
-                ],
-              ),
+            child: _buildDropdownRow<Locale?>(
+              icon: Icons.language_rounded,
+              value: currentLocale,
+              items: const [null, Locale('zh'), Locale('en'), Locale('zh', 'TW')],
+              labelFor: (locale) {
+                if (locale == null) return l10n.followSystem;
+                if (locale.languageCode == 'zh' && locale.countryCode == 'TW') {
+                  return l10n.traditionalChinese;
+                }
+                if (locale.languageCode == 'zh') return l10n.chinese;
+                return l10n.english;
+              },
+              onChanged: (v) => ref.read(localeProvider.notifier).state = v,
             ),
           ),
 
@@ -92,46 +70,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           AppSectionLabel(title: l10n.appearance, icon: Icons.brightness_6_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RadioGroup<ThemeMode>(
-                    groupValue: themeMode,
-                    onChanged: (v) {
-                      if (v != null) {
-                        ref.read(themeModeProvider.notifier).state = v;
-                      }
-                    },
-                    child: Column(
-                      children: [
-                        _buildRadioTile(
-                          ThemeMode.system,
-                          themeMode,
-                          Icons.settings_suggest_rounded,
-                          l10n.followSystem,
-                          l10n.followSystemSubtitle,
-                        ),
-                        _buildRadioTile(
-                          ThemeMode.light,
-                          themeMode,
-                          Icons.light_mode_rounded,
-                          l10n.lightMode,
-                          l10n.lightModeSubtitle,
-                        ),
-                        _buildRadioTile(
-                          ThemeMode.dark,
-                          themeMode,
-                          Icons.dark_mode_rounded,
-                          l10n.darkMode,
-                          l10n.darkModeSubtitle,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            child: _buildDropdownRow<ThemeMode>(
+              icon: Icons.brightness_6_rounded,
+              value: themeMode,
+              items: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
+              labelFor: (mode) {
+                switch (mode) {
+                  case ThemeMode.light:
+                    return l10n.lightMode;
+                  case ThemeMode.dark:
+                    return l10n.darkMode;
+                  case ThemeMode.system:
+                    return l10n.followSystem;
+                }
+              },
+              onChanged: (v) {
+                if (v != null) {
+                  ref.read(themeModeProvider.notifier).state = v;
+                }
+              },
             ),
           ),
 
@@ -288,174 +245,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildRadioTile(
-    ThemeMode value,
-    ThemeMode groupValue,
-    IconData icon,
-    String title,
-    String subtitle,
-  ) {
-    final isSelected = value == groupValue;
+  /// 通用下拉框行：图标 + 当前值。接缝处只用 ref.watch 的当前值与 onChanged 回调。
+  Widget _buildDropdownRow<T>({
+    required IconData icon,
+    required T value,
+    required List<T> items,
+    required String Function(T) labelFor,
+    required void Function(T) onChanged,
+  }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return InkWell(
-      onTap: () => ref.read(themeModeProvider.notifier).state = value,
-      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        margin: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppConstants.primaryColor.withValues(alpha: isDark ? 0.12 : 0.06)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          border: isSelected
-              ? Border.all(
-                  color: AppConstants.primaryColor.withValues(alpha: 0.3),
-                  width: 0.5,
-                )
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? AppConstants.primaryColor.withValues(alpha: 0.15)
-                    : Colors.transparent,
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: isSelected ? AppConstants.primaryDark : AppConstants.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected ? AppConstants.primaryDark : null,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppConstants.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Radio<ThemeMode>(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppConstants.primaryDark),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButton<T>(
               value: value,
-              groupValue: groupValue,
+              isExpanded: true,
+              underline: const SizedBox.shrink(),
+              icon: const Icon(Icons.expand_more_rounded, size: 18),
+              dropdownColor: isDark ? AppConstants.cardDark : Colors.white,
+              items: items
+                  .map((item) => DropdownMenuItem<T>(
+                        value: item,
+                        child: Text(labelFor(item)),
+                      ))
+                  .toList(),
               onChanged: (v) {
-                if (v != null) ref.read(themeModeProvider.notifier).state = v;
+                if (v != null) onChanged(v);
               },
-              fillColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppConstants.primaryColor;
-                }
-                return AppConstants.textSecondary;
-              }),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-
-  Widget _buildLocaleRadioTile(
-    Locale? value,
-    Locale? groupValue,
-    IconData icon,
-    String title,
-    String subtitle,
-  ) {
-    final isSelected = value == groupValue ||
-        (value == null && groupValue == null) ||
-        (value != null &&
-            groupValue != null &&
-            value.languageCode == groupValue.languageCode &&
-            (value.countryCode ?? '') == (groupValue.countryCode ?? ''));
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return InkWell(
-      onTap: () => ref.read(localeProvider.notifier).state = value,
-      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        margin: const EdgeInsets.only(bottom: 2),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppConstants.primaryColor.withValues(alpha: isDark ? 0.12 : 0.06)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-          border: isSelected
-              ? Border.all(
-                  color: AppConstants.primaryColor.withValues(alpha: 0.3),
-                  width: 0.5,
-                )
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? AppConstants.primaryColor.withValues(alpha: 0.15)
-                    : Colors.transparent,
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: isSelected ? AppConstants.primaryDark : AppConstants.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? AppConstants.primaryDark : null,
-                ),
-              ),
-            ),
-            Radio<Locale?>(
-              value: value,
-              groupValue: groupValue,
-              onChanged: (v) {
-                ref.read(localeProvider.notifier).state = v;
-              },
-              fillColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppConstants.primaryColor;
-                }
-                return AppConstants.textSecondary;
-              }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildDivider(bool isDark) {
     return Container(
       height: 0.5,

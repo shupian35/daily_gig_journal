@@ -24,9 +24,9 @@ void main() {
     // 语言选项（顶部区域，不需要滚动）
     expect(find.text('语言'), findsOneWidget);
     expect(find.text('跟随系统'), findsWidgets);
-    expect(find.text('中文'), findsOneWidget);
-    expect(find.text('English'), findsOneWidget);
-    expect(find.text('繁體中文'), findsOneWidget);
+    expect(find.byType(DropdownButton<Locale?>), findsOneWidget);
+    // Dropdown items now hidden until tapped; current value should still display
+
 
     // 滚动到可见并检查其余部分
     await tester.scrollUntilVisible(
@@ -35,8 +35,8 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('外观'), findsOneWidget);
-    expect(find.text('浅色模式'), findsOneWidget);
-    expect(find.text('深色模式'), findsOneWidget);
+    expect(find.byType(DropdownButton<ThemeMode>), findsOneWidget);
+
 
     await tester.scrollUntilVisible(
       find.text('隐私'),
