@@ -135,6 +135,8 @@
   "languageSettings": "语言设置",
   "appearanceSettings": "外观设置",
   "chinese": "中文",
+  "calendarFormatMonth": "月",
+  "calendarFormatTwoWeeks": "2 周",
   "english": "English",
   "traditionalChinese": "繁體中文",
 

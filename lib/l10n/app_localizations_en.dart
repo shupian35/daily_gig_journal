@@ -356,6 +356,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chinese => '中文';
 
   @override
+  String get calendarFormatMonth => 'Month';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 weeks';
+
+  @override
   String get english => 'English';
 
   @override

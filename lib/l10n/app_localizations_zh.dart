@@ -345,6 +345,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chinese => '中文';
 
   @override
+  String get calendarFormatMonth => '月';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 周';
+
+  @override
   String get english => 'English';
 
   @override
@@ -937,6 +943,12 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get chinese => '中文';
+
+  @override
+  String get calendarFormatMonth => '月';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 周';
 
   @override
   String get english => 'English';

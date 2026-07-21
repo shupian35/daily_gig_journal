@@ -759,6 +759,18 @@ abstract class AppLocalizations {
   /// **'中文'**
   String get chinese;
 
+  /// No description provided for @calendarFormatMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'月'**
+  String get calendarFormatMonth;
+
+  /// No description provided for @calendarFormatTwoWeeks.
+  ///
+  /// In zh, this message translates to:
+  /// **'2 周'**
+  String get calendarFormatTwoWeeks;
+
   /// No description provided for @english.
   ///
   /// In zh, this message translates to:

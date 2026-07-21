@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../l10n/app_localizations.dart';
 import '../utils/constants.dart';
 
-/// 自定义日历组件 —— 精致杂志风
+/// \u81ea\u5b9a\u4e49\u65e5\u5386\u7ec4\u4ef6 \u2014\u2014 \u5728 TableCalendar \u4e0a\u5c01\u88c5
+/// \u4ec5\u66b4\u9732 month / twoWeeks \u4e24\u79cd\u683c\u5f0f\uff0c\u6839\u636e\u5f53\u524d app locale
+/// \u6e32\u67d3\u8868\u5934\u6309\u94ae\u6587\u5b57\u3002
 class CalendarWidget extends StatelessWidget {
   final DateTime focusedDay;
   final DateTime selectedDay;
@@ -21,13 +24,16 @@ class CalendarWidget extends StatelessWidget {
     required this.noteDates,
     required this.onDaySelected,
     this.onPageChanged,
-    this.calendarFormat = CalendarFormat.week,
+    this.calendarFormat = CalendarFormat.twoWeeks,
     this.onFormatChanged,
   });
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l10n = AppLocalizations.of(context)!;
+    // \u4f7f\u7528\u5f53\u524d app locale \u8ba9 table_calendar \u6e32\u67d3\u65e5\u671f\u3001\u6708\u4efd\u3001\u661f\u671f\u540d
+    final appLocale = Localizations.localeOf(context).toLanguageTag();
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -48,6 +54,11 @@ class CalendarWidget extends StatelessWidget {
           focusedDay: focusedDay,
           selectedDayPredicate: (day) => isSameDay(selectedDay, day),
           calendarFormat: calendarFormat,
+          // \u9650\u5236\u53ef\u7528\u683c\u5f0f\u96c6\u5408\u4e3a month <-> twoWeeks
+          availableCalendarFormats: {
+            CalendarFormat.month: l10n.calendarFormatMonth,
+            CalendarFormat.twoWeeks: l10n.calendarFormatTwoWeeks,
+          },
           onDaySelected: (selectedDay, focusedDay) {
             onDaySelected(selectedDay, focusedDay);
           },
@@ -56,7 +67,7 @@ class CalendarWidget extends StatelessWidget {
           },
           onFormatChanged: onFormatChanged,
 
-          locale: 'zh_CN',
+          locale: appLocale,
 
           eventLoader: (day) {
             final events = <String>[];
@@ -104,6 +115,7 @@ class CalendarWidget extends StatelessWidget {
           headerStyle: HeaderStyle(
             titleCentered: true,
             formatButtonVisible: true,
+            // \u6309\u94ae\u6587\u5b57\u7528 l10n \u63a5\u53e3\uff0c\u4f1a\u88ab availableCalendarFormats \u4e2d\u7684 value \u8986\u76d6
             formatButtonTextStyle: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,

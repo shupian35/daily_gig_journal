@@ -126,6 +126,8 @@
   "languageSettings": "Language Settings",
   "appearanceSettings": "Appearance Settings",
   "chinese": "中文",
+  "calendarFormatMonth": "Month",
+  "calendarFormatTwoWeeks": "2 weeks",
   "english": "English",
   "traditionalChinese": "繁體中文",
 
