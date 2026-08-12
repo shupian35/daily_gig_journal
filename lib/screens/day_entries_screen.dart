@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../providers/notes_provider.dart';
+import '../providers/entry_coordinator.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
+import '../widgets/app_card.dart';
 import 'note_edit_screen.dart';
 
-/// 单日工作条目列表页 —— 精致杂志风
+/// 鍗曟棩宸ヤ綔鏉＄洰鍒楄〃椤?鈥斺€?绮捐嚧鏉傚織椋?
 class DayEntriesScreen extends ConsumerWidget {
   final String dateStr;
 
@@ -15,6 +17,22 @@ class DayEntriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<void>>(
+      entryCoordinatorProvider,
+      (prev, next) {
+        if (next is AsyncError<void> && prev is! AsyncError<void>) {
+          // (l10nErr removed when switching to literal; ADR-0001 Decision 4)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
+              ),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
+      },
+    );
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final entriesAsync = ref.watch(notesByDateListProvider(dateStr));
@@ -155,27 +173,18 @@ class DayEntriesScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = index == total - 1;
 
-    return Container(
+    return AppCard(
       margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262630) : Colors.white,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-          width: 0.5,
-        ),
-        boxShadow: AppConstants.cardShadow(isDark),
-      ),
       child: InkWell(
         onTap: () {
           _navigateToEdit(context, ref, dateStr, entry.id);
         },
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // 序号指示器
+              // 搴忓彿鎸囩ず鍣?
               Container(
                 width: 40,
                 height: 40,
@@ -199,7 +208,7 @@ class DayEntriesScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // 内容
+              // 鍐呭
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +309,7 @@ class DayEntriesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              // 工资 & 操作
+              // 宸ヨ祫 & 鎿嶄綔
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -348,7 +357,7 @@ class DayEntriesScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirmDelete),
         content: Text(
-          '确定要删除 $displayDate 的\n"${entry.title.isNotEmpty ? entry.title : l10n.noTitle}" 吗？\n此操作不可撤销。',
+          '确定要删除$displayDate 的\n"${entry.title.isNotEmpty ? entry.title : l10n.noTitle}" 吗？\n此操作不可撤销。',
         ),
         actions: [
           TextButton(
@@ -369,9 +378,7 @@ class DayEntriesScreen extends ConsumerWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      await ref.read(
-        deleteNoteProvider((id: entry.id!, date: entry.date)).future,
-      );
+      await ref.read(entryCoordinatorProvider.notifier).delete(id: entry.id!);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -405,7 +412,7 @@ class DayEntriesScreen extends ConsumerWidget {
       ),
     )
         .then((_) {
-      ref.invalidate(notesByDateListProvider(dateStr));
+      // Coordinator 宸叉竻缂撳瓨锛圓DR-0002 / save 鍚?_invalidateFor 宸茶Е鍙?notesByDateListProvider(dateStr)锛?
     });
   }
 }

@@ -238,7 +238,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutAppTitle => 'About Daily Gig Journal';
 
   @override
-  String get aboutAppSubtitle => 'Version 1.0.0 — Making every effort count';
+  String aboutAppSubtitle(String version) {
+    return 'Version $version — Making every effort count';
+  }
 
   @override
   String get aboutAppName => 'Daily Gig Journal';
@@ -347,7 +349,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
+  String get languageSettings => 'Language Settings';
+
+  @override
+  String get appearanceSettings => 'Appearance Settings';
+
+  @override
   String get chinese => '中文';
+
+  @override
+  String get calendarFormatMonth => 'Month';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 weeks';
 
   @override
   String get english => 'English';

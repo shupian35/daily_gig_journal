@@ -84,7 +84,16 @@
   "cloudBackupSubtitle": "Backup to Nutstore or custom server",
   "about": "About",
   "aboutAppTitle": "About Daily Gig Journal",
-  "aboutAppSubtitle": "Version 1.0.0 — Making every effort count",
+  "aboutAppSubtitle": "Version {version} — Making every effort count",
+  "@aboutAppSubtitle": {
+    "description": "About page subtitle; {version} is injected from PackageInfo at runtime",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.0.1"
+      }
+    }
+  },
   "aboutAppName": "Daily Gig Journal",
   "aboutAppLegalese": "Helping daily gig workers easily track work and income",
   "aboutAppBody": "Warmly recording each day's hard work, making efforts visible.",
@@ -123,7 +132,11 @@
   "restoreSuccess": "Restore successful! Please restart the app to load data",
   "restoreFailed": "Restore failed",
   "language": "Language",
+  "languageSettings": "Language Settings",
+  "appearanceSettings": "Appearance Settings",
   "chinese": "中文",
+  "calendarFormatMonth": "Month",
+  "calendarFormatTwoWeeks": "2 weeks",
   "english": "English",
   "traditionalChinese": "繁體中文",
 

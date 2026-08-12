@@ -12,11 +12,12 @@ import '../widgets/drawing_canvas.dart';
 import '../widgets/image_gallery_viewer.dart';
 import '../widgets/image_file_embed_builder.dart';
 import '../providers/notes_provider.dart';
+import '../providers/entry_coordinator.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 笔记编辑/查看页 —— 精致杂志风
+/// 绗旇缂栬緫/鏌ョ湅椤?鈥斺€?绮捐嚧鏉傚織椋?
 class NoteEditScreen extends ConsumerStatefulWidget {
   final String dateStr;
   final int? noteId;
@@ -41,7 +42,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isAutoUpdating = false; // 防递归守卫
+  bool _isAutoUpdating = false; // 闃查€掑綊瀹堝崼
   int? _existingNoteId;
   final ImagePicker _imagePicker = ImagePicker();
   bool _initialized = false;
@@ -69,11 +70,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   Future<void> _loadNote() async {
     try {
-      final db = ref.read(databaseHelperProvider);
+      final repo = ref.read(workEntryRepositoryProvider);
       WorkEntry? note;
 
       if (widget.noteId != null) {
-        note = await db.getNoteById(widget.noteId!);
+        note = await repo.findById(widget.noteId!);
       } else {
         note = null;
       }
@@ -151,7 +152,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         noteContent: quillJson,
       );
 
-      await ref.read(saveNoteProvider(note).future);
+      await ref.read(entryCoordinatorProvider.notifier).save(note);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -187,7 +188,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       builder: (context) => AlertDialog(
         title: Text(l10n.confirmDelete),
         content: Text(
-          '确定要删除 ${Helpers.toDisplayDate(widget.dateStr, locale)} 的工作笔记吗？\n此操作不可撤销。',
+          '确定要删除${Helpers.toDisplayDate(widget.dateStr, locale)} 的工作笔记吗？\n此操作不可撤销。',
         ),
         actions: [
           TextButton(
@@ -208,11 +209,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     if (confirmed != true) return;
 
     try {
-      await ref.read(
-        deleteNoteProvider(
-          (id: _existingNoteId!, date: widget.dateStr),
-        ).future,
-      );
+      await ref.read(entryCoordinatorProvider.notifier).delete(id: _existingNoteId!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -363,6 +360,22 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<void>>(
+      entryCoordinatorProvider,
+      (prev, next) {
+        if (next is AsyncError<void> && prev is! AsyncError<void>) {
+          // (l10nErr removed when switching to literal; ADR-0001 Decision 4)
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
+              ),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
+      },
+    );
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final date = Helpers.parseDate(widget.dateStr);

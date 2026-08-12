@@ -537,11 +537,11 @@ abstract class AppLocalizations {
   /// **'关于日程清单'**
   String get aboutAppTitle;
 
-  /// No description provided for @aboutAppSubtitle.
+  /// 关于页副标题，{version} 运行时由 PackageInfo 注入
   ///
   /// In zh, this message translates to:
-  /// **'版本 1.0.0 —— 让每一份付出都有记录'**
-  String get aboutAppSubtitle;
+  /// **'版本 {version} —— 让每一份付出都有记录'**
+  String aboutAppSubtitle(String version);
 
   /// No description provided for @aboutAppName.
   ///
@@ -741,11 +741,35 @@ abstract class AppLocalizations {
   /// **'语言'**
   String get language;
 
+  /// No description provided for @languageSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言设置'**
+  String get languageSettings;
+
+  /// No description provided for @appearanceSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'外观设置'**
+  String get appearanceSettings;
+
   /// No description provided for @chinese.
   ///
   /// In zh, this message translates to:
   /// **'中文'**
   String get chinese;
+
+  /// No description provided for @calendarFormatMonth.
+  ///
+  /// In zh, this message translates to:
+  /// **'月'**
+  String get calendarFormatMonth;
+
+  /// No description provided for @calendarFormatTwoWeeks.
+  ///
+  /// In zh, this message translates to:
+  /// **'2 周'**
+  String get calendarFormatTwoWeeks;
 
   /// No description provided for @english.
   ///

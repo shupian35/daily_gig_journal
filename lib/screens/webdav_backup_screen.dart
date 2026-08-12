@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../database/database_helper.dart';
 import '../l10n/app_localizations.dart';
+import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
 import '../utils/webdav_helper.dart';
@@ -420,13 +420,13 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      final dbPath = await DatabaseHelper.getDatabasePath();
+      final repo = ref.read(workEntryRepositoryProvider);
+      final dbPath = await repo.filePath();
       final timestamp = DateTime.now()
           .toIso8601String()
           .replaceAll(':', '-')
           .substring(0, 19);
-      final remoteName = 'daily_gig_backup_$timestamp.db';
-
+      final remoteName = 'daily_gig_backup_' + timestamp + '.db';
       final result = await _buildHelper().uploadFile(dbPath, remoteName);
 
       if (!mounted) return;
@@ -494,9 +494,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      final dbPath = await DatabaseHelper.getDatabasePath();
+      final repo = ref.read(workEntryRepositoryProvider);
+      final dbPath = await repo.filePath();
       final result = await _buildHelper().downloadFile(file.href, dbPath);
-
       if (!mounted) return;
       setState(() => _isRestoring = false);
       _showOpStatus(

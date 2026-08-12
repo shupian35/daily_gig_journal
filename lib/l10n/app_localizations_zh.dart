@@ -231,7 +231,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutAppTitle => '关于日程清单';
 
   @override
-  String get aboutAppSubtitle => '版本 1.0.0 —— 让每一份付出都有记录';
+  String aboutAppSubtitle(String version) {
+    return '版本 $version —— 让每一份付出都有记录';
+  }
 
   @override
   String get aboutAppName => '日程清单';
@@ -336,7 +338,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get language => '语言';
 
   @override
+  String get languageSettings => '语言设置';
+
+  @override
+  String get appearanceSettings => '外观设置';
+
+  @override
   String get chinese => '中文';
+
+  @override
+  String get calendarFormatMonth => '月';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 周';
 
   @override
   String get english => 'English';
@@ -819,7 +833,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get aboutAppTitle => '關於日程清單';
 
   @override
-  String get aboutAppSubtitle => '版本 1.0.0 —— 讓每一份付出都有記錄';
+  String aboutAppSubtitle(String version) {
+    return '版本 $version —— 讓每一份付出都有記錄';
+  }
 
   @override
   String get aboutAppName => '日程清單';
@@ -924,7 +940,19 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get language => '語言';
 
   @override
+  String get languageSettings => '語言設定';
+
+  @override
+  String get appearanceSettings => '外觀設定';
+
+  @override
   String get chinese => '中文';
+
+  @override
+  String get calendarFormatMonth => '月';
+
+  @override
+  String get calendarFormatTwoWeeks => '2 周';
 
   @override
   String get english => 'English';

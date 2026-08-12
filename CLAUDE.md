@@ -13,6 +13,10 @@ flutter build apk --release  # 构建 Android APK
 flutter build ios --release --no-codesign  # 构建 iOS IPA（仅限 macOS）
 ```
 
+## 分支策略
+
+日常开发在 `dev` 分支进行，`main` 分支只用于发布正式版本。提交代码时默认推送到 `dev` 分支，合并到 `main` 需要明确指令。
+
 ## 架构
 
 **用途：** 一款面向日结兼职人员的 Flutter 日记应用。可按天记录工作条目（标题、地点、时间、时薪、工时、日工资），支持富文本备注（含图片）、手写画板以及月度工资统计。
