@@ -174,7 +174,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     showAboutDialog(
                       context: context,
                       applicationName: l10n.aboutAppName,
-                      applicationVersion: '1.0.0',
+                      applicationVersion: '1.0.1',
                       applicationLegalese: l10n.aboutAppLegalese,
                       children: [
                         const SizedBox(height: 12),
@@ -494,7 +494,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final tagName = data['tag_name'] as String? ?? '';
         final latestVersion = tagName.replaceFirst('v', '');
 
-        if (latestVersion.isNotEmpty && latestVersion != '1.0.0') {
+        if (latestVersion.isNotEmpty && latestVersion != '1.0.1') {
           showDialog<void>(
             context: context,
             builder: (ctx) => AlertDialog(
