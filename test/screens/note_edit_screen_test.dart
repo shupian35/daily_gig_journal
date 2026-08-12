@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:daily_gig_journal/data/sqlite_work_entry_repository.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
-import 'package:daily_gig_journal/models/work_entry.dart';
-import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/note_edit_screen.dart';
 
 const String _kTestDbPath = 'C:/Users/shupian/AppData/Local/Temp/test_note_edit_screen.db';
