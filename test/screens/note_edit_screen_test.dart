@@ -10,17 +10,18 @@ import 'package:daily_gig_journal/data/sqlite_work_entry_repository.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
 import 'package:daily_gig_journal/screens/note_edit_screen.dart';
 
-const String _kTestDbPath = 'C:/Users/shupian/AppData/Local/Temp/test_note_edit_screen.db';
+String _kTestDbPath() =>
+    '${Directory.systemTemp.path}/test_note_edit_screen.db';
 
 void main() {
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
-    SqliteWorkEntryRepository.setTestDbPath(_kTestDbPath);
+    SqliteWorkEntryRepository.setTestDbPath(_kTestDbPath());
   });
 
   tearDownAll(() {
-    final file = File(_kTestDbPath);
+    final file = File(_kTestDbPath());
     if (file.existsSync()) {
       try { file.deleteSync(); } catch (_) {}
     }

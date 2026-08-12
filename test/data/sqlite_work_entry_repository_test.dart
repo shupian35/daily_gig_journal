@@ -8,7 +8,8 @@ void main() {
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
-    SqliteWorkEntryRepository.setTestDbPath('C:/Users/shupian/AppData/Local/Temp/test_sqlite_repo.db');
+    SqliteWorkEntryRepository.setTestDbPath(
+        '${Directory.systemTemp.path}/test_sqlite_repo.db');
   });
 
   group('SqliteWorkEntryRepository', () {
