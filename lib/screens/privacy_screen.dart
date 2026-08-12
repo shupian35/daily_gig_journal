@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/settings_provider.dart';
 import '../utils/constants.dart';
+import '../widgets/app_card.dart';
 
 /// 隐私设置页面 —— 精致杂志风
 class PrivacyScreen extends ConsumerWidget {
@@ -13,7 +14,6 @@ class PrivacyScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final hideIncome = ref.watch(hideIncomeProvider);
     final hideStatistics = ref.watch(hideStatisticsProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -23,61 +23,42 @@ class PrivacyScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // 说明卡片
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF262630) : Colors.white,
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(
-                color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-                width: 0.5,
-              ),
-              boxShadow: AppConstants.cardShadow(isDark),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                    ),
-                    child: const Icon(
-                      Icons.shield_outlined,
-                      color: AppConstants.primaryDark,
-                      size: 22,
+          AppCard(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                  ),
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: AppConstants.primaryDark,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    l10n.privacyDescription,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppConstants.textSecondary,
+                      height: 1.5,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      l10n.privacyDescription,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppConstants.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
 
           // 隐藏收入金额
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF262630) : Colors.white,
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(
-                color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-                width: 0.5,
-              ),
-              boxShadow: AppConstants.cardShadow(isDark),
-            ),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: SwitchListTile(
               secondary: Container(
                 width: 36,
@@ -101,24 +82,13 @@ class PrivacyScreen extends ConsumerWidget {
               onChanged: (value) {
                 ref.read(hideIncomeProvider.notifier).state = value;
               },
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              ),
             ),
           ),
           const SizedBox(height: 10),
 
           // 隐藏统计数据
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF262630) : Colors.white,
-              borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              border: Border.all(
-                color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-                width: 0.5,
-              ),
-              boxShadow: AppConstants.cardShadow(isDark),
-            ),
+          AppCard(
+            padding: EdgeInsets.zero,
             child: SwitchListTile(
               secondary: Container(
                 width: 36,
@@ -142,9 +112,6 @@ class PrivacyScreen extends ConsumerWidget {
               onChanged: (value) {
                 ref.read(hideStatisticsProvider.notifier).state = value;
               },
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusXl),
-              ),
             ),
           ),
           const SizedBox(height: 24),

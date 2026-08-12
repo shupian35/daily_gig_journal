@@ -6,6 +6,7 @@ import '../providers/notes_provider.dart';
 import '../providers/entry_coordinator.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
+import '../widgets/app_card.dart';
 import 'note_edit_screen.dart';
 
 /// 鍗曟棩宸ヤ綔鏉＄洰鍒楄〃椤?鈥斺€?绮捐嚧鏉傚織椋?
@@ -172,22 +173,13 @@ class DayEntriesScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isLast = index == total - 1;
 
-    return Container(
+    return AppCard(
       margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF262630) : Colors.white,
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-        border: Border.all(
-          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-          width: 0.5,
-        ),
-        boxShadow: AppConstants.cardShadow(isDark),
-      ),
       child: InkWell(
         onTap: () {
           _navigateToEdit(context, ref, dateStr, entry.id);
         },
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(
