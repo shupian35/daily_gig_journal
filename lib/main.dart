@@ -11,6 +11,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'services/settings_service.dart';
+import 'utils/app_info.dart';
 import 'utils/constants.dart';
 
 /// 日程清单
@@ -30,6 +31,9 @@ void main() async {
       ? 'zh_CN'
       : (localeCode == 'en' ? 'en_US' : localeCode);
   await initializeDateFormatting(dateLocale, null);
+
+  // 预加载应用版本信息（pubspec.yaml → 单一真相源，详见 ADR-0007）
+  await initAppInfo();
 
   runApp(
     const ProviderScope(
