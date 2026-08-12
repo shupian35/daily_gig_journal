@@ -84,7 +84,16 @@
   "cloudBackupSubtitle": "Backup to Nutstore or custom server",
   "about": "About",
   "aboutAppTitle": "About Daily Gig Journal",
-  "aboutAppSubtitle": "Version 1.0.1 — Making every effort count",
+  "aboutAppSubtitle": "Version {version} — Making every effort count",
+  "@aboutAppSubtitle": {
+    "description": "About page subtitle; {version} is injected from PackageInfo at runtime",
+    "placeholders": {
+      "version": {
+        "type": "String",
+        "example": "1.0.1"
+      }
+    }
+  },
   "aboutAppName": "Daily Gig Journal",
   "aboutAppLegalese": "Helping daily gig workers easily track work and income",
   "aboutAppBody": "Warmly recording each day's hard work, making efforts visible.",

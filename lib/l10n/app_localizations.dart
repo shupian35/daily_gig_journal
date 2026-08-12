@@ -537,11 +537,11 @@ abstract class AppLocalizations {
   /// **'关于日程清单'**
   String get aboutAppTitle;
 
-  /// No description provided for @aboutAppSubtitle.
+  /// 关于页副标题，{version} 运行时由 PackageInfo 注入
   ///
   /// In zh, this message translates to:
-  /// **'版本 1.0.1 —— 让每一份付出都有记录'**
-  String get aboutAppSubtitle;
+  /// **'版本 {version} —— 让每一份付出都有记录'**
+  String aboutAppSubtitle(String version);
 
   /// No description provided for @aboutAppName.
   ///

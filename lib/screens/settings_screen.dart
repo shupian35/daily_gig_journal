@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/app_info.dart';
 import '../utils/constants.dart';
 import '../utils/export_helper.dart';
 import '../widgets/app_card.dart';
@@ -169,12 +170,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 _buildNavTile(
                   icon: Icons.info_outline_rounded,
                   title: l10n.aboutAppTitle,
-                  subtitle: l10n.aboutAppSubtitle,
+                  subtitle: l10n.aboutAppSubtitle(currentVersion),
                   onTap: () {
                     showAboutDialog(
                       context: context,
                       applicationName: l10n.aboutAppName,
-                      applicationVersion: '1.0.1',
+                      applicationVersion: currentVersion,
                       applicationLegalese: l10n.aboutAppLegalese,
                       children: [
                         const SizedBox(height: 12),
@@ -494,7 +495,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         final tagName = data['tag_name'] as String? ?? '';
         final latestVersion = tagName.replaceFirst('v', '');
 
-        if (latestVersion.isNotEmpty && latestVersion != '1.0.1') {
+        if (latestVersion.isNotEmpty && latestVersion != currentVersion) {
           showDialog<void>(
             context: context,
             builder: (ctx) => AlertDialog(

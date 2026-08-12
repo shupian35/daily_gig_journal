@@ -238,7 +238,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutAppTitle => 'About Daily Gig Journal';
 
   @override
-  String get aboutAppSubtitle => 'Version 1.0.1 — Making every effort count';
+  String aboutAppSubtitle(String version) {
+    return 'Version $version — Making every effort count';
+  }
 
   @override
   String get aboutAppName => 'Daily Gig Journal';
