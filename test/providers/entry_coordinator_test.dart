@@ -12,7 +12,8 @@ void main() {
   setUpAll(() {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
-    SqliteWorkEntryRepository.setTestDbPath('C:/Users/shupian/AppData/Local/Temp/test_entry_coord.db');
+    SqliteWorkEntryRepository.setTestDbPath(
+        '${Directory.systemTemp.path}/test_entry_coord.db');
   });
 
   group('EntryCoordinator', () {
