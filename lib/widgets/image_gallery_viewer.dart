@@ -67,7 +67,7 @@ class _ImageGalleryViewerState extends State<ImageGalleryViewer> {
                   child: Image.file(
                     File(widget.images[index]),
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Center(
+                    errorBuilder: (_, _, _) => const Center(
                       child:
                           Icon(Icons.broken_image_rounded, size: 64, color: Colors.grey),
                     ),

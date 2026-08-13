@@ -426,7 +426,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           .toIso8601String()
           .replaceAll(':', '-')
           .substring(0, 19);
-      final remoteName = 'daily_gig_backup_' + timestamp + '.db';
+      final remoteName = 'daily_gig_backup_$timestamp.db';
       final result = await _buildHelper().uploadFile(dbPath, remoteName);
 
       if (!mounted) return;

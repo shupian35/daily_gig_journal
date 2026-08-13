@@ -524,7 +524,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: () {
                     Navigator.pop(ctx);
                     launchUrl(
-                      Uri.parse('${_githubUrl}/releases/latest'),
+                      Uri.parse('$_githubUrl/releases/latest'),
                       mode: LaunchMode.externalApplication,
                     );
                   },

@@ -293,7 +293,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   itemCount: tags.length + 1,
-                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  separatorBuilder: (_, _) => const SizedBox(width: 6),
                   itemBuilder: (_, i) {
                     if (i == 0) {
                       final selected = _selectedTag == null;
@@ -439,7 +439,7 @@ class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      locale == 'en' ? '${parts[1]}' : '${parts[1]}月',
+                      locale == 'en' ? parts[1] : '${parts[1]}月',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
