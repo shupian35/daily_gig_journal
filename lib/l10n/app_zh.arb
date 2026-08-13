@@ -29,6 +29,12 @@
   "loadNoteFailed": "加载笔记失败",
   "saveSuccess": "保存成功！",
   "saveFailed": "保存失败",
+  "operationFailed": "操作失败：{error}",
+  "@operationFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "imageInserted": "图片已插入",
   "insertImageFailed": "插入图片失败",
   "selectImageFailed": "选择图片失败",

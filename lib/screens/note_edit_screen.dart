@@ -18,7 +18,7 @@ import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 绗旇缂栬緫/鏌ョ湅椤?鈥斺€?绮捐嚧鏉傚織椋?
+/// 笔记编辑/查看页 — 精致触感
 class NoteEditScreen extends ConsumerStatefulWidget {
   final String dateStr;
   final int? noteId;
@@ -43,7 +43,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isAutoUpdating = false; // 闃查€掑綊瀹堝崼
+  bool _isAutoUpdating = false; // 防止递归锁
   int? _existingNoteId;
   final ImagePicker _imagePicker = ImagePicker();
   bool _initialized = false;
@@ -267,6 +267,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Future<void> _pickImageFromGallery() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
@@ -278,11 +279,12 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         await _insertImageToNote(image.path);
       }
     } catch (e) {
-      _showError('${AppLocalizations.of(context)!.selectImageFailed}: $e');
+      _showError('${l10n.selectImageFailed}: $e');
     }
   }
 
   Future<void> _takePhoto() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final XFile? photo = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -299,14 +301,15 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (msg.contains('denied') ||
           msg.contains('permission') ||
           msg.contains('not authorized')) {
-        _showError(AppLocalizations.of(context)!.cameraPermissionError);
+        _showError(l10n.cameraPermissionError);
       } else {
-        _showError(AppLocalizations.of(context)!.takePhotoFailed);
+        _showError(l10n.takePhotoFailed);
       }
     }
   }
 
   Future<void> _insertImageToNote(String sourcePath) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final imagesDir = await Helpers.getImagesDirectory();
       final fileName = 'img_${Helpers.generateImageFileName()}';
@@ -328,13 +331,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!.imageInserted),
+            content: Text(l10n.imageInserted),
             duration: Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
-      _showError('${AppLocalizations.of(context)!.insertImageFailed}: $e');
+      _showError('${l10n.insertImageFailed}: $e');
     }
   }
 
@@ -364,6 +367,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     ref.listen<AsyncValue<void>>(
       entryCoordinatorProvider,
       (prev, next) {
@@ -372,7 +376,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
+                l10n.operationFailed(next.error.toString()),
               ),
               backgroundColor: AppConstants.dangerRed,
             ),
@@ -380,7 +384,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         }
       },
     );
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final date = Helpers.parseDate(widget.dateStr);
     final displayDate =
@@ -785,7 +788,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: images.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   return Stack(
                     children: [
@@ -818,7 +821,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                             child: Image.file(
                               File(images[index]),
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              errorBuilder: (_, _, _) =>
                                   const Icon(Icons.broken_image_rounded,
                                       size: 32),
                             ),

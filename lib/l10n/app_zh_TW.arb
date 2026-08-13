@@ -23,6 +23,12 @@
   "loadNoteFailed": "載入筆記失敗",
   "saveSuccess": "儲存成功！",
   "saveFailed": "儲存失敗",
+  "operationFailed": "操作失敗：{error}",
+  "@operationFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "imageInserted": "圖片已插入",
   "insertImageFailed": "插入圖片失敗",
   "selectImageFailed": "選擇圖片失敗",

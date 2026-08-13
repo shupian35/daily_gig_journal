@@ -23,6 +23,12 @@
   "loadNoteFailed": "Failed to load note",
   "saveSuccess": "Saved successfully!",
   "saveFailed": "Save failed",
+  "operationFailed": "Operation failed: {error}",
+  "@operationFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "imageInserted": "Image inserted",
   "insertImageFailed": "Failed to insert image",
   "selectImageFailed": "Failed to select image",

@@ -69,6 +69,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get saveFailed => 'Save failed';
 
   @override
+  String operationFailed(String error) {
+    return 'Operation failed: $error';
+  }
+
+  @override
   String get imageInserted => 'Image inserted';
 
   @override

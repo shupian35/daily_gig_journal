@@ -69,6 +69,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get saveFailed => '保存失败';
 
   @override
+  String operationFailed(String error) {
+    return '操作失败：$error';
+  }
+
+  @override
   String get imageInserted => '图片已插入';
 
   @override
@@ -775,6 +780,11 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get saveFailed => '儲存失敗';
+
+  @override
+  String operationFailed(String error) {
+    return '操作失敗：$error';
+  }
 
   @override
   String get imageInserted => '圖片已插入';

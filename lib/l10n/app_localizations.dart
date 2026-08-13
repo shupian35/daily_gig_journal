@@ -219,6 +219,12 @@ abstract class AppLocalizations {
   /// **'保存失败'**
   String get saveFailed;
 
+  /// No description provided for @operationFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'操作失败：{error}'**
+  String operationFailed(String error);
+
   /// No description provided for @imageInserted.
   ///
   /// In zh, this message translates to:

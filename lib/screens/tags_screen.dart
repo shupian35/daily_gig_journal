@@ -99,6 +99,7 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
       ),
     );
     if (target == null || target.isEmpty || target == from) return;
+    if (!mounted) return; // 跨 async gap 守卫: 避免 dispose 后再使用 context
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
