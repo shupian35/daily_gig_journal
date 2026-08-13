@@ -16,7 +16,7 @@
 | **Settings Surface** | 主题/隐私/云端/语言设置，持久化到 `SharedPreferences` | `lib/services/settings_service.dart` |
 | **WorkEntryRepository** | WorkEntry 持久化的接缝：13 个 find/save/remove/filePath/watch 动词；显式 add/update 不变式（`entry.id == null` → add；非空 → update）；2 个 adapter：SQLite（生产）+ InMemory（测试） | `lib/data/work_entry_repository.dart`（待新建，见 ADR-0006） |
 | **WorkEntryChange** | sealed class {Added, Edited, Removed}，repository 写操作的最小可观察信号，date 字段用于精准失效 | `lib/data/work_entry_change.dart`（待新建，见 ADR-0006） |
-| **EntryCoordinator** | 集中所有 WorkEntry 写入与未来 archive/duplicate/merge 的 Notifier；`build()` 单一挂 `WorkEntryRepository.watch()` 订阅做派生缓存失效、同步触发自动备份 | `lib/providers/entry_coordinator.dart`（待新建，见 ADR-0001）；watch 监听见 ADR-0006 |
+| **EntryCoordinator** | 集中所有 WorkEntry 写入与未来 archive/duplicate/merge 的 Notifier；`build()` 单一挂 `WorkEntryRepository.watch()` 订阅做派生缓存失效、同步触发自动备份。**边界**：只管 *entry-level mutation*（`save(WorkEntry)` / `delete(int id)`）；*bulk-mutation-over-tags*（`renameTag / deleteTag / mergeTag`）不走 Coordinator，由 Repository 单事务后直发 `Edited` 事件，仍触发本表失效链。详见 ADR-0001 + ADR-0008 §Decision 4 | `lib/providers/entry_coordinator.dart`；watch 监听见 ADR-0006；Coordinator 边界切分见 ADR-0008 |
 | **Worker Hours** | `startTime - endTime` 的小时数（小数保留 1 位） | `Helpers.calculateWorkHours(start, end)` |
 | **Work Week Plan** | 今天起未来一周的条目预览，按日期聚组 | `CalendarScreen._buildUpcomingWeekPlan` |
 | **Preview Build** | dev 分支每次推送产出的预发布 artifact；tag 命名空间 `preview/vX.Y.Z+N-sha`，GitHub Release 标 `prerelease: true` | `.github/workflows/cd.yaml` 的 release-preview job |

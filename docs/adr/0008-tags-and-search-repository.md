@@ -185,8 +185,8 @@ entriesByTagProvider         // FutureProvider.autoDispose.family<List<WorkEntry
 - [x] `ExportHelper` CSV/JSON 加 tags 字段
 - [x] `test/data/repository_search_test.dart` 22 个新测试
 - [x] `flutter analyze --no-fatal-infos` 0 errors；`flutter test` 89/89 通过
-- [ ] **ADR-0006 Follow-up**：失效清单可更新为 10 provider（7 + 3），与 ADR-0006 节保持同步
-- [ ] **CONTEXT.md Follow-up**：`EntryCoordinator` 词条补"边界"段，明确 bulk-mutation-over-tags 不经 save
+- [x] **ADR-0006 Follow-up**：失效清单同步为 10 provider（7 + 3），在 ADR-0006 加 "后续扩宽（ADR-0008）" 小节落地
+- [x] **CONTEXT.md Follow-up**：`EntryCoordinator` 词条扩展"边界"段，明确 bulk-mutation-over-tags 不经 save；同步 ADR-0008/ADR-0006 引用
 - [ ] **未来 · tag emoji 选色器**：本期只用 chip 显示；下一 sprint 给 `TagsField` 加可选 emoji 字段
 - [ ] **未来 · search 性能监控**：条目数 > 5k 时升级 SQLite FTS5；监控点可放在 `SqliteWorkEntryRepository.search` 入口
 - [ ] **未来 · 标签导入 / 导出**：当前 CSV/JSON 仅导出 tags 字符串，无对导入的"标签字典修复"工具；可加 `ImportHelper.normalizeTags()`

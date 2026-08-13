@@ -100,6 +100,41 @@ else await repo.update(note);
 - `remove(int id)` 实现需 `findById(id)` 先查 date 用于事件；PK 查找成本忽略
 - WebDAV backup 仍 `await ref.read(repoProvider).filePath()`，未触发 watch（备份是 IO，不是派生缓存）
 
+## 后续扩宽（ADR-0008）
+
+2026-07-21 全局搜索 + 工作标签落地时，`_onRepoChange` 失效清单从 7 个 provider 扩宽到 10 个。详见 [ADR-0008](0008-tags-and-search-repository.md) §Decision 5 与 §Consequences。
+
+扩宽部分（与本 ADR §4 决策代码块并列保留）：
+
+```dart
+void _onRepoChange(WorkEntryChange change) {
+  // 精准：按 change.date 失效该日 list
+  ref.invalidate(notesByDateListProvider(change.date));
+  // 表级：6 个聚合 provider（来自本 ADR §4）
+  ref.invalidate(workDatesProvider);
+  ref.invalidate(wageNotesProvider);
+  ref.invalidate(monthlySummaryProvider);
+  ref.invalidate(monthlyTotalWageProvider);
+  ref.invalidate(monthlyWorkDaysProvider);
+  ref.invalidate(notesByDateRangeProvider);
+  // 后续扩宽（ADR-0008 · 2026-07-21）：
+  // tags / search：写入会让标签字典和搜索结果集失真，强制重算。
+  ref.invalidate(allTagsProvider);
+  ref.invalidate(entriesByTagProvider);
+  ref.invalidate(searchResultsProvider);
+}
+```
+
+**边界首次明确化（ADR-0008 §Decision 4）**：
+
+ADR-0008 引入了 `renameTag / deleteTag / mergeTag` 三个 **bulk-mutation-over-tags** 动词——它们**不**经过 `EntryCoordinator.save()`：
+
+- 这些操作本质是"批量编辑"已有 row 的 `tags` 列，不增删 entry
+- Repository 实现层在事务结束后，对每个受影响 row 各发一条 `_changes.add(Edited(id, date))`，自动走到本 ADR §4 的 watch 失效链
+- **Coordinator 集中写入的范围首次被切分**：entry-level mutation（add / update / remove）走 `Coordinator.save / delete`；bulk-mutation-over-tags 走 Repository（仍触发失效链）
+
+未来若 archive / duplicate / merge 等"批量跨 entry"动词落地，应继承 ADR-0008 的模式（Repository 单事务 + 直发 `Edited` 事件），不要把这些动词塞进 `Coordinator.save()`。
+
 ## Alternatives considered
 
 | 方案 | 不取 |
