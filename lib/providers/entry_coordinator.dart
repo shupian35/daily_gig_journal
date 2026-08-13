@@ -1,4 +1,4 @@
-﻿import 'dart:async' show StreamSubscription, unawaited;
+import 'dart:async' show StreamSubscription, unawaited;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -39,13 +39,17 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
   void _onRepoChange(WorkEntryChange change) {
     // 精准：按 change.date 失效该日 list 的 family 项。
     ref.invalidate(notesByDateListProvider(change.date));
-    // 表级：6 个聚合 provider（任何写都影响）。
+    // 表级：所有写都影响的聚合 provider。
     ref.invalidate(workDatesProvider);
     ref.invalidate(wageNotesProvider);
     ref.invalidate(monthlySummaryProvider);
     ref.invalidate(monthlyTotalWageProvider);
     ref.invalidate(monthlyWorkDaysProvider);
     ref.invalidate(notesByDateRangeProvider);
+    // tags / search：写入会让标签字典和搜索结果集失真，强制重算。
+    ref.invalidate(allTagsProvider);
+    ref.invalidate(entriesByTagProvider);
+    ref.invalidate(searchResultsProvider);
   }
 
   /// 自动备份：后台异步触发，不阻塞 save/delete 关键路径。

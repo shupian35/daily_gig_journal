@@ -8,6 +8,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../widgets/note_form_fields.dart';
+import '../widgets/tags_field.dart';
 import '../widgets/drawing_canvas.dart';
 import '../widgets/image_gallery_viewer.dart';
 import '../widgets/image_file_embed_builder.dart';
@@ -46,6 +47,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   int? _existingNoteId;
   final ImagePicker _imagePicker = ImagePicker();
   bool _initialized = false;
+  List<String> _currentTags = const [];
 
   @override
   void initState() {
@@ -94,6 +96,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               note.workHours > 0 ? note.workHours.toString() : '';
           _dailyWageController.text =
               note.dailyWage > 0 ? note.dailyWage.toString() : '';
+          _currentTags = List<String>.from(note.tags);
           try {
             final deltaJson = jsonDecode(note.noteContent);
             _quillController.dispose();
@@ -150,6 +153,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         workHours: workHours,
         dailyWage: dailyWage,
         noteContent: quillJson,
+        tags: _currentTags,
       );
 
       await ref.read(entryCoordinatorProvider.notifier).save(note);
@@ -450,7 +454,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           width: 380,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildFormCard(hideIncome),
+            child: Column(
+              children: [
+                _buildFormCard(hideIncome),
+                const SizedBox(height: 12),
+                _buildTagsCard(),
+              ],
+            ),
           ),
         ),
         Container(
@@ -484,6 +494,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildFormCard(hideIncome),
+          const SizedBox(height: 12),
+          _buildTagsCard(),
           const SizedBox(height: 16),
           _buildRichTextCard(),
           const SizedBox(height: 12),
@@ -492,6 +504,49 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           _buildInsertButtons(),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTagsCard() {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tag_rounded,
+                    size: 18, color: AppConstants.primaryDark),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.tags,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TagsField(
+              initialTags: _currentTags,
+              onChanged: (t) => _currentTags = t,
+            ),
+          ],
+        ),
       ),
     );
   }

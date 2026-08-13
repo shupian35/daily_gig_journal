@@ -7,6 +7,7 @@ import '../providers/entry_coordinator.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import '../widgets/app_card.dart';
+import '../widgets/tags_field.dart';
 import 'note_edit_screen.dart';
 
 /// 鍗曟棩宸ヤ綔鏉＄洰鍒楄〃椤?鈥斺€?绮捐嚧鏉傚織椋?
@@ -225,6 +226,10 @@ class DayEntriesScreen extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (entry.tags.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      TagChips(tags: entry.tags),
+                    ],
                     if (entry.workLocation.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(

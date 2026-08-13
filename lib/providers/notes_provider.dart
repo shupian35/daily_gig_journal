@@ -76,6 +76,67 @@ final notesByDateRangeProvider = FutureProvider.autoDispose
       .findByRange(range.start, range.end);
 });
 
+// ── Tags ──
+
+/// 当前数据库中所有去重标签（按字母升序）。
+final allTagsProvider = FutureProvider<List<String>>((ref) async {
+  return ref.watch(workEntryRepositoryProvider).allTags();
+});
+
+/// 含指定标签的笔记列表。
+final entriesByTagProvider = FutureProvider.autoDispose
+    .family<List<WorkEntry>, String>((ref, tag) async {
+  return ref.watch(workEntryRepositoryProvider).findByTag(tag);
+});
+
+// ── Search ──
+
+/// 搜索关键词（StateProvider 跨页面共享）。
+final searchKeywordProvider = StateProvider<String>((ref) => '');
+
+/// 日期范围筛选，from/to 为空表示该方向不限。
+final searchDateRangeProvider =
+    StateProvider<({DateTime? from, DateTime? to})>((ref) {
+  return (from: null, to: null);
+});
+
+/// 单标签筛选；空串表示不限。
+final searchTagFilterProvider = StateProvider<String?>((ref) => null);
+
+/// 搜索结果：watch 三个 StateProvider，任一变化重新计算；
+/// 任一参数为空且关键词也为空时短路返回空列表。
+final searchResultsProvider =
+    FutureProvider.autoDispose<List<WorkEntry>>((ref) async {
+  final kw = ref.watch(searchKeywordProvider).trim();
+  final range = ref.watch(searchDateRangeProvider);
+  final tag = ref.watch(searchTagFilterProvider);
+
+  if (kw.isEmpty &&
+      range.from == null &&
+      range.to == null &&
+      (tag == null || tag.isEmpty)) {
+    return const <WorkEntry>[];
+  }
+
+  final from = range.from == null
+      ? null
+      : '${range.from!.year.toString().padLeft(4, '0')}-'
+          '${range.from!.month.toString().padLeft(2, '0')}-'
+          '${range.from!.day.toString().padLeft(2, '0')}';
+  final to = range.to == null
+      ? null
+      : '${range.to!.year.toString().padLeft(4, '0')}-'
+          '${range.to!.month.toString().padLeft(2, '0')}-'
+          '${range.to!.day.toString().padLeft(2, '0')}';
+
+  return ref.watch(workEntryRepositoryProvider).search(
+        keyword: kw.isEmpty ? null : kw,
+        dateFrom: from,
+        dateTo: to,
+        tag: tag,
+      );
+});
+
 // 注意：save / delete mutation 已迁出到 lib/providers/entry_coordinator.dart。
 // 任何写入操作请走 entryCoordinatorProvider，不要再写新的旧式 mutation。
 // 派生缓存失效由 WorkEntryRepository.watch() 事件驱动（ADR-0006）；

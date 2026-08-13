@@ -42,6 +42,54 @@ abstract class WorkEntryRepository {
   /// 返回最近 [months] 个月的月汇总，按月份降序。
   Future<List<MonthSummary>> recentSummary({int months = 6});
 
+  // ── Tags ──
+
+  /// 返回当前数据库中所有去重标签，按字母升序。
+  ///
+  /// 实现层负责把 `work_notes.tags` 逗号分隔字段拆开、扁平化、去重、排序。
+  /// 空标签串忽略。空数据库返回空列表。
+  Future<List<String>> allTags();
+
+  /// 返回含指定标签的 WorkEntry 列表，按 date DESC, startTime ASC。
+  ///
+  /// [tag] 大小写敏感（与存储一致）；空串返回空列表。
+  Future<List<WorkEntry>> findByTag(String tag);
+
+  /// 重命名 tag：[from] → [to]，原子事务；返回受影响的 WorkEntry 行数。
+  ///
+  /// 实现层负责:
+  ///   * 把所有 `tags` 字段里包含 `from` 的 row 读出来
+  ///   * 把 `from` 替换为 `to`（独立 token，避免子串误改）
+  ///   * 写回 + 自动去重
+  /// 失败回滚。
+  Future<int> renameTag({required String from, required String to});
+
+  /// 删除 tag：在所有 row 的 `tags` 字段中移除 [tag]；返回受影响行数。
+  Future<int> deleteTag(String tag);
+
+  /// 合并 tag：[from] → [to]，等价于 rename。
+  /// 默认实现直接复用 renameTag；具体 adapter 多数情况不需要 override。
+  Future<int> mergeTag({required String from, required String to});
+
+  // ── Search ──
+
+  /// 全文搜索 + 筛选：
+  ///
+  /// * [keyword] — 非空时大小写不敏感匹配 `title / work_location / contact`
+  ///   以及 `note_content` 反序列化的纯文本片段；
+  /// * [dateFrom] / [dateTo] — 闭区间 `YYYY-MM-DD` 字符串（包含两端），
+  ///   任一为空则该方向不限；
+  /// * [tag] — 命中 `tags` 字段包含该标签的条目（大小写敏感）。
+  ///
+  /// 全部参数为空时返回所有条目（等同于 [findAllWithWage]）。
+  /// 排序：date DESC, startTime ASC。
+  Future<List<WorkEntry>> search({
+    String? keyword,
+    String? dateFrom,
+    String? dateTo,
+    String? tag,
+  });
+
   // ── Write ──
 
   /// 插入新条目。不变式：[entry] 的 id 必须为 null；返回新生成的 rowid。

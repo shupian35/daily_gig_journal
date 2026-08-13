@@ -604,6 +604,112 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get minutesSuffix => 'm';
+
+  @override
+  String get search => '搜索';
+
+  @override
+  String get searchHint => '搜索标题、地点、对接人或备注内容';
+
+  @override
+  String get searchEmpty => '无匹配结果';
+
+  @override
+  String get searchEmptyHint => '试试调整关键词或筛选条件';
+
+  @override
+  String searchResultsCount(int count) {
+    return '匹配 $count 条';
+  }
+
+  @override
+  String get searchFilterTag => '按标签筛选';
+
+  @override
+  String get searchFilterAllTags => '全部标签';
+
+  @override
+  String get searchFilterDateRange => '日期范围';
+
+  @override
+  String get searchDateRangeAll => '全部时间';
+
+  @override
+  String get searchClearFilters => '清除筛选';
+
+  @override
+  String get searchTotalIncome => '总收入';
+
+  @override
+  String get searchWorkDays => '工作天数';
+
+  @override
+  String get searchAllTimeFilter => '全部';
+
+  @override
+  String get tags => '标签';
+
+  @override
+  String get tagsHint => '为这条工作添加标签（回车确认）';
+
+  @override
+  String get tagsEmpty => '暂无标签';
+
+  @override
+  String get tagsAddTag => '添加标签';
+
+  @override
+  String get tagsManage => '管理标签';
+
+  @override
+  String get tagsManageSubtitle => '重命名、删除或合并标签';
+
+  @override
+  String get tagsRename => '重命名';
+
+  @override
+  String get tagsDelete => '删除标签';
+
+  @override
+  String tagsDeleteConfirm(String tag, int count) {
+    return '删除标签 \"$tag\" 将从 $count 条记录中移除';
+  }
+
+  @override
+  String tagsCount(int count) {
+    return '共 $count 条';
+  }
+
+  @override
+  String get tagsSuggestedTags => '建议标签';
+
+  @override
+  String get tagsStatisticsByTag => '按标签查看';
+
+  @override
+  String get tagsNoCount => '未使用';
+
+  @override
+  String get tagsRenameDialogTitle => '重命名标签';
+
+  @override
+  String get tagsRenameLabel => '新名称';
+
+  @override
+  String get tagsMerge => '合并到…';
+
+  @override
+  String get tagsMergeTargetHint => '输入目标标签名称';
+
+  @override
+  String tagsMergeConfirm(int count, String from, String to) {
+    return '将把 $count 条记录中的 \"$from\" 替换为 \"$to\"';
+  }
+
+  @override
+  String tagsMoreCount(int count) {
+    return '+$count';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1206,4 +1312,110 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get minutesSuffix => 'm';
+
+  @override
+  String get search => '搜尋';
+
+  @override
+  String get searchHint => '搜尋標題、地點、對接人或備註內容';
+
+  @override
+  String get searchEmpty => '無符合結果';
+
+  @override
+  String get searchEmptyHint => '試試調整關鍵字或篩選條件';
+
+  @override
+  String searchResultsCount(int count) {
+    return '共 $count 條結果';
+  }
+
+  @override
+  String get searchFilterTag => '依標籤篩選';
+
+  @override
+  String get searchFilterAllTags => '全部標籤';
+
+  @override
+  String get searchFilterDateRange => '日期範圍';
+
+  @override
+  String get searchDateRangeAll => '全部時間';
+
+  @override
+  String get searchClearFilters => '清除篩選';
+
+  @override
+  String get searchTotalIncome => '總收入';
+
+  @override
+  String get searchWorkDays => '工作天數';
+
+  @override
+  String get searchAllTimeFilter => '全部';
+
+  @override
+  String get tags => '標籤';
+
+  @override
+  String get tagsHint => '為這份工作新增標籤（Enter 確認）';
+
+  @override
+  String get tagsEmpty => '暫無標籤';
+
+  @override
+  String get tagsAddTag => '新增標籤';
+
+  @override
+  String get tagsManage => '管理標籤';
+
+  @override
+  String get tagsManageSubtitle => '重新命名、刪除或合併標籤';
+
+  @override
+  String get tagsRename => '重新命名';
+
+  @override
+  String get tagsDelete => '刪除標籤';
+
+  @override
+  String tagsDeleteConfirm(String tag, int count) {
+    return '刪除標籤「$tag」將從 $count 條記錄中移除';
+  }
+
+  @override
+  String tagsCount(int count) {
+    return '共 $count 條';
+  }
+
+  @override
+  String get tagsSuggestedTags => '建議標籤';
+
+  @override
+  String get tagsStatisticsByTag => '依標籤檢視';
+
+  @override
+  String get tagsNoCount => '未使用';
+
+  @override
+  String get tagsRenameDialogTitle => '重新命名標籤';
+
+  @override
+  String get tagsRenameLabel => '新名稱';
+
+  @override
+  String get tagsMerge => '合併到…';
+
+  @override
+  String get tagsMergeTargetHint => '輸入目標標籤名稱';
+
+  @override
+  String tagsMergeConfirm(int count, String from, String to) {
+    return '將把 $count 條記錄中的「$from」替換為「$to」';
+  }
+
+  @override
+  String tagsMoreCount(int count) {
+    return '+$count';
+  }
 }

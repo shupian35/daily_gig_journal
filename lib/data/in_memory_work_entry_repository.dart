@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import '../models/work_entry.dart';
 import 'work_entry_change.dart';
@@ -99,6 +100,151 @@ class InMemoryWorkEntryRepository implements WorkEntryRepository {
         .toList();
     list.sort((a, b) => b.month.compareTo(a.month));
     return list.take(months).toList();
+  }
+
+  // ── Tags ──
+
+  @override
+  Future<List<String>> allTags() async {
+    final set = <String>{};
+    for (final e in _entries.values) {
+      for (final t in e.tags) {
+        set.add(t);
+      }
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
+  @override
+  Future<List<WorkEntry>> findByTag(String tag) async {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty) return const [];
+    final list = _entries.values
+        .where((e) => e.tags.contains(trimmed))
+        .toList();
+    list.sort((a, b) {
+      final c = b.date.compareTo(a.date);
+      return c != 0 ? c : a.startTime.compareTo(b.startTime);
+    });
+    return list;
+  }
+
+  @override
+  Future<int> renameTag({required String from, required String to}) async {
+    final fromTrim = from.trim();
+    final toTrim = to.trim();
+    if (fromTrim.isEmpty || toTrim.isEmpty || fromTrim == toTrim) return 0;
+    var changed = 0;
+    final updates = <int, WorkEntry>{};
+    for (final entry in _entries.values) {
+      if (!entry.tags.contains(fromTrim)) continue;
+      final newTags = List<String>.from(entry.tags);
+      final idx = newTags.indexOf(fromTrim);
+      newTags[idx] = toTrim;
+      // 去重
+      final deduped = <String>[];
+      for (final t in newTags) {
+        if (!deduped.contains(t)) deduped.add(t);
+      }
+      updates[entry.id!] =
+          entry.copyWith(tags: deduped, updatedAt: DateTime.now().toIso8601String());
+      changed++;
+    }
+    if (updates.isEmpty) return 0;
+    _entries.addAll(updates);
+    for (final entry in updates.values) {
+      _changes.add(Edited(entry.id!, entry.date));
+    }
+    return changed;
+  }
+
+  @override
+  Future<int> deleteTag(String tag) async {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty) return 0;
+    var changed = 0;
+    final updates = <int, WorkEntry>{};
+    for (final entry in _entries.values) {
+      if (!entry.tags.contains(trimmed)) continue;
+      final newTags = entry.tags.where((t) => t != trimmed).toList();
+      updates[entry.id!] =
+          entry.copyWith(tags: newTags, updatedAt: DateTime.now().toIso8601String());
+      changed++;
+    }
+    if (updates.isEmpty) return 0;
+    _entries.addAll(updates);
+    for (final entry in updates.values) {
+      _changes.add(Edited(entry.id!, entry.date));
+    }
+    return changed;
+  }
+
+  @override
+  Future<int> mergeTag({required String from, required String to}) =>
+      renameTag(from: from, to: to);
+
+  // ── Search ──
+
+  @override
+  Future<List<WorkEntry>> search({
+    String? keyword,
+    String? dateFrom,
+    String? dateTo,
+    String? tag,
+  }) async {
+    final kw = (keyword ?? '').trim();
+    final from = (dateFrom ?? '').trim();
+    final to = (dateTo ?? '').trim();
+    final tagTrim = (tag ?? '').trim();
+
+    if (kw.isEmpty && from.isEmpty && to.isEmpty && tagTrim.isEmpty) {
+      return findAllWithWage();
+    }
+
+    final kwLower = kw.toLowerCase();
+    final list = _entries.values.where((e) {
+      if (from.isNotEmpty && e.date.compareTo(from) < 0) return false;
+      if (to.isNotEmpty && e.date.compareTo(to) > 0) return false;
+      if (tagTrim.isNotEmpty && !e.tags.contains(tagTrim)) return false;
+      if (kwLower.isNotEmpty) {
+        final structHit = e.title.toLowerCase().contains(kwLower) ||
+            e.workLocation.toLowerCase().contains(kwLower) ||
+            e.contact.toLowerCase().contains(kwLower);
+        final plainHit =
+            _deltaToPlainText(e.noteContent).toLowerCase().contains(kwLower);
+        if (!structHit && !plainHit) return false;
+      }
+      return true;
+    }).toList();
+
+    list.sort((a, b) {
+      final c = b.date.compareTo(a.date);
+      return c != 0 ? c : a.startTime.compareTo(b.startTime);
+    });
+    return list;
+  }
+
+  /// 与 SqliteWorkEntryRepository._deltaToPlainText 同款实现；两份代码靠测试对齐。
+  static String _deltaToPlainText(String deltaJson) {
+    if (deltaJson.isEmpty) return '';
+    try {
+      final decoded = jsonDecode(deltaJson);
+      if (decoded is! List) return '';
+      final buf = StringBuffer();
+      for (final op in decoded) {
+        if (op is! Map) continue;
+        final insert = op['insert'];
+        if (insert is String) {
+          buf.write(insert);
+        } else if (insert is Map) {
+          // 嵌入对象（图片等）跳过。
+        }
+      }
+      return buf.toString();
+    } catch (_) {
+      return '';
+    }
   }
 
   // ── Write ──

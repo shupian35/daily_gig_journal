@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/calendar_widget.dart';
+import '../widgets/tags_field.dart';
 import '../widgets/wage_summary_card.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'note_edit_screen.dart';
+import 'search_screen.dart';
 
 /// 日历首页 —— 精致杂志风
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -47,6 +49,15 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       appBar: AppBar(
         title: Text(l10n.appTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded, size: 22),
+            tooltip: l10n.search,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.today_rounded, size: 22),
             tooltip: l10n.backToToday,
@@ -195,6 +206,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 contact: note.contact,
                 timeRange: '${note.startTime}-${note.endTime}',
                 wage: note.dailyWage,
+                tags: note.tags,
               ));
         }
 
@@ -404,85 +416,97 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                   borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: AppConstants.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            item.title,
-                            style: const TextStyle(fontSize: 14),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (item.workLocation.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.location_on_outlined,
-                              size: 13,
-                              color: isDark
-                                  ? const Color(0xFFA09892)
-                                  : const Color(0xFFB5A99F)),
-                          const SizedBox(width: 2),
-                          Flexible(
-                            child: Text(
-                              item.workLocation,
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: AppConstants.primaryColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                item.title,
+                                style: const TextStyle(fontSize: 14),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (item.workLocation.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Icon(Icons.location_on_outlined,
+                                  size: 13,
+                                  color: isDark
+                                      ? const Color(0xFFA09892)
+                                      : const Color(0xFFB5A99F)),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  item.workLocation,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppConstants.textSecondaryDark
+                                        : AppConstants.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                            if (item.contact.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Icon(Icons.person_outline_rounded,
+                                  size: 13,
+                                  color: isDark
+                                      ? const Color(0xFFA09892)
+                                      : const Color(0xFFB5A99F)),
+                              const SizedBox(width: 2),
+                              Flexible(
+                                child: Text(
+                                  item.contact,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isDark
+                                        ? AppConstants.textSecondaryDark
+                                        : AppConstants.textSecondary,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 10),
+                            Text(
+                              item.timeRange,
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 color: isDark
                                     ? AppConstants.textSecondaryDark
                                     : AppConstants.textSecondary,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                        if (item.contact.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          Icon(Icons.person_outline_rounded,
-                              size: 13,
-                              color: isDark
-                                  ? const Color(0xFFA09892)
-                                  : const Color(0xFFB5A99F)),
-                          const SizedBox(width: 2),
-                          Flexible(
-                            child: Text(
-                              item.contact,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: isDark
-                                    ? AppConstants.textSecondaryDark
-                                    : AppConstants.textSecondary,
+                            if (!hideIncome) ...[
+                              const SizedBox(width: 10),
+                              Text(
+                                Helpers.formatCurrency(item.wage, locale),
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppConstants.incomeGreen,
+                                ),
                               ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(width: 10),
-                        Text(
-                          item.timeRange,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isDark
-                                ? AppConstants.textSecondaryDark
-                                : AppConstants.textSecondary,
-                          ),
+                            ],
+                          ],
                         ),
-                        if (!hideIncome) ...[
-                          const SizedBox(width: 10),
-                          Text(
-                            Helpers.formatCurrency(item.wage, locale),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppConstants.incomeGreen,
-                            ),
+                        if (item.tags.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 16),
+                            child: TagChips(tags: item.tags, maxVisible: 4),
                           ),
                         ],
                       ],
@@ -510,6 +534,7 @@ class _PlanItem {
   final String contact;
   final String timeRange;
   final double wage;
+  final List<String> tags;
   const _PlanItem({
     required this.noteId,
     required this.date,
@@ -518,5 +543,6 @@ class _PlanItem {
     required this.contact,
     required this.timeRange,
     required this.wage,
+    this.tags = const [],
   });
 }

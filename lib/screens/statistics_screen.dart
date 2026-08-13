@@ -11,11 +11,18 @@ import '../utils/constants.dart';
 import 'day_entries_screen.dart';
 
 /// 工资统计页 —— 精致杂志风
-class StatisticsScreen extends ConsumerWidget {
+class StatisticsScreen extends ConsumerStatefulWidget {
   const StatisticsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StatisticsScreen> createState() => _StatisticsScreenState();
+}
+
+class _StatisticsScreenState extends ConsumerState<StatisticsScreen> {
+  String? _selectedTag; // null = 全部
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final wageNotesAsync = ref.watch(wageNotesProvider);
     final monthlySummaryAsync = ref.watch(monthlySummaryProvider(6));
@@ -160,7 +167,11 @@ class StatisticsScreen extends ConsumerWidget {
     AsyncValue<List<MonthSummary>> monthlySummaryAsync,
     bool hideIncome,
   ) {
-    final grouped = _groupByMonth(notes);
+    // 应用当前 tag 筛选。null = 全部。
+    final filtered = _selectedTag == null
+        ? notes
+        : notes.where((n) => n.tags.contains(_selectedTag)).toList();
+    final grouped = _groupByMonth(filtered);
 
     return LayoutBuilder(
       builder: (ctx, constraints) {
@@ -174,7 +185,13 @@ class StatisticsScreen extends ConsumerWidget {
                 width: 420,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: _buildBarChart(context, monthlySummaryAsync, hideIncome),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTagFilterBar(),
+                      _buildBarChart(context, monthlySummaryAsync, hideIncome),
+                    ],
+                  ),
                 ),
               ),
               Container(
@@ -211,6 +228,10 @@ class StatisticsScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: _buildTagFilterBar(),
+              ),
               _buildBarChart(context, monthlySummaryAsync, hideIncome),
               const SizedBox(height: 8),
               ...grouped.entries.map((entry) {
@@ -238,6 +259,66 @@ class StatisticsScreen extends ConsumerWidget {
       map.putIfAbsent(monthKey, () => []).add(note);
     }
     return map;
+  }
+
+  /// 横滑 chip 行：点击切到对应 tag，仅展示该 tag 条目。
+  Widget _buildTagFilterBar() {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final allTagsAsync = ref.watch(allTagsProvider);
+    return allTagsAsync.maybeWhen(
+      data: (tags) {
+        if (tags.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  l10n.tagsStatisticsByTag,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark
+                        ? AppConstants.textSecondaryDark
+                        : AppConstants.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  itemCount: tags.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(width: 6),
+                  itemBuilder: (_, i) {
+                    if (i == 0) {
+                      final selected = _selectedTag == null;
+                      return _FilterChipPill(
+                        label: l10n.searchAllTimeFilter,
+                        selected: selected,
+                        onTap: () => setState(() => _selectedTag = null),
+                      );
+                    }
+                    final tag = tags[i - 1];
+                    final selected = _selectedTag == tag;
+                    return _FilterChipPill(
+                      label: tag,
+                      selected: selected,
+                      onTap: () => setState(() => _selectedTag = tag),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
+    );
   }
 
   Widget _buildBarChart(BuildContext context,
@@ -590,6 +671,55 @@ class StatisticsScreen extends ConsumerWidget {
           }),
           const SizedBox(height: 4),
         ],
+      ),
+    );
+  }
+}
+
+/// 统计页 tag 筛选条所用的胶囊按钮。
+class _FilterChipPill extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FilterChipPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppConstants.primaryColor.withValues(alpha: isDark ? 0.24 : 0.16)
+              : (isDark ? const Color(0xFF262630) : Colors.white),
+          borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+          border: Border.all(
+            color: selected
+                ? AppConstants.primaryColor
+                : (isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2)),
+            width: 0.6,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected
+                ? AppConstants.primaryDark
+                : (isDark
+                    ? AppConstants.textPrimaryDark
+                    : AppConstants.textPrimary),
+          ),
+        ),
       ),
     );
   }

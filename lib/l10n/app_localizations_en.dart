@@ -623,4 +623,110 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get minutesSuffix => 'm';
+
+  @override
+  String get search => 'Search';
+
+  @override
+  String get searchHint => 'Search title, location, contact or notes';
+
+  @override
+  String get searchEmpty => 'No matching results';
+
+  @override
+  String get searchEmptyHint => 'Try adjusting your keywords or filters';
+
+  @override
+  String searchResultsCount(int count) {
+    return '$count results';
+  }
+
+  @override
+  String get searchFilterTag => 'Filter by tag';
+
+  @override
+  String get searchFilterAllTags => 'All tags';
+
+  @override
+  String get searchFilterDateRange => 'Date range';
+
+  @override
+  String get searchDateRangeAll => 'All time';
+
+  @override
+  String get searchClearFilters => 'Clear filters';
+
+  @override
+  String get searchTotalIncome => 'Total income';
+
+  @override
+  String get searchWorkDays => 'Work days';
+
+  @override
+  String get searchAllTimeFilter => 'All';
+
+  @override
+  String get tags => 'Tags';
+
+  @override
+  String get tagsHint => 'Add tags for this work (Enter to confirm)';
+
+  @override
+  String get tagsEmpty => 'No tags yet';
+
+  @override
+  String get tagsAddTag => 'Add tag';
+
+  @override
+  String get tagsManage => 'Manage Tags';
+
+  @override
+  String get tagsManageSubtitle => 'Rename, delete or merge tags';
+
+  @override
+  String get tagsRename => 'Rename';
+
+  @override
+  String get tagsDelete => 'Delete tag';
+
+  @override
+  String tagsDeleteConfirm(String tag, int count) {
+    return 'Deleting tag \"$tag\" will remove it from $count entries';
+  }
+
+  @override
+  String tagsCount(int count) {
+    return '$count entries';
+  }
+
+  @override
+  String get tagsSuggestedTags => 'Suggested tags';
+
+  @override
+  String get tagsStatisticsByTag => 'View by tag';
+
+  @override
+  String get tagsNoCount => 'Unused';
+
+  @override
+  String get tagsRenameDialogTitle => 'Rename tag';
+
+  @override
+  String get tagsRenameLabel => 'New name';
+
+  @override
+  String get tagsMerge => 'Merge into…';
+
+  @override
+  String get tagsMergeTargetHint => 'Enter target tag name';
+
+  @override
+  String tagsMergeConfirm(int count, String from, String to) {
+    return 'Will replace \"$from\" with \"$to\" in $count entries';
+  }
+
+  @override
+  String tagsMoreCount(int count) {
+    return '+$count';
+  }
 }
