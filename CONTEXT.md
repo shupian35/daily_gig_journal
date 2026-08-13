@@ -41,9 +41,9 @@
 
 ## Revisions
 
-| 日期       | 修订内容                                  | 来源                    |
+| 日期 | 修订内容 | 来源 |
 | --------- | --------------------------------------- | ---------------------- |
-| 2026-07-15 | 首次落稿；新增 EntryCoordinator 词条    | grill-with-docs Q1-Q4  |
+| 2026-07-15 | 首次落稿；新增 EntryCoordinator 词条 | grill-with-docs Q1-Q4 |
 | 2026-07-15 | 新增 iOS Native UI Surface 词条 + CFBundleLocalizations 概念 | grill-with-docs (iOS bug fix 跟进) |
 | 2026-07-15 | 新增 Preview Build 词条 + CI/CD 按分支概念 | grill-with-docs (CI/CD 配置改 Q1-Q5) |
 | 2026-07-19 | Backup Cycle 加注 fire-and-forget；新增"自动备份是后台异步"概念 | （性能反馈："保存日程，保存时间长"） |
