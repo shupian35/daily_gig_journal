@@ -8,6 +8,7 @@ import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
 import '../widgets/note_form_fields.dart';
+import '../widgets/tags_field.dart';
 import '../widgets/drawing_canvas.dart';
 import '../widgets/image_gallery_viewer.dart';
 import '../widgets/image_file_embed_builder.dart';
@@ -17,7 +18,7 @@ import '../providers/settings_provider.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
-/// 绗旇缂栬緫/鏌ョ湅椤?鈥斺€?绮捐嚧鏉傚織椋?
+/// 笔记编辑/查看页 — 精致触感
 class NoteEditScreen extends ConsumerStatefulWidget {
   final String dateStr;
   final int? noteId;
@@ -42,10 +43,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isAutoUpdating = false; // 闃查€掑綊瀹堝崼
+  bool _isAutoUpdating = false; // 防止递归锁
   int? _existingNoteId;
   final ImagePicker _imagePicker = ImagePicker();
   bool _initialized = false;
+  List<String> _currentTags = const [];
 
   @override
   void initState() {
@@ -94,6 +96,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               note.workHours > 0 ? note.workHours.toString() : '';
           _dailyWageController.text =
               note.dailyWage > 0 ? note.dailyWage.toString() : '';
+          _currentTags = List<String>.from(note.tags);
           try {
             final deltaJson = jsonDecode(note.noteContent);
             _quillController.dispose();
@@ -150,6 +153,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         workHours: workHours,
         dailyWage: dailyWage,
         noteContent: quillJson,
+        tags: _currentTags,
       );
 
       await ref.read(entryCoordinatorProvider.notifier).save(note);
@@ -263,6 +267,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Future<void> _pickImageFromGallery() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final XFile? image = await _imagePicker.pickImage(
         source: ImageSource.gallery,
@@ -274,11 +279,12 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         await _insertImageToNote(image.path);
       }
     } catch (e) {
-      _showError('${AppLocalizations.of(context)!.selectImageFailed}: $e');
+      _showError('${l10n.selectImageFailed}: $e');
     }
   }
 
   Future<void> _takePhoto() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final XFile? photo = await _imagePicker.pickImage(
         source: ImageSource.camera,
@@ -295,14 +301,15 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (msg.contains('denied') ||
           msg.contains('permission') ||
           msg.contains('not authorized')) {
-        _showError(AppLocalizations.of(context)!.cameraPermissionError);
+        _showError(l10n.cameraPermissionError);
       } else {
-        _showError(AppLocalizations.of(context)!.takePhotoFailed);
+        _showError(l10n.takePhotoFailed);
       }
     }
   }
 
   Future<void> _insertImageToNote(String sourcePath) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final imagesDir = await Helpers.getImagesDirectory();
       final fileName = 'img_${Helpers.generateImageFileName()}';
@@ -324,13 +331,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context)!.imageInserted),
+            content: Text(l10n.imageInserted),
             duration: Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
-      _showError('${AppLocalizations.of(context)!.insertImageFailed}: $e');
+      _showError('${l10n.insertImageFailed}: $e');
     }
   }
 
@@ -360,6 +367,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     ref.listen<AsyncValue<void>>(
       entryCoordinatorProvider,
       (prev, next) {
@@ -368,7 +376,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
+                l10n.operationFailed(next.error.toString()),
               ),
               backgroundColor: AppConstants.dangerRed,
             ),
@@ -376,7 +384,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         }
       },
     );
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final date = Helpers.parseDate(widget.dateStr);
     final displayDate =
@@ -450,7 +457,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           width: 380,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _buildFormCard(hideIncome),
+            child: Column(
+              children: [
+                _buildFormCard(hideIncome),
+                const SizedBox(height: 12),
+                _buildTagsCard(),
+              ],
+            ),
           ),
         ),
         Container(
@@ -484,6 +497,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildFormCard(hideIncome),
+          const SizedBox(height: 12),
+          _buildTagsCard(),
           const SizedBox(height: 16),
           _buildRichTextCard(),
           const SizedBox(height: 12),
@@ -492,6 +507,49 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           _buildInsertButtons(),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTagsCard() {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF262630) : Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+        border: Border.all(
+          color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
+          width: 0.5,
+        ),
+        boxShadow: AppConstants.cardShadow(isDark),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.tag_rounded,
+                    size: 18, color: AppConstants.primaryDark),
+                const SizedBox(width: 8),
+                Text(
+                  l10n.tags,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TagsField(
+              initialTags: _currentTags,
+              onChanged: (t) => _currentTags = t,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -730,7 +788,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: images.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   return Stack(
                     children: [
@@ -763,7 +821,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                             child: Image.file(
                               File(images[index]),
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) =>
+                              errorBuilder: (_, _, _) =>
                                   const Icon(Icons.broken_image_rounded,
                                       size: 32),
                             ),

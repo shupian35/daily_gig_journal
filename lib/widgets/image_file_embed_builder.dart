@@ -51,7 +51,7 @@ class ImageFileEmbedBuilder extends quill.EmbedBuilder {
                   File(path),
                   fit: BoxFit.contain,
                   width: double.infinity,
-                  errorBuilder: (_, __, ___) =>
+                  errorBuilder: (_, _, _) =>
                       const Icon(Icons.broken_image_rounded, size: 48),
                 ),
                 Positioned(

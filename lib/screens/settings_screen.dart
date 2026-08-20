@@ -19,6 +19,7 @@ import '../widgets/app_section_label.dart';
 import 'appearance_screen.dart';
 import 'language_screen.dart';
 import 'privacy_screen.dart';
+import 'tags_screen.dart';
 import 'webdav_backup_screen.dart';
 
 /// 设置页面 —— 精致杂志风
@@ -113,6 +114,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           AppCard(
             child: Column(
               children: [
+                _buildNavTile(
+                  icon: Icons.tag_rounded,
+                  title: l10n.tagsManage,
+                  subtitle: l10n.tagsManageSubtitle,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TagsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(isDark),
                 _buildNavTile(
                   icon: Icons.file_download_outlined,
                   title: l10n.exportData,
@@ -510,7 +524,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   onPressed: () {
                     Navigator.pop(ctx);
                     launchUrl(
-                      Uri.parse('${_githubUrl}/releases/latest'),
+                      Uri.parse('$_githubUrl/releases/latest'),
                       mode: LaunchMode.externalApplication,
                     );
                   },

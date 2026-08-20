@@ -219,6 +219,12 @@ abstract class AppLocalizations {
   /// **'保存失败'**
   String get saveFailed;
 
+  /// No description provided for @operationFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'操作失败：{error}'**
+  String operationFailed(String error);
+
   /// No description provided for @imageInserted.
   ///
   /// In zh, this message translates to:
@@ -1274,6 +1280,198 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'m'**
   String get minutesSuffix;
+
+  /// No description provided for @search.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索'**
+  String get search;
+
+  /// No description provided for @searchHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索标题、地点、对接人或备注内容'**
+  String get searchHint;
+
+  /// No description provided for @searchEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'无匹配结果'**
+  String get searchEmpty;
+
+  /// No description provided for @searchEmptyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'试试调整关键词或筛选条件'**
+  String get searchEmptyHint;
+
+  /// No description provided for @searchResultsCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'匹配 {count} 条'**
+  String searchResultsCount(int count);
+
+  /// No description provided for @searchFilterTag.
+  ///
+  /// In zh, this message translates to:
+  /// **'按标签筛选'**
+  String get searchFilterTag;
+
+  /// No description provided for @searchFilterAllTags.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部标签'**
+  String get searchFilterAllTags;
+
+  /// No description provided for @searchFilterDateRange.
+  ///
+  /// In zh, this message translates to:
+  /// **'日期范围'**
+  String get searchFilterDateRange;
+
+  /// No description provided for @searchDateRangeAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部时间'**
+  String get searchDateRangeAll;
+
+  /// No description provided for @searchClearFilters.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除筛选'**
+  String get searchClearFilters;
+
+  /// No description provided for @searchTotalIncome.
+  ///
+  /// In zh, this message translates to:
+  /// **'总收入'**
+  String get searchTotalIncome;
+
+  /// No description provided for @searchWorkDays.
+  ///
+  /// In zh, this message translates to:
+  /// **'工作天数'**
+  String get searchWorkDays;
+
+  /// No description provided for @searchAllTimeFilter.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get searchAllTimeFilter;
+
+  /// No description provided for @tags.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签'**
+  String get tags;
+
+  /// No description provided for @tagsHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'为这条工作添加标签（回车确认）'**
+  String get tagsHint;
+
+  /// No description provided for @tagsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无标签'**
+  String get tagsEmpty;
+
+  /// No description provided for @tagsAddTag.
+  ///
+  /// In zh, this message translates to:
+  /// **'添加标签'**
+  String get tagsAddTag;
+
+  /// No description provided for @tagsManage.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理标签'**
+  String get tagsManage;
+
+  /// No description provided for @tagsManageSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名、删除或合并标签'**
+  String get tagsManageSubtitle;
+
+  /// No description provided for @tagsRename.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名'**
+  String get tagsRename;
+
+  /// No description provided for @tagsDelete.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除标签'**
+  String get tagsDelete;
+
+  /// No description provided for @tagsDeleteConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'删除标签 \"{tag}\" 将从 {count} 条记录中移除'**
+  String tagsDeleteConfirm(String tag, int count);
+
+  /// No description provided for @tagsCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 条'**
+  String tagsCount(int count);
+
+  /// No description provided for @tagsSuggestedTags.
+  ///
+  /// In zh, this message translates to:
+  /// **'建议标签'**
+  String get tagsSuggestedTags;
+
+  /// No description provided for @tagsStatisticsByTag.
+  ///
+  /// In zh, this message translates to:
+  /// **'按标签查看'**
+  String get tagsStatisticsByTag;
+
+  /// No description provided for @tagsNoCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'未使用'**
+  String get tagsNoCount;
+
+  /// No description provided for @tagsRenameDialogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'重命名标签'**
+  String get tagsRenameDialogTitle;
+
+  /// No description provided for @tagsRenameLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'新名称'**
+  String get tagsRenameLabel;
+
+  /// No description provided for @tagsMerge.
+  ///
+  /// In zh, this message translates to:
+  /// **'合并到…'**
+  String get tagsMerge;
+
+  /// No description provided for @tagsMergeTargetHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'输入目标标签名称'**
+  String get tagsMergeTargetHint;
+
+  /// No description provided for @tagsMergeConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'将把 {count} 条记录中的 \"{from}\" 替换为 \"{to}\"'**
+  String tagsMergeConfirm(int count, String from, String to);
+
+  /// No description provided for @tagsMoreCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'+{count}'**
+  String tagsMoreCount(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -7,9 +7,10 @@ import '../providers/entry_coordinator.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import '../widgets/app_card.dart';
+import '../widgets/tags_field.dart';
 import 'note_edit_screen.dart';
 
-/// 鍗曟棩宸ヤ綔鏉＄洰鍒楄〃椤?鈥斺€?绮捐嚧鏉傚織椋?
+/// 单日工作条目列表页 — 精致触感
 class DayEntriesScreen extends ConsumerWidget {
   final String dateStr;
 
@@ -17,6 +18,7 @@ class DayEntriesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     ref.listen<AsyncValue<void>>(
       entryCoordinatorProvider,
       (prev, next) {
@@ -25,7 +27,7 @@ class DayEntriesScreen extends ConsumerWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '鎿嶄綔澶辫触: ${next.error}'  // TODO: l10n 鍖?operationFailed 鍚庤縼绉?
+                l10n.operationFailed(next.error.toString()),
               ),
               backgroundColor: AppConstants.dangerRed,
             ),
@@ -33,7 +35,6 @@ class DayEntriesScreen extends ConsumerWidget {
         }
       },
     );
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final entriesAsync = ref.watch(notesByDateListProvider(dateStr));
     final displayDate = Helpers.toDisplayDate(dateStr, locale);
@@ -184,7 +185,7 @@ class DayEntriesScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // 搴忓彿鎸囩ず鍣?
+              // 序号指示器
               Container(
                 width: 40,
                 height: 40,
@@ -208,7 +209,7 @@ class DayEntriesScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              // 鍐呭
+              // 内容
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -225,6 +226,10 @@ class DayEntriesScreen extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    if (entry.tags.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      TagChips(tags: entry.tags),
+                    ],
                     if (entry.workLocation.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
@@ -309,7 +314,7 @@ class DayEntriesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              // 宸ヨ祫 & 鎿嶄綔
+              // 工资 & 操作
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -412,7 +417,7 @@ class DayEntriesScreen extends ConsumerWidget {
       ),
     )
         .then((_) {
-      // Coordinator 宸叉竻缂撳瓨锛圓DR-0002 / save 鍚?_invalidateFor 宸茶Е鍙?notesByDateListProvider(dateStr)锛?
+      // Coordinator 已清缓存（ADR-0002 / save 后 _invalidateFor 已触发 notesByDateListProvider(dateStr)）
     });
   }
 }

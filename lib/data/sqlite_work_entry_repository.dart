@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -16,7 +17,7 @@ import 'work_entry_repository.dart';
 class SqliteWorkEntryRepository implements WorkEntryRepository {
   // ── Schema 常量（以前散在 DatabaseHelper） ──
   static const String _tableName = 'work_notes';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
   static const String _colId = 'id';
   static const String _colDate = 'date';
@@ -29,6 +30,7 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
   static const String _colWorkHours = 'work_hours';
   static const String _colDailyWage = 'daily_wage';
   static const String _colNoteContent = 'note_content';
+  static const String _colTags = 'tags';
   static const String _colCreatedAt = 'created_at';
   static const String _colUpdatedAt = 'updated_at';
 
@@ -45,6 +47,7 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       $_colWorkHours REAL DEFAULT 0.0,
       $_colDailyWage REAL DEFAULT 0.0,
       $_colNoteContent TEXT DEFAULT '[]',
+      $_colTags TEXT DEFAULT '',
       $_colCreatedAt TEXT,
       $_colUpdatedAt TEXT
     )
@@ -64,6 +67,7 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       $_colWorkHours REAL DEFAULT 0.0,
       $_colDailyWage REAL DEFAULT 0.0,
       $_colNoteContent TEXT DEFAULT '[]',
+      $_colTags TEXT DEFAULT '',
       $_colCreatedAt TEXT,
       $_colUpdatedAt TEXT
     )
@@ -140,6 +144,12 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
     if (oldVersion < 4) {
       await db.execute(
         "ALTER TABLE $_tableName ADD COLUMN $_colContact TEXT DEFAULT ''",
+      );
+    }
+    if (oldVersion < 5) {
+      // tags：逗号分隔字符串列；老行 tags='' → 反序列化为空列表，零侵入。
+      await db.execute(
+        "ALTER TABLE $_tableName ADD COLUMN $_colTags TEXT DEFAULT ''",
       );
     }
   }
@@ -250,6 +260,291 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
               workDays: (r['work_days'] as num).toInt(),
             ))
         .toList();
+  }
+
+  // ── Tags ──
+
+  @override
+  Future<List<String>> allTags() async {
+    final db = await _database;
+    final rows = await db.query(
+      _tableName,
+      columns: [_colTags],
+      where: '$_colTags != ?',
+      whereArgs: [''],
+    );
+    final set = <String>{};
+    for (final row in rows) {
+      final raw = (row[_colTags] as String?) ?? '';
+      if (raw.isEmpty) continue;
+      for (final tag in raw.split(',')) {
+        final trimmed = tag.trim();
+        if (trimmed.isNotEmpty) set.add(trimmed);
+      }
+    }
+    final list = set.toList()..sort();
+    return list;
+  }
+
+  @override
+  Future<List<WorkEntry>> findByTag(String tag) async {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty) return const [];
+    final db = await _database;
+    // 用 `,tag,` 包裹前后逗号避免子串误匹配（"会" 命中 "会展"）。
+    // 4 个分支分别覆盖：单 tag / 头 / 尾 / 中。
+    final rows = await db.query(
+      _tableName,
+      where: '$_colTags = ? OR $_colTags LIKE ? OR $_colTags LIKE ? OR $_colTags LIKE ?',
+      whereArgs: [
+        trimmed,
+        '$trimmed,%',
+        '%,$trimmed',
+        '%,$trimmed,%',
+      ],
+      orderBy: '$_colDate DESC, $_colStartTime ASC',
+    );
+    // 二次过滤，确保是独立 tag token 而不是 substring。
+    return rows
+        .map(WorkEntry.fromMap)
+        .where((e) => e.tags.contains(trimmed))
+        .toList();
+  }
+
+  @override
+  Future<int> renameTag({required String from, required String to}) async {
+    final fromTrim = from.trim();
+    final toTrim = to.trim();
+    if (fromTrim.isEmpty || toTrim.isEmpty) return 0;
+    if (fromTrim == toTrim) return 0;
+
+    final db = await _database;
+    final affected = <WorkEntry>[];
+    final replacements = <int, String>{};
+
+    // 1) 找出所有含 from 的 row
+    final rows = await db.query(
+      _tableName,
+      where: '$_colTags = ? OR $_colTags LIKE ? OR $_colTags LIKE ? OR $_colTags LIKE ?',
+      whereArgs: [
+        fromTrim,
+        '$fromTrim,%',
+        '%,$fromTrim',
+        '%,$fromTrim,%',
+      ],
+    );
+
+    for (final row in rows) {
+      final id = row[_colId] as int?;
+      if (id == null) continue;
+      final raw = (row[_colTags] as String?) ?? '';
+      final list = WorkEntry.parseTags(raw);
+      if (!list.contains(fromTrim)) continue;
+      final newList = List<String>.from(list);
+      final idx = newList.indexOf(fromTrim);
+      newList[idx] = toTrim;
+      // 去重
+      final deduped = <String>[];
+      for (final t in newList) {
+        if (!deduped.contains(t)) deduped.add(t);
+      }
+      replacements[id] = deduped.join(',');
+      affected.add(WorkEntry.fromMap(row));
+    }
+
+    if (replacements.isEmpty) return 0;
+
+    // 2) 单事务写回，失败回滚
+    await db.transaction((txn) async {
+      for (final entry in replacements.entries) {
+        await txn.update(
+          _tableName,
+          {'tags': entry.value},
+          where: '$_colId = ?',
+          whereArgs: [entry.key],
+        );
+      }
+    });
+
+    // 3) 触发 Removed/Edited 事件让 watch 链路失效
+    for (final e in affected) {
+      _changes.add(Edited(e.id!, e.date));
+    }
+
+    return replacements.length;
+  }
+
+  @override
+  Future<int> deleteTag(String tag) async {
+    final trimmed = tag.trim();
+    if (trimmed.isEmpty) return 0;
+
+    final db = await _database;
+    final affected = <WorkEntry>[];
+    final replacements = <int, String>{};
+
+    final rows = await db.query(
+      _tableName,
+      where: '$_colTags = ? OR $_colTags LIKE ? OR $_colTags LIKE ? OR $_colTags LIKE ?',
+      whereArgs: [
+        trimmed,
+        '$trimmed,%',
+        '%,$trimmed',
+        '%,$trimmed,%',
+      ],
+    );
+
+    for (final row in rows) {
+      final id = row[_colId] as int?;
+      if (id == null) continue;
+      final raw = (row[_colTags] as String?) ?? '';
+      final list = WorkEntry.parseTags(raw);
+      if (!list.contains(trimmed)) continue;
+      final newList = list.where((t) => t != trimmed).toList();
+      replacements[id] = newList.join(',');
+      affected.add(WorkEntry.fromMap(row));
+    }
+
+    if (replacements.isEmpty) return 0;
+
+    await db.transaction((txn) async {
+      for (final entry in replacements.entries) {
+        await txn.update(
+          _tableName,
+          {'tags': entry.value},
+          where: '$_colId = ?',
+          whereArgs: [entry.key],
+        );
+      }
+    });
+
+    for (final e in affected) {
+      _changes.add(Edited(e.id!, e.date));
+    }
+    return replacements.length;
+  }
+
+  @override
+  Future<int> mergeTag({required String from, required String to}) =>
+      renameTag(from: from, to: to);
+
+  // ── Search ──
+
+  @override
+  Future<List<WorkEntry>> search({
+    String? keyword,
+    String? dateFrom,
+    String? dateTo,
+    String? tag,
+  }) async {
+    final kw = (keyword ?? '').trim();
+    final from = (dateFrom ?? '').trim();
+    final to = (dateTo ?? '').trim();
+    final tagTrim = (tag ?? '').trim();
+
+    // 全部为空 → 等同 findAllWithWage，避免无谓 SQL 拼接。
+    if (kw.isEmpty && from.isEmpty && to.isEmpty && tagTrim.isEmpty) {
+      return findAllWithWage();
+    }
+
+    final db = await _database;
+    final where = <String>[];
+    final args = <Object?>[];
+
+    if (kw.isNotEmpty) {
+      // 结构化字段 + noteContent 用 LIKE 在 SQL 层匹配子串；
+      // 实现层再二次校验 noteContent 反序列化结果命中，避免 JSON 操作符/嵌入图片误命中。
+      where.add(
+        '($_colTitle LIKE ? OR $_colWorkLocation LIKE ? OR $_colContact LIKE ? OR $_colNoteContent LIKE ?)',
+      );
+      final like = '%${_escapeLike(kw)}%';
+      args.addAll([like, like, like, like]);
+    }
+    if (from.isNotEmpty) {
+      where.add('$_colDate >= ?');
+      args.add(from);
+    }
+    if (to.isNotEmpty) {
+      where.add('$_colDate <= ?');
+      args.add(to);
+    }
+    if (tagTrim.isNotEmpty) {
+      // 与 findByTag 一致：包裹逗号做 token 边界匹配。
+      where.add(
+        '($_colTags = ? OR $_colTags LIKE ? OR $_colTags LIKE ? OR $_colTags LIKE ?)',
+      );
+      args.addAll([
+        tagTrim,
+        '$tagTrim,%',
+        '%,$tagTrim',
+        '%,$tagTrim,%',
+      ]);
+    }
+
+    final rows = await db.query(
+      _tableName,
+      where: where.join(' AND '),
+      whereArgs: args,
+      orderBy: '$_colDate DESC, $_colStartTime ASC',
+    );
+
+    Iterable<WorkEntry> results = rows.map(WorkEntry.fromMap);
+
+    // keyword：二次过滤 noteContent 的纯文本片段，确保非误命中。
+    if (kw.isNotEmpty) {
+      final kwLower = kw.toLowerCase();
+      results = results.where((e) {
+        if (_matchesStruct(e, kwLower)) return true;
+        final plain = _deltaToPlainText(e.noteContent).toLowerCase();
+        return plain.contains(kwLower);
+      });
+    }
+    // tag：二次过滤独立 token。
+    if (tagTrim.isNotEmpty) {
+      results = results.where((e) => e.tags.contains(tagTrim));
+    }
+
+    return results.toList();
+  }
+
+  /// LIKE 子串里需要转义 %, _, \ 三个特殊字符。
+  static String _escapeLike(String s) {
+    return s
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
+  }
+
+  /// 结构化字段命中（[kwLower] 已小写化）。
+  static bool _matchesStruct(WorkEntry e, String kwLower) {
+    return e.title.toLowerCase().contains(kwLower) ||
+        e.workLocation.toLowerCase().contains(kwLower) ||
+        e.contact.toLowerCase().contains(kwLower);
+  }
+
+  /// Quill Delta JSON → 可读纯文本片段。
+  ///
+  /// 与 ExportHelper._deltaToPlainText 同款实现；这里独立 copy 是为了
+  /// 避免 SearchScreen 依赖 utils/export_helper 的 I/O 路径。
+  static String _deltaToPlainText(String deltaJson) {
+    if (deltaJson.isEmpty) return '';
+    try {
+      final decoded = jsonDecode(deltaJson);
+      if (decoded is! List) return '';
+      final buf = StringBuffer();
+      for (final op in decoded) {
+        if (op is! Map) continue;
+        final insert = op['insert'];
+        if (insert is String) {
+          buf.write(insert);
+        } else if (insert is Map) {
+          // 嵌入对象（图片等）跳过。
+        }
+      }
+      return buf.toString();
+    } catch (_) {
+      return '';
+    }
   }
 
   // ── Write ──

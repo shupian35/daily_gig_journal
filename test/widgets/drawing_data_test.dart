@@ -97,7 +97,7 @@ void main() {
       expect(restored.points.length, 3);
       expect(restored.points.first, const Offset(10, 20));
       expect(restored.points.last, const Offset(50, 60));
-      expect(restored.color.value, Colors.blue.value);
+      expect(restored.color.toARGB32(), Colors.blue.toARGB32());
       expect(restored.strokeWidth, 3.5);
     });
 
@@ -111,7 +111,7 @@ void main() {
       final restored = StrokeData.fromJson(json);
 
       expect(restored.points.length, 1);
-      expect(restored.color.value, Colors.red.value);
+      expect(restored.color.toARGB32(), Colors.red.toARGB32());
     });
   });
 

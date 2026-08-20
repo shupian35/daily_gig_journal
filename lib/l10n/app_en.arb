@@ -23,6 +23,12 @@
   "loadNoteFailed": "Failed to load note",
   "saveSuccess": "Saved successfully!",
   "saveFailed": "Save failed",
+  "operationFailed": "Operation failed: {error}",
+  "@operationFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "imageInserted": "Image inserted",
   "insertImageFailed": "Failed to insert image",
   "selectImageFailed": "Failed to select image",
@@ -226,5 +232,69 @@
   "yearSuffix": "-",
   "monthSuffix": "-",
   "hoursSuffix": "h",
-  "minutesSuffix": "m"
+  "minutesSuffix": "m",
+
+  "@searchScreen": {"description": "Search screen strings"},
+  "search": "Search",
+  "searchHint": "Search title, location, contact or notes",
+  "searchEmpty": "No matching results",
+  "searchEmptyHint": "Try adjusting your keywords or filters",
+  "searchResultsCount": "{count} results",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "searchFilterTag": "Filter by tag",
+  "searchFilterAllTags": "All tags",
+  "searchFilterDateRange": "Date range",
+  "searchDateRangeAll": "All time",
+  "searchClearFilters": "Clear filters",
+  "searchTotalIncome": "Total income",
+  "searchWorkDays": "Work days",
+  "searchAllTimeFilter": "All",
+
+  "@tagsScreen": {"description": "Tags management strings"},
+  "tags": "Tags",
+  "tagsHint": "Add tags for this work (Enter to confirm)",
+  "tagsEmpty": "No tags yet",
+  "tagsAddTag": "Add tag",
+  "tagsManage": "Manage Tags",
+  "tagsManageSubtitle": "Rename, delete or merge tags",
+  "tagsRename": "Rename",
+  "tagsDelete": "Delete tag",
+  "tagsDeleteConfirm": "Deleting tag \"{tag}\" will remove it from {count} entries",
+  "@tagsDeleteConfirm": {
+    "placeholders": {
+      "tag": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "tagsCount": "{count} entries",
+  "@tagsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tagsSuggestedTags": "Suggested tags",
+  "tagsStatisticsByTag": "View by tag",
+  "tagsNoCount": "Unused",
+  "tagsRenameDialogTitle": "Rename tag",
+  "tagsRenameLabel": "New name",
+  "tagsMerge": "Merge into…",
+  "tagsMergeTargetHint": "Enter target tag name",
+  "tagsMergeConfirm": "Will replace \"{from}\" with \"{to}\" in {count} entries",
+  "@tagsMergeConfirm": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "from": {"type": "String"},
+      "to": {"type": "String"}
+    }
+  },
+  "tagsMoreCount": "+{count}",
+  "@tagsMoreCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }

@@ -23,6 +23,12 @@
   "loadNoteFailed": "載入筆記失敗",
   "saveSuccess": "儲存成功！",
   "saveFailed": "儲存失敗",
+  "operationFailed": "操作失敗：{error}",
+  "@operationFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
   "imageInserted": "圖片已插入",
   "insertImageFailed": "插入圖片失敗",
   "selectImageFailed": "選擇圖片失敗",
@@ -226,5 +232,69 @@
   "yearSuffix": "年",
   "monthSuffix": "月",
   "hoursSuffix": "h",
-  "minutesSuffix": "m"
+  "minutesSuffix": "m",
+
+  "@searchScreen": {"description": "Search screen strings"},
+  "search": "搜尋",
+  "searchHint": "搜尋標題、地點、對接人或備註內容",
+  "searchEmpty": "無符合結果",
+  "searchEmptyHint": "試試調整關鍵字或篩選條件",
+  "searchResultsCount": "共 {count} 條結果",
+  "@searchResultsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "searchFilterTag": "依標籤篩選",
+  "searchFilterAllTags": "全部標籤",
+  "searchFilterDateRange": "日期範圍",
+  "searchDateRangeAll": "全部時間",
+  "searchClearFilters": "清除篩選",
+  "searchTotalIncome": "總收入",
+  "searchWorkDays": "工作天數",
+  "searchAllTimeFilter": "全部",
+
+  "@tagsScreen": {"description": "Tags management strings"},
+  "tags": "標籤",
+  "tagsHint": "為這份工作新增標籤（Enter 確認）",
+  "tagsEmpty": "暫無標籤",
+  "tagsAddTag": "新增標籤",
+  "tagsManage": "管理標籤",
+  "tagsManageSubtitle": "重新命名、刪除或合併標籤",
+  "tagsRename": "重新命名",
+  "tagsDelete": "刪除標籤",
+  "tagsDeleteConfirm": "刪除標籤「{tag}」將從 {count} 條記錄中移除",
+  "@tagsDeleteConfirm": {
+    "placeholders": {
+      "tag": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "tagsCount": "共 {count} 條",
+  "@tagsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tagsSuggestedTags": "建議標籤",
+  "tagsStatisticsByTag": "依標籤檢視",
+  "tagsNoCount": "未使用",
+  "tagsRenameDialogTitle": "重新命名標籤",
+  "tagsRenameLabel": "新名稱",
+  "tagsMerge": "合併到…",
+  "tagsMergeTargetHint": "輸入目標標籤名稱",
+  "tagsMergeConfirm": "將把 {count} 條記錄中的「{from}」替換為「{to}」",
+  "@tagsMergeConfirm": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "from": {"type": "String"},
+      "to": {"type": "String"}
+    }
+  },
+  "tagsMoreCount": "+{count}",
+  "@tagsMoreCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  }
 }

@@ -35,9 +35,9 @@ class ExportHelper {
     // BOM 头，确保 Excel 正确识别 UTF-8 中文
     buffer.write('\uFEFF');
 
-    // 表头
+    // 表头（新增"标签"列；CSV 用 "|" 包裹避免与字段内 "|" 冲突）
     buffer.writeln(
-      '编号,日期,工作标题,工作地点,对接人,开始时间,结束时间,时薪,工作时长,日工资,笔记内容,创建时间,更新时间',
+      '编号,日期,工作标题,工作地点,对接人,开始时间,结束时间,时薪,工作时长,日工资,笔记内容,标签,创建时间,更新时间',
     );
 
     // 数据行
@@ -54,6 +54,7 @@ class ExportHelper {
         note.workHours,
         note.dailyWage,
         _csvEscape(_deltaToPlainText(note.noteContent)),
+        _csvEscape(note.tags.join('|')),
         note.createdAt ?? '',
         note.updatedAt ?? '',
       ].join(','));
@@ -76,6 +77,7 @@ class ExportHelper {
       'work_hours': note.workHours,
       'daily_wage': note.dailyWage,
       'note_content': note.noteContent,
+      'tags': note.tags,
       'created_at': note.createdAt,
       'updated_at': note.updatedAt,
     }).toList();
