@@ -15,6 +15,7 @@ import '../widgets/image_file_embed_builder.dart';
 import '../providers/notes_provider.dart';
 import '../providers/entry_coordinator.dart';
 import '../providers/settings_provider.dart';
+import '../services/backup_service.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
@@ -339,6 +340,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           ),
         );
       }
+      // ADR-0010: 通知 BackupService 把该图片加入下次上传队列
+      BackupService.trackImageUpload(ref, relPath);
     } catch (e) {
       _showError('${l10n.insertImageFailed}: $e');
     }
@@ -909,6 +912,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         if (imgInsert is Map && imgInsert.containsKey('image')) {
           if (imgInsert['image'] == relPath) {
             _quillController.replaceText(offset, 2, '', null);
+            // ADR-0010: notify BackupService for soft delete.
+            BackupService.trackImageTrash(ref, relPath);
             setState(() {});
             return;
           }

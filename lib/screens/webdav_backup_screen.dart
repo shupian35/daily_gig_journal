@@ -1,9 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n/app_localizations.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/backup_service.dart';
 import '../utils/constants.dart';
 import '../utils/webdav_helper.dart';
 import '../widgets/app_card.dart';
@@ -420,23 +424,52 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      final repo = ref.read(workEntryRepositoryProvider);
-      final dbPath = await repo.filePath();
-      final timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .substring(0, 19);
-      final remoteName = 'daily_gig_backup_$timestamp.db';
-      final result = await _buildHelper().uploadFile(dbPath, remoteName);
+      // ADR-0010: 手动备份也走增量路径 (DB + images/ + drafts/ 各自 PUT)
+      // 复用 autoBackup 内部逻辑：构造全量变更集，确保所有本地资源都上传
+      await _fullSyncToCloud();
 
       if (!mounted) return;
       setState(() => _isBackingUp = false);
-      _showOpStatus(result.message, error: !result.isSuccess);
+      _showOpStatus('已上传 DB + images/ + drafts/ 到云盘', error: false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
       _showOpStatus('${AppLocalizations.of(context)!.backupFailedCloud}: $e', error: true);
     }
+  }
+
+  /// 手动"备份到云盘"按钮：把本地所有图片/草稿塞入变更集, 触发增量上传
+  Future<void> _fullSyncToCloud() async {
+    // 提前抓取 containerOf 以避免 use_build_context_synchronously 警告
+    final container = ProviderScope.containerOf(context);
+    final repo = ref.read(workEntryRepositoryProvider);
+    final dbPath = await repo.filePath();
+    final appDocsDir = dbPath.substring(0, dbPath.lastIndexOf('/'));
+
+    // 1. 扫描本地所有 images/ 和 drafts/
+    final imagesDir = Directory(p.join(appDocsDir, 'images'));
+    final draftsDir = Directory(p.join(appDocsDir, 'drafts'));
+    final allImages = <String>{};
+    final allDrafts = <String>{};
+    if (imagesDir.existsSync()) {
+      for (final f in imagesDir.listSync()) {
+        if (f is File) allImages.add('images/${p.basename(f.path)}');
+      }
+    }
+    if (draftsDir.existsSync()) {
+      for (final f in draftsDir.listSync()) {
+        if (f is File) allDrafts.add('drafts/${p.basename(f.path)}');
+      }
+    }
+
+    // 2. 写入变更集 (覆盖式 full sync)
+    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
+      imagesToUpload: allImages,
+      draftsToUpload: allDrafts,
+    );
+
+    // 3. 触发自动备份
+    await BackupService.autoBackup(container);
   }
 
   Future<void> _showRestoreFilePicker() async {
@@ -466,7 +499,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirmRestore),
         content: Text(
-          '即将从云盘恢复备份文件：\n\n${file.name}\n'
+          '即将从云盘恢复 DB：\n\n${file.name}\n'
           '${file.formattedSize}  |  ${file.formattedDate}\n\n'
           '${l10n.confirmRestoreDialogContent}',
         ),
@@ -494,9 +527,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
+      // ADR-0010: 恢复从 daily_gig_journal.db (固定名) 下载
       final repo = ref.read(workEntryRepositoryProvider);
       final dbPath = await repo.filePath();
-      final result = await _buildHelper().downloadFile(file.href, dbPath);
+      final helper = _buildHelper();
+      final result = await helper.downloadFile('daily_gig_journal.db', dbPath);
       if (!mounted) return;
       setState(() => _isRestoring = false);
       _showOpStatus(

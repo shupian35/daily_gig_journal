@@ -16,7 +16,8 @@ import '../services/backup_service.dart';
 ///   * 同步触发自动备份（fire-and-forget，leading-edge 30s 节流；见 ADR-0005）
 class EntryCoordinator extends Notifier<AsyncValue<void>> {
   /// 自动备份 leading-edge 节流窗口。窗口从上次备份**完成**算起。
-  static const _backupThrottleWindow = Duration(seconds: 30);
+  /// ADR-0010 Q4: 单包开销小, 改 5 分钟。
+  static const _backupThrottleWindow = Duration(minutes: 5);
 
   bool _isBackupRunning = false;
   DateTime? _lastBackupCompletedAt;
@@ -71,7 +72,7 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
 
   Future<void> _runBackup() async {
     try {
-      await BackupService.autoBackup(ref);
+      await BackupService.autoBackup(ref.container);
     } finally {
       _isBackupRunning = false;
       _lastBackupCompletedAt = DateTime.now();

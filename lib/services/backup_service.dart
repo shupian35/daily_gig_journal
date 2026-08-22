@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/work_entry_repository.dart';
@@ -7,31 +8,96 @@ import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/webdav_helper.dart';
 
-/// 统一备份服务
-/// 封装本地备份、云备份、自动备份的共用逻辑
+/// Auto-backup period's collected change set (ADR-0010).
+class BackupChangeSet {
+  final Set<String> imagesToUpload;
+  final Set<String> draftsToUpload;
+  final Set<String> imagesToTrash;
+  final Set<String> draftsToTrash;
+  const BackupChangeSet({
+    this.imagesToUpload = const {},
+    this.draftsToUpload = const {},
+    this.imagesToTrash = const {},
+    this.draftsToTrash = const {},
+  });
+  bool get isEmpty =>
+      imagesToUpload.isEmpty &&
+      draftsToUpload.isEmpty &&
+      imagesToTrash.isEmpty &&
+      draftsToTrash.isEmpty;
+}
+
+/// ADR-0011: auto-backup summary on success.
+@immutable
+class AutoBackupSummary {
+  final DateTime completedAt;
+  final int uploadedImages;
+  final int skippedImages;
+  final int uploadedDrafts;
+  final int uploadedBytes;
+  final bool dbUploaded;
+  const AutoBackupSummary({
+    required this.completedAt,
+    required this.uploadedImages,
+    required this.skippedImages,
+    required this.uploadedDrafts,
+    required this.uploadedBytes,
+    required this.dbUploaded,
+  });
+}
+
+/// ADR-0011: auto-backup error.
+@immutable
+class AutoBackupError {
+  final DateTime occurredAt;
+  final String reason;
+  final int consecutiveCount;
+  const AutoBackupError({
+    required this.occurredAt,
+    required this.reason,
+    required this.consecutiveCount,
+  });
+}
+
+/// Change set tracking provider (ADR-0010).
+final backupChangeSetProvider = StateProvider<BackupChangeSet>((ref) {
+  return const BackupChangeSet();
+});
+
+/// ADR-0011: last successful summary.
+final lastAutoBackupSummaryProvider =
+    StateProvider<AutoBackupSummary?>((ref) => null);
+
+/// ADR-0011: last error.
+final lastAutoBackupErrorProvider =
+    StateProvider<AutoBackupError?>((ref) => null);
+
+/// Unified backup service (ADR-0010 incremental + ADR-0011 observability).
 class BackupService {
   BackupService._();
 
-  /// 获取数据库文件路径
+  static const String cloudDbName = 'daily_gig_journal.db';
+  static const String imagesSubDir = 'images';
+  static const String draftsSubDir = 'drafts';
+  static const String trashedSubDir = 'trashed';
+
+  /// Old API kept for backwards compatibility (Q4 decision: throttling moved to EntryCoordinator).
+  static const int autoBackupRetentionDays = 30;
+
   static Future<String> getDbPath(WorkEntryRepository repo) async => repo.filePath();
 
-  /// 安全覆盖：先备份当前文件到 .bak，再写入新内容
-  /// 写入失败时自动回滚
   static Future<void> safeOverwrite({
     required String sourcePath,
     required String targetPath,
   }) async {
     final target = File(targetPath);
     final bakPath = '$targetPath.bak';
-
     if (await target.exists()) {
       await target.copy(bakPath);
     }
-
     try {
       await File(sourcePath).copy(targetPath);
     } catch (e) {
-      // 回滚
       final bak = File(bakPath);
       if (await bak.exists()) {
         await bak.copy(targetPath);
@@ -40,37 +106,12 @@ class BackupService {
     }
   }
 
-  /// 安全写入字节：先备份，再写入，失败回滚
-  static Future<void> safeWriteBytes({
-    required List<int> bytes,
-    required String targetPath,
-  }) async {
-    final target = File(targetPath);
-    final bakPath = '$targetPath.bak';
-
-    if (await target.exists()) {
-      await target.copy(bakPath);
-    }
-
-    try {
-      await target.writeAsBytes(bytes);
-    } catch (e) {
-      final bak = File(bakPath);
-      if (await bak.exists()) {
-        await bak.copy(targetPath);
-      }
-      rethrow;
-    }
-  }
-
-  /// 备份数据库到本地临时文件，返回文件路径
   static Future<String> backupToLocalFile(WorkEntryRepository repo) async {
     final db = await repo.filePath();
     final file = File(db);
     if (!await file.exists()) {
-      throw Exception('数据库文件不存在');
+      throw Exception('database file missing');
     }
-
     final tempDir = Directory.systemTemp;
     final timestamp = DateTime.now()
         .toIso8601String()
@@ -82,76 +123,213 @@ class BackupService {
     return backupPath;
   }
 
-  /// 构建 WebDAV helper（从 provider 读取配置）
-  static WebDavHelper buildWebDavHelper(Ref ref) {
+  static WebDavHelper buildWebDavHelper(ProviderContainer container) {
     return WebDavHelper(
-      serverUrl: ref.read(webDavUrlProvider),
-      username: ref.read(webDavUsernameProvider),
-      password: ref.read(webDavPasswordProvider),
+      serverUrl: container.read(webDavUrlProvider),
+      username: container.read(webDavUsernameProvider),
+      password: container.read(webDavPasswordProvider),
     );
   }
 
-  /// 自动备份保留天数
-  static const int autoBackupRetentionDays = 30;
-
-  /// 自动备份：在保存/删除后调用，静默失败
-  static Future<void> autoBackup(Ref ref) async {
+  /// Auto-backup: incremental upload of DB + images/ + drafts/ changes + soft-delete (ADR-0010).
+  static Future<void> autoBackup(dynamic container) async {
+    AutoBackupSummary? summary;
     try {
-      final enabled = ref.read(autoBackupProvider);
-      final configured = ref.read(webDavConfiguredProvider);
+      final enabled = container.read(autoBackupProvider);
+      final configured = container.read(webDavConfiguredProvider);
       if (!enabled || !configured) return;
 
-      final helper = buildWebDavHelper(ref);
-      final repo = ref.read(workEntryRepositoryProvider);
-      final localPath = await repo.filePath();
-      final timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .substring(0, 19);
-      final remoteName = 'daily_gig_backup_auto_$timestamp.db';
+      final helper = buildWebDavHelper(container);
+      final repo = container.read(workEntryRepositoryProvider);
+      final localDbPath = await repo.filePath();
 
-      await helper.uploadFile(localPath, remoteName);
+      final changes = container.read(backupChangeSetProvider);
+      container.read(backupChangeSetProvider.notifier).state = const BackupChangeSet();
 
-      // 清理 30 天前的旧备份
-      await _cleanupOldBackups(helper);
-    } catch (_) {
-      // 自动备份失败不打扰用户
-    }
-  }
+      // 1. Ensure sub directories exist.
+      for (final sub in [imagesSubDir, draftsSubDir, trashedSubDir]) {
+        final r = await helper.ensureSubDir(sub);
+        if (!r.isSuccess) throw Exception('create $sub failed: ${r.message}');
+      }
 
-  /// 清理超过保留期的自动备份文件
-  static Future<void> _cleanupOldBackups(WebDavHelper helper) async {
-    try {
-      final listResult = await helper.listFiles(prefix: 'daily_gig_backup_auto_');
-      if (!listResult.isSuccess) return;
+      int uploadedBytes = 0;
+      int uploadedImages = 0;
+      int skippedImages = 0;
+      int uploadedDrafts = 0;
+      bool dbUploaded = false;
 
-      final cutoff = DateTime.now().subtract(
-        Duration(days: autoBackupRetentionDays),
-      );
+      // 2. Upload DB (Q3: always full, overwrite).
+      final dbFile = File(localDbPath);
+      final dbBytes = await dbFile.readAsBytes();
+      final dbResult = await helper.uploadBytes(dbBytes, cloudDbName);
+      if (dbResult.isSuccess) {
+        uploadedBytes += dbBytes.length;
+        dbUploaded = true;
+      } else {
+        throw Exception('DB upload failed: ${dbResult.message}');
+      }
 
-      for (final file in listResult.files) {
-        final parsed = parseTimestampFromName(file.name);
-        if (parsed != null && parsed.isBefore(cutoff)) {
-          await helper.deleteFile(file.name);
+      // 3. Incremental image upload (Q1: HEAD probe skip).
+      for (final imgRel in changes.imagesToUpload) {
+        final exists = await helper.headFile(imgRel);
+        if (exists) {
+          skippedImages++;
+          continue;
+        }
+        final abs = await _resolveRelativeToAbs(localDbPath, imgRel);
+        final f = File(abs);
+        if (!await f.exists()) continue;
+        final bytes = await f.readAsBytes();
+        final r = await helper.uploadBytes(bytes, imgRel);
+        if (r.isSuccess) {
+          uploadedBytes += bytes.length;
+          uploadedImages++;
         }
       }
-    } catch (_) {
-      // 清理失败不影响主流程
+
+      // 4. Incremental draft upload (Q1: all drafts full backup).
+      for (final draftRel in changes.draftsToUpload) {
+        final exists = await helper.headFile(draftRel);
+        if (exists) continue;
+        final abs = await _resolveRelativeToAbs(localDbPath, draftRel);
+        final f = File(abs);
+        if (!await f.exists()) continue;
+        final bytes = await f.readAsBytes();
+        final r = await helper.uploadBytes(bytes, draftRel);
+        if (r.isSuccess) {
+          uploadedBytes += bytes.length;
+          uploadedDrafts++;
+        }
+      }
+
+      // 5. Soft delete (Q2: move to trashed/ instead of DELETE).
+      for (final imgRel in changes.imagesToTrash) {
+        await _moveToTrashed(helper, imgRel);
+      }
+      for (final draftRel in changes.draftsToTrash) {
+        await _moveToTrashed(helper, draftRel);
+      }
+
+      // 6. Clean up trashed/ older than 30 days.
+      await _cleanupTrashed(helper);
+
+      summary = AutoBackupSummary(
+        completedAt: DateTime.now(),
+        uploadedImages: uploadedImages,
+        skippedImages: skippedImages,
+        uploadedDrafts: uploadedDrafts,
+        uploadedBytes: uploadedBytes,
+        dbUploaded: dbUploaded,
+      );
+    } catch (e) {
+      final prev = container.read(lastAutoBackupErrorProvider);
+      final err = AutoBackupError(
+        occurredAt: DateTime.now(),
+        reason: e.toString(),
+        consecutiveCount: (prev?.consecutiveCount ?? 0) + 1,
+      );
+      container.read(lastAutoBackupErrorProvider.notifier).state = err;
+      return;
     }
+
+    // Success: write summary, clear error.
+    container.read(lastAutoBackupSummaryProvider.notifier).state = summary;
+    container.read(lastAutoBackupErrorProvider.notifier).state = null;
   }
 
-  /// 从备份文件名中提取时间戳
-  /// 文件名格式: daily_gig_backup_auto_2025-06-14T08-30-00.db
+  /// Resolve relative path (e.g. images/img_x.png) to local absolute path under appDocsDir.
+  static Future<String> _resolveRelativeToAbs(
+    String dbPath,
+    String relPath,
+  ) async {
+    final appDocsDir = dbPath.substring(0, dbPath.lastIndexOf('/'));
+    return '$appDocsDir/$relPath';
+  }
+
+  /// Soft-delete: move images/x.png -> trashed/x.png.
+  static Future<void> _moveToTrashed(WebDavHelper helper, String relPath) async {
+    try {
+      final exists = await helper.headFile(relPath);
+      if (!exists) return;
+      final bytesResult = await helper.downloadFileToBytes(relPath);
+      if (!bytesResult.isSuccess || bytesResult.bytes == null) return;
+      final filename = relPath.substring(relPath.lastIndexOf('/') + 1);
+      await helper.uploadBytes(bytesResult.bytes!, '$trashedSubDir/$filename');
+      await helper.deleteFile(relPath);
+    } catch (_) {}
+  }
+
+  /// Clean up trashed/ older than 30 days.
+  static Future<void> _cleanupTrashed(WebDavHelper helper) async {
+    try {
+      final list = await helper.listFilesInSubDir(trashedSubDir);
+      if (!list.isSuccess) return;
+      final cutoff = DateTime.now().subtract(const Duration(days: 30));
+      for (final f in list.files) {
+        try {
+          final lm = DateTime.parse(f.lastModified);
+          if (lm.isBefore(cutoff)) {
+            await helper.deleteFile('$trashedSubDir/${f.name}');
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  /// Record image insert (UI calls this).
+  static void trackImageUpload(dynamic ref, String relPath) {
+    final cur = ref.read(backupChangeSetProvider);
+    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
+      imagesToUpload: {...cur.imagesToUpload, relPath},
+      draftsToUpload: cur.draftsToUpload,
+      imagesToTrash: cur.imagesToTrash,
+      draftsToTrash: cur.draftsToTrash,
+    );
+  }
+
+  /// Record draft save.
+  static void trackDraftUpload(dynamic ref, String relPath) {
+    final cur = ref.read(backupChangeSetProvider);
+    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
+      imagesToUpload: cur.imagesToUpload,
+      draftsToUpload: {...cur.draftsToUpload, relPath},
+      imagesToTrash: cur.imagesToTrash,
+      draftsToTrash: cur.draftsToTrash,
+    );
+  }
+
+  /// Record image delete (soft-delete).
+  static void trackImageTrash(dynamic ref, String relPath) {
+    final cur = ref.read(backupChangeSetProvider);
+    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
+      imagesToUpload: cur.imagesToUpload,
+      draftsToUpload: cur.draftsToUpload,
+      imagesToTrash: {...cur.imagesToTrash, relPath},
+      draftsToTrash: cur.draftsToTrash,
+    );
+  }
+
+  /// Record draft delete.
+  static void trackDraftTrash(dynamic ref, String relPath) {
+    final cur = ref.read(backupChangeSetProvider);
+    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
+      imagesToUpload: cur.imagesToUpload,
+      draftsToUpload: cur.draftsToUpload,
+      imagesToTrash: cur.imagesToTrash,
+      draftsToTrash: {...cur.draftsToTrash, relPath},
+    );
+  }
+
+  /// Old API kept for backup_service_test.dart.
   static DateTime? parseTimestampFromName(String name) {
     try {
       final start = name.indexOf('auto_');
       if (start == -1) return null;
       final tsStr = name.substring(start + 5).replaceAll('.db', '');
-      // 还原 ISO 8601 格式：日期部分的 - 保留，时间部分的 - 替换为 :
       if (tsStr.length >= 16) {
         final datePart = tsStr.substring(0, 10);
         final timePart = tsStr.substring(11).replaceAll('-', ':');
-        return DateTime.tryParse('${datePart}T$timePart');
+      return DateTime.tryParse('${datePart}T$timePart');
       }
       return null;
     } catch (_) {
