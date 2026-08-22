@@ -9,6 +9,7 @@ import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/backup_service.dart';
 import '../utils/constants.dart';
+import '../utils/helpers.dart';
 import '../utils/webdav_helper.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_section_label.dart';
@@ -65,6 +66,8 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isConfigured = ref.watch(webDavConfiguredProvider);
+    final lastError = ref.watch(lastAutoBackupErrorProvider);
+    final lastSummary = ref.watch(lastAutoBackupSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -73,6 +76,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          // ── ADR-0011: 自动备份状态 banner ──
+          if (lastError != null)
+            _buildErrorBanner(context, l10n, lastError)
+          else if (lastSummary != null)
+            _buildSummaryBanner(context, l10n, lastSummary),
           // ── 说明卡片 ──
           AppSectionLabel(title: l10n.instructions, icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
@@ -319,6 +327,142 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// ADR-0011: 上次备份失败 banner
+  Widget _buildErrorBanner(BuildContext context, AppLocalizations l10n, AutoBackupError err) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCritical = err.consecutiveCount >= 3;
+    final bgColor = isCritical
+        ? (isDark ? const Color(0xFF5C2D1A) : const Color(0xFFFFEBE0))
+        : (isDark ? const Color(0xFF4D4A2A) : const Color(0xFFFFF8E1));
+    final iconColor = isCritical ? Colors.orange : Colors.amber.shade700;
+    final timeStr = Helpers.formatTime(err.occurredAt);
+    final titleText = isCritical
+        ? l10n.autoBackupConsecutiveFailures(err.consecutiveCount)
+        : l10n.autoBackupFailedBanner(timeStr);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(
+            color: iconColor.withValues(alpha: 0.4),
+            width: 0.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(isCritical ? Icons.error_outline : Icons.warning_amber_rounded,
+                    size: 18, color: iconColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    titleText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              err.reason.isEmpty
+                  ? l10n.autoBackupErrorUnknownReason
+                  : err.reason,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white70 : Colors.black54,
+                height: 1.4,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (isCritical) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () {
+                    // ADR-1: ignore: use_build_context_synchronously
+                    _fullSyncToCloud();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: Text(l10n.autoBackupRetry,
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {
+                      // 跳到本页（本页就是配置页）
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: Text(l10n.autoBackupGoSettings,
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ADR-0011: 上次备份成功 summary banner
+  Widget _buildSummaryBanner(BuildContext context, AppLocalizations l10n, AutoBackupSummary summary) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final timeStr = Helpers.formatTime(summary.completedAt);
+    final stats = l10n.autoBackupSummaryUploadedN(
+      summary.uploadedImages,
+      summary.uploadedBytes,
+      summary.skippedImages,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1F3A2D) : const Color(0xFFE7F6EC),
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(
+            color: (isDark ? const Color(0xFF2E5340) : const Color(0xFFCFE3D6)),
+            width: 0.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 16, color: isDark ? const Color(0xFF7CC397) : const Color(0xFF3F8556)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.autoBackupSummaryRecent(timeStr, stats),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

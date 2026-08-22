@@ -715,6 +715,48 @@ class AppLocalizationsZh extends AppLocalizations {
   String tagsMoreCount(int count) {
     return '+$count';
   }
+
+  @override
+  String autoBackupFailedBanner(Object time) {
+    return '自动备份失败 ($time)';
+  }
+
+  @override
+  String get autoBackupFailedDetail => '详情';
+
+  @override
+  String autoBackupConsecutiveFailures(Object count) {
+    return '已连续 $count 次备份失败，建议检查 WebDAV 配置';
+  }
+
+  @override
+  String get autoBackupRetry => '立即重试';
+
+  @override
+  String get autoBackupGoSettings => '去设置';
+
+  @override
+  String get autoBackupClearError => '忽略';
+
+  @override
+  String get autoBackupErrorUnknownReason => '(未知原因)';
+
+  @override
+  String get autoBackupErrorTimestampFormat => 'HH:mm';
+
+  @override
+  String autoBackupSummaryRecent(Object stats, Object time) {
+    return '上次备份 ($time) - $stats';
+  }
+
+  @override
+  String autoBackupSummaryUploadedN(
+    Object bytes,
+    Object images,
+    Object skipped,
+  ) {
+    return '上传 $images 张图 ($bytes 字节)，跳过 $skipped 张';
+  }
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1427,5 +1469,47 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   @override
   String tagsMoreCount(int count) {
     return '+$count';
+  }
+
+  @override
+  String autoBackupFailedBanner(Object time) {
+    return '自動備份失敗 ($time)';
+  }
+
+  @override
+  String get autoBackupFailedDetail => '詳情';
+
+  @override
+  String autoBackupConsecutiveFailures(Object count) {
+    return '已連續 $count 次備份失敗，建議檢查 WebDAV 設定';
+  }
+
+  @override
+  String get autoBackupRetry => '立即重試';
+
+  @override
+  String get autoBackupGoSettings => '去設定';
+
+  @override
+  String get autoBackupClearError => '忽略';
+
+  @override
+  String get autoBackupErrorUnknownReason => '(未知原因)';
+
+  @override
+  String get autoBackupErrorTimestampFormat => 'HH:mm';
+
+  @override
+  String autoBackupSummaryRecent(Object stats, Object time) {
+    return '上次備份 ($time) - $stats';
+  }
+
+  @override
+  String autoBackupSummaryUploadedN(
+    Object bytes,
+    Object images,
+    Object skipped,
+  ) {
+    return '上傳 $images 張圖 ($bytes 位元組)，跳過 $skipped 張';
   }
 }

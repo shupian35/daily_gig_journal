@@ -180,4 +180,7 @@ class Helpers {
 
   /// 获取当前时间字符串
   static String nowTimeString() => _timeFormatter.format(DateTime.now());
+
+  /// 格式化时间为 HH:mm
+  static String formatTime(DateTime time) => _timeFormatter.format(time);
 }

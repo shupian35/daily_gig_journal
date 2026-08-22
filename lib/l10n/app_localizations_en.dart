@@ -734,4 +734,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String tagsMoreCount(int count) {
     return '+$count';
   }
+
+  @override
+  String autoBackupFailedBanner(Object time) {
+    return 'Auto-backup failed at $time';
+  }
+
+  @override
+  String get autoBackupFailedDetail => 'Details';
+
+  @override
+  String autoBackupConsecutiveFailures(Object count) {
+    return 'Auto-backup failed $count times in a row. Check WebDAV config.';
+  }
+
+  @override
+  String get autoBackupRetry => 'Retry now';
+
+  @override
+  String get autoBackupGoSettings => 'Settings';
+
+  @override
+  String get autoBackupClearError => 'Dismiss';
+
+  @override
+  String get autoBackupErrorUnknownReason => '(unknown reason)';
+
+  @override
+  String get autoBackupErrorTimestampFormat => 'HH:mm';
+
+  @override
+  String autoBackupSummaryRecent(Object stats, Object time) {
+    return 'Last backup at $time - $stats';
+  }
+
+  @override
+  String autoBackupSummaryUploadedN(
+    Object bytes,
+    Object images,
+    Object skipped,
+  ) {
+    return 'uploaded $images images ($bytes bytes), skipped $skipped';
+  }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/work_entry_repository.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/settings_service.dart';
 import '../utils/webdav_helper.dart';
 
 /// Auto-backup period's collected change set (ADR-0010).
@@ -229,12 +230,43 @@ class BackupService {
         consecutiveCount: (prev?.consecutiveCount ?? 0) + 1,
       );
       container.read(lastAutoBackupErrorProvider.notifier).state = err;
+      await _persistError(err);
       return;
     }
 
-    // Success: write summary, clear error.
+    // Success: write summary, clear error, persist (ADR-0011 cross-restart).
     container.read(lastAutoBackupSummaryProvider.notifier).state = summary;
     container.read(lastAutoBackupErrorProvider.notifier).state = null;
+    await _persistSummary(summary);
+    await _clearPersistedError();
+  }
+
+  /// ADR-0011: Persist summary so the banner survives app restart.
+  static Future<void> _persistSummary(AutoBackupSummary summary) async {
+    await SettingsService.saveString(
+        keyLastAutoBackupAt, summary.completedAt.toIso8601String());
+    await SettingsService.saveInt(
+        keyLastAutoBackupUploadedImages, summary.uploadedImages);
+    await SettingsService.saveInt(
+        keyLastAutoBackupSkippedImages, summary.skippedImages);
+    await SettingsService.saveInt(
+        keyLastAutoBackupUploadedBytes, summary.uploadedBytes);
+  }
+
+  /// ADR-0011: Persist error so the banner survives app restart.
+  static Future<void> _persistError(AutoBackupError err) async {
+    await SettingsService.saveString(
+        keyLastAutoBackupErrorAt, err.occurredAt.toIso8601String());
+    await SettingsService.saveString(keyLastAutoBackupErrorReason, err.reason);
+    await SettingsService.saveInt(
+        keyLastAutoBackupErrorConsecutiveCount, err.consecutiveCount);
+  }
+
+  /// Clear persisted error keys after a successful backup.
+  static Future<void> _clearPersistedError() async {
+    await SettingsService.remove(keyLastAutoBackupErrorAt);
+    await SettingsService.remove(keyLastAutoBackupErrorReason);
+    await SettingsService.remove(keyLastAutoBackupErrorConsecutiveCount);
   }
 
   /// Resolve relative path (e.g. images/img_x.png) to local absolute path under appDocsDir.
@@ -334,6 +366,51 @@ class BackupService {
       return null;
     } catch (_) {
       return null;
+    }
+  }
+
+  /// ADR-0011: 应用启动时从 SharedPreferences 恢复上次备份状态 (summary + error).
+  /// 调用方在 settings_provider.loadSettings 内统一调入.
+  static Future<void> loadInitial(dynamic container) async {
+    // Summary
+    final atStr = await SettingsService.loadString(keyLastAutoBackupAt, '');
+    if (atStr.isNotEmpty) {
+      final at = DateTime.tryParse(atStr);
+      if (at != null) {
+        final uploaded = await SettingsService.loadInt(
+            keyLastAutoBackupUploadedImages, 0);
+        final skipped = await SettingsService.loadInt(
+            keyLastAutoBackupSkippedImages, 0);
+        final bytes = await SettingsService.loadInt(
+            keyLastAutoBackupUploadedBytes, 0);
+        container.read(lastAutoBackupSummaryProvider.notifier).state =
+            AutoBackupSummary(
+          completedAt: at,
+          uploadedImages: uploaded,
+          skippedImages: skipped,
+          uploadedDrafts: 0,
+          uploadedBytes: bytes,
+          dbUploaded: true,
+        );
+      }
+    }
+    // Error
+    final errAtStr =
+        await SettingsService.loadString(keyLastAutoBackupErrorAt, '');
+    if (errAtStr.isNotEmpty) {
+      final at = DateTime.tryParse(errAtStr);
+      if (at != null) {
+        final reason = await SettingsService.loadString(
+            keyLastAutoBackupErrorReason, '');
+        final count = await SettingsService.loadInt(
+            keyLastAutoBackupErrorConsecutiveCount, 1);
+        container.read(lastAutoBackupErrorProvider.notifier).state =
+            AutoBackupError(
+          occurredAt: at,
+          reason: reason,
+          consecutiveCount: count,
+        );
+      }
     }
   }
 }

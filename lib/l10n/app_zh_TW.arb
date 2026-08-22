@@ -297,4 +297,15 @@
       "count": {"type": "int"}
     }
   }
+,
+  "autoBackupFailedBanner": "自動備份失敗 ({time})",
+  "autoBackupFailedDetail": "詳情",
+  "autoBackupConsecutiveFailures": "已連續 {count} 次備份失敗，建議檢查 WebDAV 設定",
+  "autoBackupRetry": "立即重試",
+  "autoBackupGoSettings": "去設定",
+  "autoBackupClearError": "忽略",
+  "autoBackupErrorUnknownReason": "(未知原因)",
+  "autoBackupErrorTimestampFormat": "HH:mm",
+  "autoBackupSummaryRecent": "上次備份 ({time}) - {stats}",
+  "autoBackupSummaryUploadedN": "上傳 {images} 張圖 ({bytes} 位元組)，跳過 {skipped} 張"
 }
