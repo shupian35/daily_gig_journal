@@ -297,4 +297,38 @@
       "count": {"type": "int"}
     }
   }
+,
+  "autoBackupFailedBanner": "Auto-backup failed at {time}",
+  "@autoBackupFailedBanner": {
+    "placeholders": {
+      "time": {"type": "Object"}
+    }
+  },
+  "autoBackupFailedDetail": "Details",
+  "autoBackupConsecutiveFailures": "Auto-backup failed {count} times in a row. Check WebDAV config.",
+  "@autoBackupConsecutiveFailures": {
+    "placeholders": {
+      "count": {"type": "Object"}
+    }
+  },
+  "autoBackupRetry": "Retry now",
+  "autoBackupGoSettings": "Settings",
+  "autoBackupClearError": "Dismiss",
+  "autoBackupErrorUnknownReason": "(unknown reason)",
+  "autoBackupErrorTimestampFormat": "HH:mm",
+  "autoBackupSummaryRecent": "Last backup at {time} - {stats}",
+  "@autoBackupSummaryRecent": {
+    "placeholders": {
+      "time": {"type": "Object"},
+      "stats": {"type": "Object"}
+    }
+  },
+  "autoBackupSummaryUploadedN": "uploaded {images} images ({bytes} bytes), skipped {skipped}",
+  "@autoBackupSummaryUploadedN": {
+    "placeholders": {
+      "images": {"type": "Object"},
+      "bytes": {"type": "Object"},
+      "skipped": {"type": "Object"}
+    }
+  }
 }

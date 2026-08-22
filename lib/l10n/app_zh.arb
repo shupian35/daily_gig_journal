@@ -312,4 +312,15 @@
       "count": {"type": "int"}
     }
   }
+,
+  "autoBackupFailedBanner": "自动备份失败 ({time})",
+  "autoBackupFailedDetail": "详情",
+  "autoBackupConsecutiveFailures": "已连续 {count} 次备份失败，建议检查 WebDAV 配置",
+  "autoBackupRetry": "立即重试",
+ "autoBackupGoSettings": "去设置",
+  "autoBackupClearError": "忽略",
+  "autoBackupErrorUnknownReason": "(未知原因)",
+  "autoBackupErrorTimestampFormat": "HH:mm",
+  "autoBackupSummaryRecent": "上次备份 ({time}) - {stats}",
+  "autoBackupSummaryUploadedN": "上传 {images} 张图 ({bytes} 字节)，跳过 {skipped} 张"
 }
