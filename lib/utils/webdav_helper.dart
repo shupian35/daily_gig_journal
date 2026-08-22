@@ -87,6 +87,55 @@ class WebDavHelper {
     }
   }
 
+  /// 确保备份子目录下某个子目录存在（如 images/ 或 drafts/），不存在则创建
+  /// [subDir] 相对 backupSubDir 的子路径，如 'images' / 'drafts' / 'trashed'
+  Future<WebDavResult> ensureSubDir(String subDir) async {
+    try {
+      // 先确保父级备份目录存在
+      final parentResult = await ensureBackupDir();
+      if (!parentResult.isSuccess) return parentResult;
+
+      final subUrl = '$_backupPath/$subDir/';
+      // PROPFIND 检查子目录是否存在
+      final checkRequest = http.Request('PROPFIND', Uri.parse(subUrl))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '0';
+      final checkResp = await _send(checkRequest);
+      if (checkResp.statusCode == 207) {
+        return const WebDavResult.success('子目录已存在');
+      }
+      // 不存在则 MKCOL
+      final mkcolRequest = http.Request('MKCOL', Uri.parse(subUrl))
+        ..headers.addAll(_headers);
+      final mkcolResp = await _send(mkcolRequest);
+      if (mkcolResp.statusCode == 201 || mkcolResp.statusCode == 405) {
+        return const WebDavResult.success('子目录已创建');
+      }
+      if (mkcolResp.statusCode == 401 || mkcolResp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      return WebDavResult.error('创建子目录失败 (HTTP ${mkcolResp.statusCode})');
+    } on SocketException {
+      return const WebDavResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavResult.error('创建子目录失败: $e');
+    }
+  }
+
+  /// HEAD 探测文件是否存在
+  /// 返回 true 表示存在（200/204），false 表示不存在（404）或网络失败
+  Future<bool> headFile(String remoteRelativePath) async {
+    try {
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('HEAD', Uri.parse(url))
+        ..headers.addAll(_headers);
+      final resp = await _send(request);
+      return resp.statusCode == 200 || resp.statusCode == 204 || resp.statusCode == 207;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// 创建备份子目录 (MKCOL)
   Future<WebDavResult> _createBackupDir() async {
     try {
@@ -213,6 +262,91 @@ class WebDavHelper {
       return const WebDavResult.error('网络连接失败，请检查网络');
     } catch (e) {
       return WebDavResult.error('上传失败: $e');
+    }
+  }
+
+  /// 直接上传字节流到备份子目录 (ADR-0010 增量备份)。
+  /// [remoteRelativePath] 相对 backupSubDir 的路径, 如 'images/img_x.png' 或 'daily_gig_journal.db'。
+  Future<WebDavResult> uploadBytes(
+    List<int> bytes,
+    String remoteRelativePath,
+  ) async {
+    try {
+      final dirResult = await ensureBackupDir();
+      if (!dirResult.isSuccess) return dirResult;
+
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('PUT', Uri.parse(url))
+        ..headers.addAll(_headers)
+        ..bodyBytes = bytes;
+      final resp = await _send(request);
+      if (resp.statusCode == 201 ||
+          resp.statusCode == 200 ||
+          resp.statusCode == 204) {
+        return const WebDavResult.success('上传成功');
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      if (resp.statusCode == 507) {
+        return const WebDavResult.error('云盘空间不足');
+      }
+      return WebDavResult.error('上传失败 (HTTP ${resp.statusCode})');
+    } on SocketException {
+      return const WebDavResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavResult.error('上传失败: $e');
+    }
+  }
+
+  /// 下载文件到字节 (ADR-0010 软删除用)。
+  /// [remoteRelativePath] 相对 backupSubDir 的路径。
+  Future<WebDavBytesResult> downloadFileToBytes(String remoteRelativePath) async {
+    try {
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('GET', Uri.parse(url))
+        ..headers.addAll(_headers);
+      final resp = await _send(request);
+      if (resp.statusCode == 200) {
+        if (resp.bodyBytes.isEmpty) {
+          return const WebDavBytesResult.error('下载的文件为空');
+        }
+        return WebDavBytesResult.success(resp.bodyBytes);
+      }
+      if (resp.statusCode == 404) {
+        return const WebDavBytesResult.error('文件不存在');
+      }
+      return WebDavBytesResult.error('下载失败 (HTTP ${resp.statusCode})');
+    } catch (e) {
+      return WebDavBytesResult.error('下载失败: $e');
+    }
+  }
+
+  /// 列出指定子目录的文件 (ADR-0010 增量备份用)。
+  /// [subDir] 相对 backupSubDir 的子目录, 如 'images' / 'drafts' / 'trashed'。
+  Future<WebDavListResult> listFilesInSubDir(String subDir) async {
+    try {
+      final subUrl = '$_backupPath/$subDir/';
+      final request = http.Request('PROPFIND', Uri.parse(subUrl))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '1';
+      final resp = await _send(request);
+      if (resp.statusCode == 404) {
+        return const WebDavListResult.success([]);
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavListResult.error('认证失败，请检查账号和密码');
+      }
+      if (resp.statusCode == 207) {
+        final files = await _listFilesInDir(subUrl, '');
+        files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+        return WebDavListResult.success(files);
+      }
+      return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
+    } on SocketException {
+      return const WebDavListResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavListResult.error('列出文件失败: $e');
     }
   }
 
@@ -533,4 +667,17 @@ class WebDavFileInfo {
       return lastModified;
     }
   }
+}
+
+/// 下载字节结果 (公开, 供 BackupService 软删除使用)
+class WebDavBytesResult {
+  final bool isSuccess;
+  final List<int>? bytes;
+  final String? errorMessage;
+  const WebDavBytesResult.success(this.bytes)
+      : isSuccess = true,
+        errorMessage = null;
+  const WebDavBytesResult.error(this.errorMessage)
+      : isSuccess = false,
+        bytes = null;
 }
