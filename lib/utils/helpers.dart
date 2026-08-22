@@ -145,6 +145,39 @@ class Helpers {
     return '${datePart}_$randomPart.png';
   }
 
+  /// 图片绝对路径 → 相对名 `images/<basename>`
+  /// 若输入已经是相对名（不含路径分隔符），原样返回
+  /// 不验证文件存在性——纯字符串变换，调用方负责落盘
+  static String imageRelPath(String absPath) {
+    if (absPath.isEmpty) return absPath;
+    // 已经以 images/ 开头 → 视作相对名
+    if (absPath.startsWith('images/')) return absPath;
+    // 含路径分隔符 → 取 basename 重写
+    if (absPath.contains('/') || absPath.contains(r'\')) {
+      return 'images/${p.basename(absPath)}';
+    }
+    // 纯文件名 → 同样归一为 images/<basename>
+    return 'images/$absPath';
+  }
+
+  /// 图片相对名 `images/<basename>` → 绝对路径（基于应用文档目录）
+  /// 跨设备恢复场景：appDocsDir 路径可能变化，但 images/ 子目录稳定
+  static Future<String> imageAbsPath(String relPath) async {
+    final appDir = await getApplicationDocumentsDirectory();
+    // 已是绝对路径（含盘符或以 / 开头）→ 原样返回
+    if (relPath.contains(r'\') || relPath.startsWith('/')) {
+      return relPath;
+    }
+    return p.join(appDir.path, relPath);
+  }
+
+  /// 草稿文件名 → 相对名 `drafts/<basename>`
+  static String draftRelPath(String fileName) {
+    if (fileName.isEmpty) return fileName;
+    if (fileName.startsWith('drafts/')) return fileName;
+    return 'drafts/${p.basename(fileName)}';
+  }
+
   /// 获取当前时间字符串
   static String nowTimeString() => _timeFormatter.format(DateTime.now());
 }

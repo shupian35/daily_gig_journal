@@ -83,5 +83,54 @@ void main() {
         expect(Helpers.formatHours(0), '0h');
       });
     });
+
+    group('ADR-0009 相对路径化', () {
+      test('imageRelPath: 绝对路径 → images/<basename>', () {
+        expect(
+          Helpers.imageRelPath('/data/user/0/com.example/files/img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+        expect(
+          Helpers.imageRelPath(r'C:\Users\me\AppData\images\img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 已经是 images/<basename> 则原样返回', () {
+        expect(
+          Helpers.imageRelPath('images/img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 纯文件名归一为 images/<basename>', () {
+        expect(
+          Helpers.imageRelPath('img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 空字符串原样返回', () {
+        expect(Helpers.imageRelPath(''), '');
+      });
+
+      test('draftRelPath: 文件名 → drafts/<basename>', () {
+        expect(
+          Helpers.draftRelPath('draft_2025-06-14_000001.json'),
+          'drafts/draft_2025-06-14_000001.json',
+        );
+      });
+
+      test('draftRelPath: 已经是 drafts/<basename> 则原样返回', () {
+        expect(
+          Helpers.draftRelPath('drafts/draft_2025-06-14_000001.json'),
+          'drafts/draft_2025-06-14_000001.json',
+        );
+      });
+
+      test('draftRelPath: 空字符串原样返回', () {
+        expect(Helpers.draftRelPath(''), '');
+      });
+    });
   });
 }

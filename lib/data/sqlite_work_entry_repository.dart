@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
@@ -17,7 +18,7 @@ import 'work_entry_repository.dart';
 class SqliteWorkEntryRepository implements WorkEntryRepository {
   // ── Schema 常量（以前散在 DatabaseHelper） ──
   static const String _tableName = 'work_notes';
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
 
   static const String _colId = 'id';
   static const String _colDate = 'date';
@@ -151,6 +152,67 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       await db.execute(
         "ALTER TABLE $_tableName ADD COLUMN $_colTags TEXT DEFAULT ''",
       );
+    }
+    if (oldVersion < 6) {
+      // ADR-0009：把 note_content 里 image 字段的绝对路径改写为相对名
+      // images/<basename>。仅 basename 匹配 generateImageFileName 规则才重写，
+      // 第三方手动修改的 JSON 保留原值显示坏图（不强行迁移）。
+      await _migrateNoteContentPaths(db);
+    }
+  }
+
+  /// v5 → v6 一次性迁移：note_content 中 image 字段绝对路径 → 相对名
+  /// 仅 basename 匹配 /^img_\d{4}-\d{2}-\d{2}_\d{6}\.png$/ 才重写
+  Future<void> _migrateNoteContentPaths(Database db) async {
+    final rows = await db.query(_tableName, columns: [_colId, _colNoteContent]);
+    for (final row in rows) {
+      final id = row[_colId] as int;
+      final content = (row[_colNoteContent] as String?) ?? '[]';
+      final migrated = _rewriteImagePathsInDelta(content);
+      if (migrated != content) {
+        await db.update(
+          _tableName,
+          {_colNoteContent: migrated},
+          where: '$_colId = ?',
+          whereArgs: [id],
+        );
+      }
+    }
+  }
+
+  /// 把 Quill Delta JSON 中 image 字段的绝对路径重写为相对名 `images/<basename>`
+  /// 仅 basename 匹配 generateImageFileName 规则才重写，
+  /// 第三方手动修改的 JSON 保留原值显示坏图（不强行迁移）。
+  /// 返回修改后的 JSON；无变化返回原文
+  static String _rewriteImagePathsInDelta(String deltaJson) {
+    try {
+      final List<dynamic> ops = jsonDecode(deltaJson);
+      bool changed = false;
+      final whiteList = RegExp(r'^img_\d{4}-\d{2}-\d{2}_\d{6}\.png$');
+      for (final op in ops) {
+        if (op is! Map) continue;
+        final insert = op['insert'];
+        if (insert is! Map) continue;
+        if (!insert.containsKey('image')) continue;
+        final v = insert['image'];
+        if (v is! String) continue;
+        // 已经是相对名 → 跳过
+        if (v.startsWith('images/')) continue;
+        // 判定为绝对路径
+        final isAbsolute = v.contains('/data/') ||
+            v.contains('/storage/') ||
+            v.contains('/private/var/') ||
+            v.contains('/var/mobile/') ||
+            v.contains(r'\'); // Windows 绝对路径
+        if (!isAbsolute) continue;
+        final base = p.basename(v);
+        if (!whiteList.hasMatch(base)) continue;
+        insert['image'] = 'images/$base';
+        changed = true;
+      }
+      return changed ? jsonEncode(ops) : deltaJson;
+    } catch (_) {
+      return deltaJson;
     }
   }
 
@@ -612,4 +674,10 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
     await _db?.close();
     _db = null;
   }
+
+  /// 仅供测试使用：把 Quill Delta JSON 中 image 字段的绝对路径重写为相对名
+  /// `images/<basename>`。详见 [_rewriteImagePathsInDelta]。
+  @visibleForTesting
+  static String debugRewriteImagePathsForTest(String deltaJson) =>
+      _rewriteImagePathsInDelta(deltaJson);
 }
