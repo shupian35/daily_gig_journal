@@ -78,6 +78,37 @@ void main() {
       });
     });
 
+    group('parseDavLastModified', () {
+      test('parses RFC1123 HTTP-date returned by PROPFIND getlastmodified', () {
+        final dt = BackupService.parseDavLastModified(
+          'Mon, 14 Jun 2026 08:30:00 GMT',
+        );
+        expect(dt, isNotNull);
+        final utc = dt!.toUtc();
+        expect(utc.year, 2026);
+        expect(utc.month, 6);
+        expect(utc.day, 14);
+        expect(utc.hour, 8);
+        expect(utc.minute, 30);
+      });
+
+      test('regression: DateTime.parse throws on HTTP-date, parser succeeds', () {
+        const raw = 'Mon, 14 Jun 2026 08:30:00 GMT';
+        expect(() => DateTime.parse(raw), throwsFormatException);
+        expect(BackupService.parseDavLastModified(raw), isNotNull);
+      });
+
+      test('returns null on empty or unparseable input', () {
+        expect(BackupService.parseDavLastModified(''), isNull);
+        expect(BackupService.parseDavLastModified('not-a-date'), isNull);
+        // ISO 8601 不被 HttpDate 接受（这正是旧实现的 bug 根源）。
+        expect(
+          BackupService.parseDavLastModified('2026-06-14T08:30:00'),
+          isNull,
+        );
+      });
+    });
+
     group('cloud DB name constant', () {
       test('uses fixed overwrite name daily_gig_journal.db', () {
         expect(BackupService.cloudDbName, 'daily_gig_journal.db');

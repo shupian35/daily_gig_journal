@@ -298,14 +298,23 @@ class BackupService {
       if (!list.isSuccess) return;
       final cutoff = DateTime.now().subtract(const Duration(days: 30));
       for (final f in list.files) {
-        try {
-          final lm = DateTime.parse(f.lastModified);
-          if (lm.isBefore(cutoff)) {
-            await helper.deleteFile('$trashedSubDir/${f.name}');
-          }
-        } catch (_) {}
+        final lm = parseDavLastModified(f.lastModified);
+        if (lm == null || !lm.isBefore(cutoff)) continue;
+        await helper.deleteFile('$trashedSubDir/${f.name}');
       }
     } catch (_) {}
+  }
+
+  /// 解析 WebDAV PROPFIND 返回的 getlastmodified 值（RFC 1123 HTTP-date，
+  /// 如 `Mon, 14 Jun 2026 08:30:00 GMT`）为本地时间；无法解析返回 null。
+  /// 注意不能用 [DateTime.parse]：它只接受 ISO 8601。
+  @visibleForTesting
+  static DateTime? parseDavLastModified(String raw) {
+    try {
+      return HttpDate.parse(raw).toLocal();
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Record image insert (UI calls this).
