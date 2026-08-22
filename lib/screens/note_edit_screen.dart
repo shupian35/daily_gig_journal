@@ -316,6 +316,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final destPath = p.join(imagesDir.path, fileName);
       await File(sourcePath).copy(destPath);
 
+      // ADR-0009：Delta JSON 中只存相对名 "images/<basename>"，跨设备恢复稳定
+      final relPath = Helpers.imageRelPath(destPath);
+
       final selection = _quillController.selection;
       final offset = (selection.isValid && selection.baseOffset >= 0)
           ? selection.baseOffset
@@ -324,7 +327,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       _quillController.replaceText(
         offset,
         0,
-        quill.BlockEmbed.image(destPath),
+        quill.BlockEmbed.image(relPath),
         null,
       );
 
@@ -738,9 +741,21 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Widget _buildImageList() {
+    return FutureBuilder<List<String>>(
+      future: _collectAllImages(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final rels = _collectAllImageRelPaths();
+        return _renderImagePanel(rels, snapshot.data!);
+      },
+    );
+  }
+
+  Widget _renderImagePanel(List<String> rels, List<String> images) {
     final l10n = AppLocalizations.of(context)!;
-    final images = _collectAllImages();
-    if (images.isEmpty) return const SizedBox.shrink();
+    if (images.isEmpty || rels.isEmpty) return const SizedBox.shrink();
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -832,7 +847,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                         top: 3,
                         right: 3,
                         child: GestureDetector(
-                          onTap: () => _removeImageFromDocument(images[index]),
+                          onTap: () => _removeImageFromDocument(rels[index]),
                           child: Container(
                             width: 20,
                             height: 20,
@@ -856,21 +871,35 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     );
   }
 
-  List<String> _collectAllImages() {
-    final images = <String>[];
+  /// 收集 Delta JSON 中所有图片的相对名（ADR-0009 后约定存 `images/<basename>`）
+  /// 返回顺序与 Quill 编辑器中顺序一致
+  List<String> _collectAllImageRelPaths() {
+    final rels = <String>[];
     try {
       final deltaJson = _quillController.document.toDelta().toJson();
       for (final op in deltaJson) {
         final insert = op['insert'];
         if (insert is Map && insert.containsKey('image')) {
-          images.add(insert['image'] as String);
+          rels.add(insert['image'] as String);
         }
       }
     } catch (_) {}
-    return images;
+    return rels;
   }
 
-  void _removeImageFromDocument(String imagePath) {
+  /// 收集图片对应的绝对路径列表（用于文件加载 / 删除）
+  /// 单次扫 Delta 后批量转绝对路径，比每个文件单独 IO 更省
+  Future<List<String>> _collectAllImages() async {
+    final rels = _collectAllImageRelPaths();
+    final abs = <String>[];
+    for (final rel in rels) {
+      abs.add(await Helpers.imageAbsPath(rel));
+    }
+    return abs;
+  }
+
+  /// 从 Delta 中删除给定相对名的图片嵌入（ADR-0009：Delta JSON 中只存相对名）
+  void _removeImageFromDocument(String relPath) {
     try {
       final delta = _quillController.document.toDelta();
       final ops = delta.toJson();
@@ -878,7 +907,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       for (final op in ops) {
         final imgInsert = op['insert'];
         if (imgInsert is Map && imgInsert.containsKey('image')) {
-          if (imgInsert['image'] == imagePath) {
+          if (imgInsert['image'] == relPath) {
             _quillController.replaceText(offset, 2, '', null);
             setState(() {});
             return;
