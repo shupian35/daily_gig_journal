@@ -6,12 +6,11 @@ import 'dart:ui' as ui show Image, ImageByteFormat, instantiateImageCodec;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../l10n/app_localizations.dart';
-import '../services/backup_service.dart';
+import '../services/resource_store.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'drawing_data.dart';
@@ -422,14 +421,9 @@ class _DrawingScreenState extends State<DrawingScreen> {
         strokes: _strokes.toList(),
         layers: layersForDraft,
       );
-      final draftsDir = await _getDraftsDir();
-      final fileName = 'draft_${Helpers.generateImageFileName().replaceAll('.png', '.json')}';
-      final filePath = p.join(draftsDir.path, fileName);
-      final fileNameRel = 'drafts/${p.basename(fileName)}';
-      // ADR-0010: notify BackupService for draft upload.
-      // ignore: use_build_context_synchronously
-      BackupService.trackDraftUpload(ProviderScope.containerOf(context), fileNameRel);
-      await draft.saveToFile(filePath);
+      // 资源写入接缝（候选 A）：落盘 + 变更集上报收口到 store；
+      // containerOf 劫持已集中在 ResourceStore.of 一处
+      await ResourceStore.of(context).saveDraft(draft);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.draftSaved), duration: const Duration(seconds: 1)),

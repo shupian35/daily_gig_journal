@@ -1,9 +1,9 @@
+import 'dart:async' show unawaited;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
@@ -15,7 +15,7 @@ import '../widgets/image_file_embed_builder.dart';
 import '../providers/notes_provider.dart';
 import '../providers/entry_coordinator.dart';
 import '../providers/settings_provider.dart';
-import '../services/backup_service.dart';
+import '../services/resource_store.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 
@@ -312,13 +312,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   Future<void> _insertImageToNote(String sourcePath) async {
     final l10n = AppLocalizations.of(context)!;
     try {
-      final imagesDir = await Helpers.getImagesDirectory();
-      final fileName = 'img_${Helpers.generateImageFileName()}';
-      final destPath = p.join(imagesDir.path, fileName);
-      await File(sourcePath).copy(destPath);
-
-      // ADR-0009：Delta JSON 中只存相对名 "images/<basename>"，跨设备恢复稳定
-      final relPath = Helpers.imageRelPath(destPath);
+      // 资源写入接缝（候选 A）：落盘 + 变更集上报都是 store 内部副作用
+      final relPath =
+          await ref.read(resourceStoreProvider).saveImage(File(sourcePath));
 
       final selection = _quillController.selection;
       final offset = (selection.isValid && selection.baseOffset >= 0)
@@ -340,8 +336,6 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           ),
         );
       }
-      // ADR-0010: 通知 BackupService 把该图片加入下次上传队列
-      BackupService.trackImageUpload(ref, relPath);
     } catch (e) {
       _showError('${l10n.insertImageFailed}: $e');
     }
@@ -912,8 +906,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         if (imgInsert is Map && imgInsert.containsKey('image')) {
           if (imgInsert['image'] == relPath) {
             _quillController.replaceText(offset, 2, '', null);
-            // ADR-0010: notify BackupService for soft delete.
-            BackupService.trackImageTrash(ref, relPath);
+            // 资源写入接缝（候选 A）：文件删除 + trash 上报收口到 store
+            unawaited(ref.read(resourceStoreProvider).removeImage(relPath));
             setState(() {});
             return;
           }

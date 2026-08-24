@@ -606,11 +606,12 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       }
     }
 
-    // 2. 写入变更集 (覆盖式 full sync)
-    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
-      imagesToUpload: allImages,
-      draftsToUpload: allDrafts,
-    );
+    // 2. merge 进变更集（候选 A）：上传集取并集，pending trash 条目原样保留，
+    //    不做覆盖式赋值——软删除不得因全量同步静默丢失
+    ref.read(backupChangeSetProvider.notifier).mergeForFullSync(
+          imagesToUpload: allImages,
+          draftsToUpload: allDrafts,
+        );
 
     // 3. 触发自动备份
     await BackupService.autoBackup(container);

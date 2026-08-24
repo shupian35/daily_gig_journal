@@ -25,6 +25,21 @@ class BackupChangeSet {
       draftsToUpload.isEmpty &&
       imagesToTrash.isEmpty &&
       draftsToTrash.isEmpty;
+
+  /// 复制并替换部分集合（merge/标记类操作的基础）。
+  BackupChangeSet copyWith({
+    Set<String>? imagesToUpload,
+    Set<String>? draftsToUpload,
+    Set<String>? imagesToTrash,
+    Set<String>? draftsToTrash,
+  }) {
+    return BackupChangeSet(
+      imagesToUpload: imagesToUpload ?? this.imagesToUpload,
+      draftsToUpload: draftsToUpload ?? this.draftsToUpload,
+      imagesToTrash: imagesToTrash ?? this.imagesToTrash,
+      draftsToTrash: draftsToTrash ?? this.draftsToTrash,
+    );
+  }
 }
 
 /// ADR-0011: auto-backup summary on success.
@@ -59,10 +74,46 @@ class AutoBackupError {
   });
 }
 
+/// 变更集的类型化写入口（ADR-0010）。资源接缝（[ResourceStore]）在落盘后
+/// 调用 markXxx 上报；全量同步用 [mergeForFullSync]，禁止覆盖式赋值。
+class BackupChangeSetNotifier extends Notifier<BackupChangeSet> {
+  @override
+  BackupChangeSet build() => const BackupChangeSet();
+
+  void markImageUpload(String relPath) =>
+      state = state.copyWith(imagesToUpload: {...state.imagesToUpload, relPath});
+
+  void markDraftUpload(String relPath) =>
+      state = state.copyWith(draftsToUpload: {...state.draftsToUpload, relPath});
+
+  void markImageTrash(String relPath) =>
+      state = state.copyWith(imagesToTrash: {...state.imagesToTrash, relPath});
+
+  void markDraftTrash(String relPath) =>
+      state = state.copyWith(draftsToTrash: {...state.draftsToTrash, relPath});
+
+  /// 手动"备份到云盘"的 merge 语义：上传集 = 已有 pending ∪ 本次扫描结果，
+  /// trash 条目原样保留（软删除不得因全量同步而静默丢失）。
+  /// 调用方扫描的是磁盘现状，理论上已包含 pending upload；取并集是防御
+  /// 扫描与标记并发交错。
+  void mergeForFullSync({
+    required Set<String> imagesToUpload,
+    required Set<String> draftsToUpload,
+  }) {
+    state = state.copyWith(
+      imagesToUpload: {...state.imagesToUpload, ...imagesToUpload},
+      draftsToUpload: {...state.draftsToUpload, ...draftsToUpload},
+    );
+  }
+
+  /// autoBackup 成功取走变更集后清空。
+  void reset() => state = const BackupChangeSet();
+}
+
 /// Change set tracking provider (ADR-0010).
-final backupChangeSetProvider = StateProvider<BackupChangeSet>((ref) {
-  return const BackupChangeSet();
-});
+final backupChangeSetProvider =
+    NotifierProvider<BackupChangeSetNotifier, BackupChangeSet>(
+        BackupChangeSetNotifier.new);
 
 /// ADR-0011: last successful summary.
 final lastAutoBackupSummaryProvider =
@@ -119,7 +170,7 @@ class BackupService {
       final localDbPath = await repo.filePath();
 
       final changes = container.read(backupChangeSetProvider);
-      container.read(backupChangeSetProvider.notifier).state = const BackupChangeSet();
+      container.read(backupChangeSetProvider.notifier).reset();
 
       // 1. Ensure sub directories exist.
       for (final sub in [imagesSubDir, draftsSubDir, trashedSubDir]) {
@@ -289,50 +340,6 @@ class BackupService {
     } catch (_) {
       return null;
     }
-  }
-
-  /// Record image insert (UI calls this).
-  static void trackImageUpload(dynamic ref, String relPath) {
-    final cur = ref.read(backupChangeSetProvider);
-    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
-      imagesToUpload: {...cur.imagesToUpload, relPath},
-      draftsToUpload: cur.draftsToUpload,
-      imagesToTrash: cur.imagesToTrash,
-      draftsToTrash: cur.draftsToTrash,
-    );
-  }
-
-  /// Record draft save.
-  static void trackDraftUpload(dynamic ref, String relPath) {
-    final cur = ref.read(backupChangeSetProvider);
-    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
-      imagesToUpload: cur.imagesToUpload,
-      draftsToUpload: {...cur.draftsToUpload, relPath},
-      imagesToTrash: cur.imagesToTrash,
-      draftsToTrash: cur.draftsToTrash,
-    );
-  }
-
-  /// Record image delete (soft-delete).
-  static void trackImageTrash(dynamic ref, String relPath) {
-    final cur = ref.read(backupChangeSetProvider);
-    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
-      imagesToUpload: cur.imagesToUpload,
-      draftsToUpload: cur.draftsToUpload,
-      imagesToTrash: {...cur.imagesToTrash, relPath},
-      draftsToTrash: cur.draftsToTrash,
-    );
-  }
-
-  /// Record draft delete.
-  static void trackDraftTrash(dynamic ref, String relPath) {
-    final cur = ref.read(backupChangeSetProvider);
-    ref.read(backupChangeSetProvider.notifier).state = BackupChangeSet(
-      imagesToUpload: cur.imagesToUpload,
-      draftsToUpload: cur.draftsToUpload,
-      imagesToTrash: cur.imagesToTrash,
-      draftsToTrash: {...cur.draftsToTrash, relPath},
-    );
   }
 
   /// ADR-0011: 应用启动时从 SharedPreferences 恢复上次备份状态 (summary + error).
