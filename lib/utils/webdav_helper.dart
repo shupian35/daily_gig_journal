@@ -15,10 +15,20 @@ class WebDavHelper {
   /// 备份文件存放的子目录
   static const backupSubDir = 'daily_gig_journal';
 
+  /// ADR-0010 固定名云端数据库文件
+  static const cloudDbName = 'daily_gig_journal.db';
+
+  /// ADR-0010 布局子目录
+  static const adr0010SubDirs = ['images', 'drafts', 'trashed'];
+
+  /// 可注入的 HTTP 客户端（仅测试用）；为空时内部自建并在请求后关闭
+  final http.Client? httpClient;
+
   WebDavHelper({
     required this.serverUrl,
     required this.username,
     required this.password,
+    this.httpClient,
   });
 
   /// 构建基础 URL（去掉尾部斜杠）
@@ -43,12 +53,13 @@ class WebDavHelper {
 
   /// 发送 HTTP 请求并返回响应，自动管理客户端生命周期
   Future<http.Response> _send(http.BaseRequest request) async {
-    final client = http.Client();
+    final client = httpClient ?? http.Client();
+    final owned = httpClient == null;
     try {
       final streamed = await client.send(request);
       return await http.Response.fromStream(streamed);
     } finally {
-      client.close();
+      if (owned) client.close();
     }
   }
 
@@ -338,7 +349,7 @@ class WebDavHelper {
         return const WebDavListResult.error('认证失败，请检查账号和密码');
       }
       if (resp.statusCode == 207) {
-        final files = await _listFilesInDir(subUrl, '');
+        final files = await _listFilesInDir(subUrl);
         files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
         return WebDavListResult.success(files);
       }
@@ -412,8 +423,10 @@ class WebDavHelper {
     }
   }
 
-  /// 列出备份目录中的文件
-  Future<WebDavListResult> listFiles({String prefix = 'daily_gig_backup'}) async {
+  /// 列出云端 ADR-0010 布局资源（§6 只显示新格式资源）：
+  /// 固定名 [cloudDbName] + images/ + drafts/ + trashed/ 子目录内容。
+  /// 旧前缀 daily_gig_backup_* 与根目录 fallback 已废弃，不再列出。
+  Future<WebDavListResult> listFiles() async {
     try {
       // PROPFIND 备份子目录（带尾部斜杠）
       final request = http.Request('PROPFIND', Uri.parse(_backupDirUrl))
@@ -429,20 +442,23 @@ class WebDavHelper {
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         return const WebDavListResult.error('认证失败，请检查账号和密码');
       }
-
-      if (resp.statusCode == 207) {
-        var files = await _listFilesInDir(_backupDirUrl, prefix);
-
-        // 如果子目录为空，也检查根目录（兼容旧版本备份）
-        if (files.isEmpty) {
-          files = await _listFilesInDir(_baseUrl, prefix);
-        }
-
-        files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
-        return WebDavListResult.success(files);
+      if (resp.statusCode != 207) {
+        return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
       }
 
-      return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
+      // 根目录只保留固定名 DB
+      final files = await _listFilesInDir(_backupDirUrl)
+        ..retainWhere((f) => f.name == cloudDbName);
+
+      // 子目录资源（images / drafts / trashed）
+      for (final sub in adr0010SubDirs) {
+        final r = await listFilesInSubDir(sub);
+        if (!r.isSuccess) return WebDavListResult.error(r.errorMessage!);
+        files.addAll(r.files);
+      }
+
+      files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+      return WebDavListResult.success(files);
     } on SocketException {
       return const WebDavListResult.error('网络连接失败');
     } catch (e) {
@@ -451,10 +467,7 @@ class WebDavHelper {
   }
 
   /// PROPFIND 指定目录并解析文件列表
-  Future<List<WebDavFileInfo>> _listFilesInDir(
-    String dirUrl,
-    String prefix,
-  ) async {
+  Future<List<WebDavFileInfo>> _listFilesInDir(String dirUrl) async {
     try {
       final url = dirUrl.endsWith('/') ? dirUrl : '$dirUrl/';
       final request = http.Request('PROPFIND', Uri.parse(url))
@@ -491,7 +504,6 @@ class WebDavHelper {
         final isCollection = href.endsWith('/');
 
         if (isCollection || name.isEmpty) continue;
-        if (prefix.isNotEmpty && !name.startsWith(prefix)) continue;
 
         files.add(WebDavFileInfo(
           name: name,

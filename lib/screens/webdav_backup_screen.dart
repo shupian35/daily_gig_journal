@@ -242,7 +242,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isRestoring || !isConfigured
                           ? null
-                          : _showRestoreFilePicker,
+                          : _confirmAndRestore,
                       icon: _isRestoring
                           ? const SizedBox(
                               width: 16,
@@ -616,37 +616,13 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     await BackupService.autoBackup(container);
   }
 
-  Future<void> _showRestoreFilePicker() async {
-    if (!mounted) return;
-    final helper = _buildHelper();
-
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) => _CloudFileListSheet(
-        helper: helper,
-        onFileSelected: (file) {
-          Navigator.pop(sheetCtx);
-          _restoreSelectedFile(file);
-        },
-      ),
-    );
-  }
-
-  Future<void> _restoreSelectedFile(WebDavFileInfo file) async {
+  Future<void> _confirmAndRestore() async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirmRestore),
-        content: Text(
-          '即将从云盘恢复 DB：\n\n${file.name}\n'
-          '${file.formattedSize}  |  ${file.formattedDate}\n\n'
-          '${l10n.confirmRestoreDialogContent}',
-        ),
+        content: Text(l10n.confirmRestoreDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -663,7 +639,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() {
       _isRestoring = true;
@@ -671,204 +647,28 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      // ADR-0010: 恢复从 daily_gig_journal.db (固定名) 下载
       final repo = ref.read(workEntryRepositoryProvider);
       final dbPath = await repo.filePath();
-      final helper = _buildHelper();
-      final result = await helper.downloadFile('daily_gig_journal.db', dbPath);
+      // ADR-0010: 云端唯一可恢复对象是固定名 daily_gig_journal.db
+      final result = await BackupService.restoreFromCloud(
+        helper: _buildHelper(),
+        localDbPath: dbPath,
+      );
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showOpStatus(
-        result.isSuccess
-            ? l10n.restoreSuccessCloud
-            : result.message,
-        error: !result.isSuccess,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.isSuccess ? l10n.restoreSuccessCloud : '${l10n.restoreFailedCloud}: ${result.message}',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showOpStatus('${l10n.restoreFailedCloud}: $e', error: true);
-    }
-  }
-}
-
-class _CloudFileListSheet extends StatefulWidget {
-  final WebDavHelper helper;
-  final ValueChanged<WebDavFileInfo> onFileSelected;
-
-  const _CloudFileListSheet({
-    required this.helper,
-    required this.onFileSelected,
-  });
-
-  @override
-  State<_CloudFileListSheet> createState() => _CloudFileListSheetState();
-}
-
-class _CloudFileListSheetState extends State<_CloudFileListSheet> {
-  bool _loading = true;
-  String? _error;
-  List<WebDavFileInfo> _files = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchFiles();
-  }
-
-  Future<void> _fetchFiles() async {
-    final result = await widget.helper.listFiles();
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      if (result.isSuccess) {
-        _files = result.files;
-      } else {
-        _error = result.errorMessage ?? AppLocalizations.of(context)!.fetchFileListFailed;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      maxChildSize: 0.85,
-      minChildSize: 0.3,
-      expand: false,
-      builder: (ctx, scrollCtrl) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                AppLocalizations.of(context)!.selectBackupFile,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context)!.selectBackupFileSubtitle,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Divider(color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2)),
-              Expanded(child: _buildContent(scrollCtrl)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildContent(ScrollController scrollCtrl) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_loading) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(strokeWidth: 2),
-            const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.fetchingFileList,
-                style: const TextStyle(fontSize: 13, color: AppConstants.textSecondary)),
-          ],
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.restoreFailedCloud}: $e')),
       );
     }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 48,
-                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(_error!,
-                style: TextStyle(
-                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () {
-                setState(() { _loading = true; _error = null; });
-                _fetchFiles();
-              },
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: Text(AppLocalizations.of(context)!.retry),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_files.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_rounded, size: 48,
-                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.noBackupFiles,
-                style: TextStyle(
-                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      controller: scrollCtrl,
-      itemCount: _files.length,
-      itemBuilder: (_, i) {
-        final file = _files[i];
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            side: BorderSide(
-              color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-            ),
-          ),
-          color: isDark ? const Color(0xFF262630) : Colors.white,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: const Icon(Icons.insert_drive_file_outlined,
-                size: 22, color: AppConstants.primaryDark),
-            title: Text(file.name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              '${file.formattedSize}  |  ${file.formattedDate}',
-              style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
-            ),
-            trailing: const Icon(Icons.download_rounded,
-                size: 20, color: AppConstants.primaryDark),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            ),
-            onTap: () => widget.onFileSelected(file),
-          ),
-        );
-      },
-    );
   }
 }

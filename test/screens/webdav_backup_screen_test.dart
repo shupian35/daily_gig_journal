@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
+import 'package:daily_gig_journal/providers/settings_provider.dart';
 import 'package:daily_gig_journal/screens/webdav_backup_screen.dart';
 import 'package:daily_gig_journal/services/backup_service.dart';
 
@@ -80,5 +81,44 @@ void main() {
     // summary text contains 'uploaded 5 images'
     expect(find.textContaining('5'), findsWidgets);
     expect(find.textContaining('12'), findsWidgets);
+  });
+
+  testWidgets('restore button opens confirmation dialog, cancel does nothing',
+      (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          webDavUrlProvider.overrideWith((ref) => 'https://dav.example.com'),
+          webDavUsernameProvider.overrideWith((ref) => 'user'),
+          webDavPasswordProvider.overrideWith((ref) => 'pass'),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          locale: const Locale('zh'),
+          home: const WebDavBackupScreen(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(seconds: 2));
+
+    // 滚动到恢复按钮并点击
+    await tester.scrollUntilVisible(
+      find.byIcon(Icons.cloud_download_rounded),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byIcon(Icons.cloud_download_rounded));
+    await tester.pumpAndSettle();
+
+    // 确认对话框出现（ADR-0010：不再有云端文件列表 sheet）
+    // 「确认恢复」同时是标题与按钮文案
+    expect(find.text('\u786e\u8ba4\u6062\u590d'), findsNWidgets(2));
+    expect(find.byType(BottomSheet), findsNothing);
+
+    // 取消 → 不触发恢复
+    await tester.tap(find.text('\u53d6\u6d88'));
+    await tester.pumpAndSettle();
+    expect(find.text('\u786e\u8ba4\u6062\u590d'), findsNothing);
   });
 }

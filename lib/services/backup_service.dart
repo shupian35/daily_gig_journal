@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../data/work_entry_repository.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
 import '../services/settings_service.dart';
@@ -85,43 +84,18 @@ class BackupService {
   /// Old API kept for backwards compatibility (Q4 decision: throttling moved to EntryCoordinator).
   static const int autoBackupRetentionDays = 30;
 
-  static Future<String> getDbPath(WorkEntryRepository repo) async => repo.filePath();
-
-  static Future<void> safeOverwrite({
-    required String sourcePath,
-    required String targetPath,
+  /// 云端恢复（ADR-0010）：云端唯一可恢复对象是固定名 [cloudDbName]。
+  /// 先 HEAD 校验存在，再下载并用 [WebDavHelper.downloadFile] 已有的
+  /// .bak/.restore 安全覆写语义覆写本地数据库，返回结果供 UI 提示。
+  static Future<WebDavResult> restoreFromCloud({
+    required WebDavHelper helper,
+    required String localDbPath,
   }) async {
-    final target = File(targetPath);
-    final bakPath = '$targetPath.bak';
-    if (await target.exists()) {
-      await target.copy(bakPath);
+    final exists = await helper.headFile(cloudDbName);
+    if (!exists) {
+      return const WebDavResult.error('云盘上未找到 daily_gig_journal.db，无法恢复喵~');
     }
-    try {
-      await File(sourcePath).copy(targetPath);
-    } catch (e) {
-      final bak = File(bakPath);
-      if (await bak.exists()) {
-        await bak.copy(targetPath);
-      }
-      rethrow;
-    }
-  }
-
-  static Future<String> backupToLocalFile(WorkEntryRepository repo) async {
-    final db = await repo.filePath();
-    final file = File(db);
-    if (!await file.exists()) {
-      throw Exception('database file missing');
-    }
-    final tempDir = Directory.systemTemp;
-    final timestamp = DateTime.now()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .substring(0, 19);
-    final backupName = 'daily_gig_backup_$timestamp.db';
-    final backupPath = '${tempDir.path}/$backupName';
-    await file.copy(backupPath);
-    return backupPath;
+    return helper.downloadFile(cloudDbName, localDbPath);
   }
 
   static WebDavHelper buildWebDavHelper(ProviderContainer container) {
@@ -359,23 +333,6 @@ class BackupService {
       imagesToTrash: cur.imagesToTrash,
       draftsToTrash: {...cur.draftsToTrash, relPath},
     );
-  }
-
-  /// Old API kept for backup_service_test.dart.
-  static DateTime? parseTimestampFromName(String name) {
-    try {
-      final start = name.indexOf('auto_');
-      if (start == -1) return null;
-      final tsStr = name.substring(start + 5).replaceAll('.db', '');
-      if (tsStr.length >= 16) {
-        final datePart = tsStr.substring(0, 10);
-        final timePart = tsStr.substring(11).replaceAll('-', ':');
-      return DateTime.tryParse('${datePart}T$timePart');
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
   }
 
   /// ADR-0011: 应用启动时从 SharedPreferences 恢复上次备份状态 (summary + error).
