@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../l10n/app_localizations.dart';
+import '../providers/entry_coordinator.dart';
 import '../providers/notes_provider.dart';
 import '../utils/constants.dart';
 import '../widgets/app_card.dart';
@@ -51,22 +52,23 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     if (newName == null || newName.isEmpty || newName == oldName) return;
     setState(() => _working = true);
     try {
-      final repo = ref.read(workEntryRepositoryProvider);
-      final changed =
-          await repo.renameTag(from: oldName, to: newName);
+      final changed = await ref
+          .read(entryCoordinatorProvider.notifier)
+          .renameTag(from: oldName, to: newName);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.tagsCount(changed))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-            backgroundColor: AppConstants.dangerRed,
-          ),
-        );
+        if (changed >= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.tagsCount(changed))),
+          );
+        } else {
+          final err = ref.read(entryCoordinatorProvider).error;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$err'),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _working = false);
@@ -123,21 +125,23 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     if (confirmed != true) return;
     setState(() => _working = true);
     try {
-      final repo = ref.read(workEntryRepositoryProvider);
-      await repo.mergeTag(from: from, to: target);
+      final changed = await ref
+          .read(entryCoordinatorProvider.notifier)
+          .mergeTag(from: from, to: target);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.tagsCount(count))),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-            backgroundColor: AppConstants.dangerRed,
-          ),
-        );
+        if (changed >= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.tagsCount(count))),
+          );
+        } else {
+          final err = ref.read(entryCoordinatorProvider).error;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$err'),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _working = false);
@@ -169,21 +173,23 @@ class _TagsScreenState extends ConsumerState<TagsScreen> {
     if (confirmed != true) return;
     setState(() => _working = true);
     try {
-      final repo = ref.read(workEntryRepositoryProvider);
-      await repo.deleteTag(tag);
+      final changed = await ref
+          .read(entryCoordinatorProvider.notifier)
+          .deleteTag(tag);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.deleted)),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$e'),
-            backgroundColor: AppConstants.dangerRed,
-          ),
-        );
+        if (changed >= 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.deleted)),
+          );
+        } else {
+          final err = ref.read(entryCoordinatorProvider).error;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$err'),
+              backgroundColor: AppConstants.dangerRed,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _working = false);

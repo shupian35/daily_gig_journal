@@ -1,5 +1,6 @@
 import 'dart:async' show StreamSubscription, unawaited;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/work_entry_change.dart';
@@ -22,6 +23,10 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
   bool _isBackupRunning = false;
   DateTime? _lastBackupCompletedAt;
   StreamSubscription<WorkEntryChange>? _watchSub;
+
+  /// 测试钩子：非空时替代 [BackupService.autoBackup]，供测试断言备份被触发。
+  @visibleForTesting
+  static Future<void> Function(ProviderContainer container)? backupHook;
 
   @override
   AsyncValue<void> build() {
@@ -72,7 +77,12 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
 
   Future<void> _runBackup() async {
     try {
-      await BackupService.autoBackup(ref.container);
+      final hook = backupHook;
+      if (hook != null) {
+        await hook(ref.container);
+      } else {
+        await BackupService.autoBackup(ref.container);
+      }
     } finally {
       _isBackupRunning = false;
       _lastBackupCompletedAt = DateTime.now();
@@ -108,6 +118,56 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
       state = const AsyncData<void>(null);
     } catch (e, st) {
       state = AsyncError<void>(e, st);
+    }
+  }
+
+  /// 重命名 tag：[from] → [to]，透传 repo 动词并触发自动备份。
+  ///
+  /// SQL 执行仍归 repository（ADR-0008 bulk-mutation-over-tags），
+  /// coordinator 只负责调用编排 + 备份触发。
+  /// 返回受影响行数；失败以 `AsyncError` 流转（与 save/delete 一致，不抛出），
+  /// 此时返回 -1 供调用方区分。
+  Future<int> renameTag({required String from, required String to}) async {
+    state = AsyncLoading<void>().copyWithPrevious(state);
+    try {
+      final repo = ref.read(workEntryRepositoryProvider);
+      final changed = await repo.renameTag(from: from, to: to);
+      _tryAutoBackup();
+      state = const AsyncData<void>(null);
+      return changed;
+    } catch (e, st) {
+      state = AsyncError<void>(e, st);
+      return -1;
+    }
+  }
+
+  /// 删除 tag。错误处理与 [renameTag] 相同；返回 -1 表示失败。
+  Future<int> deleteTag(String tag) async {
+    state = AsyncLoading<void>().copyWithPrevious(state);
+    try {
+      final repo = ref.read(workEntryRepositoryProvider);
+      final changed = await repo.deleteTag(tag);
+      _tryAutoBackup();
+      state = const AsyncData<void>(null);
+      return changed;
+    } catch (e, st) {
+      state = AsyncError<void>(e, st);
+      return -1;
+    }
+  }
+
+  /// 合并 tag：[from] → [to]。错误处理与 [renameTag] 相同；返回 -1 表示失败。
+  Future<int> mergeTag({required String from, required String to}) async {
+    state = AsyncLoading<void>().copyWithPrevious(state);
+    try {
+      final repo = ref.read(workEntryRepositoryProvider);
+      final changed = await repo.mergeTag(from: from, to: to);
+      _tryAutoBackup();
+      state = const AsyncData<void>(null);
+      return changed;
+    } catch (e, st) {
+      state = AsyncError<void>(e, st);
+      return -1;
     }
   }
 }
