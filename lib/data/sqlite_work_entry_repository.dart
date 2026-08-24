@@ -205,7 +205,9 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
             v.contains('/var/mobile/') ||
             v.contains(r'\'); // Windows 绝对路径
         if (!isAbsolute) continue;
-        final base = p.basename(v);
+        // 平台无关 basename：Windows 反斜杠路径在非 Windows 平台上
+        // p.basename 不切分，改写会静默失效
+        final base = v.split(RegExp(r'[/\\]')).last;
         if (!whiteList.hasMatch(base)) continue;
         insert['image'] = 'images/$base';
         changed = true;

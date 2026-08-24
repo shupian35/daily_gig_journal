@@ -145,6 +145,10 @@ class Helpers {
     return '${datePart}_$randomPart.png';
   }
 
+  /// 平台无关的 basename：同时切分 / 与 \（Windows 路径在非 Windows 平台
+  /// 上 p.basename 不切反斜杠，导致 ADR-0009 改写失效）
+  static String _anySepBasename(String path) => path.split(RegExp(r'[/\\]')).last;
+
   /// 图片绝对路径 → 相对名 `images/<basename>`
   /// 若输入已经是相对名（不含路径分隔符），原样返回
   /// 不验证文件存在性——纯字符串变换，调用方负责落盘
@@ -154,7 +158,7 @@ class Helpers {
     if (absPath.startsWith('images/')) return absPath;
     // 含路径分隔符 → 取 basename 重写
     if (absPath.contains('/') || absPath.contains(r'\')) {
-      return 'images/${p.basename(absPath)}';
+      return 'images/${_anySepBasename(absPath)}';
     }
     // 纯文件名 → 同样归一为 images/<basename>
     return 'images/$absPath';
@@ -175,7 +179,7 @@ class Helpers {
   static String draftRelPath(String fileName) {
     if (fileName.isEmpty) return fileName;
     if (fileName.startsWith('drafts/')) return fileName;
-    return 'drafts/${p.basename(fileName)}';
+    return 'drafts/${_anySepBasename(fileName)}';
   }
 
   /// 获取当前时间字符串
