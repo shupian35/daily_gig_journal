@@ -582,10 +582,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     }
   }
 
-  /// 手动"备份到云盘"按钮：把本地所有图片/草稿塞入变更集, 触发增量上传
+  /// 手动"备份到云盘"按钮：把本地所有图片/草稿塞入变更集, 触发增量上传。
+  /// 走 backupServiceProvider 实例入口——与自动备份共用同一运行中互斥
+  /// （架构审查候选 D），不再 containerOf 直调静态方法。
   Future<void> _fullSyncToCloud() async {
-    // 提前抓取 containerOf 以避免 use_build_context_synchronously 警告
-    final container = ProviderScope.containerOf(context);
+    final service = ref.read(backupServiceProvider);
     final repo = ref.read(workEntryRepositoryProvider);
     final dbPath = await repo.filePath();
     final appDocsDir = dbPath.substring(0, dbPath.lastIndexOf('/'));
@@ -613,8 +614,9 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           draftsToUpload: allDrafts,
         );
 
-    // 3. 触发自动备份
-    await BackupService.autoBackup(container);
+    // 3. 触发备份（互斥在 service 内部：自动备份进行中时本次直接跳过）
+    final run = service.runAutoBackup();
+    await run.completion;
   }
 
   Future<void> _confirmAndRestore() async {

@@ -70,34 +70,51 @@ void main() {
       });
     });
 
-    group('parseDavLastModified', () {
-      test('parses RFC1123 HTTP-date returned by PROPFIND getlastmodified', () {
-        final dt = BackupService.parseDavLastModified(
-          'Mon, 14 Jun 2026 08:30:00 GMT',
+    group('WebDavFileInfo.lastModified (HTTP-date 协议细节归位 WebDavHelper)', () {
+      test('parses RFC1123 HTTP-date into typed local DateTime', () {
+        final f = WebDavFileInfo(
+          name: 'old.png',
+          href: '/dav/daily_gig_journal/trashed/old.png',
+          size: 10,
+          lastModified: 'Mon, 14 Jun 2026 08:30:00 GMT',
         );
-        expect(dt, isNotNull);
-        final utc = dt!.toUtc();
+        expect(f.lastModified, isNotNull);
+        final utc = f.lastModified!.toUtc();
         expect(utc.year, 2026);
         expect(utc.month, 6);
         expect(utc.day, 14);
         expect(utc.hour, 8);
         expect(utc.minute, 30);
+        // formattedDate 基于类型化时间，不再二次解析
+        expect(f.formattedDate, contains('2026'));
       });
 
-      test('regression: DateTime.parse throws on HTTP-date, parser succeeds', () {
+      test('regression: DateTime.parse throws on HTTP-date, typed field succeeds',
+          () async {
         const raw = 'Mon, 14 Jun 2026 08:30:00 GMT';
         expect(() => DateTime.parse(raw), throwsFormatException);
-        expect(BackupService.parseDavLastModified(raw), isNotNull);
+        final f = WebDavFileInfo(
+          name: 'a.png',
+          href: '/x/a.png',
+          size: 1,
+          lastModified: raw,
+        );
+        expect(f.lastModified, isNotNull);
       });
 
-      test('returns null on empty or unparseable input', () {
-        expect(BackupService.parseDavLastModified(''), isNull);
-        expect(BackupService.parseDavLastModified('not-a-date'), isNull);
-        // ISO 8601 不被 HttpDate 接受（这正是旧实现的 bug 根源）。
-        expect(
-          BackupService.parseDavLastModified('2026-06-14T08:30:00'),
-          isNull,
-        );
+      test('unparseable or empty input yields null and formattedDate falls back',
+          () {
+        for (final raw in ['', 'not-a-date', '2026-06-14T08:30:00']) {
+          // ISO 8601 不被 HttpDate 接受（这正是旧实现的 bug 根源）。
+          final f = WebDavFileInfo(
+            name: 'a.png',
+            href: '/x/a.png',
+            size: 1,
+            lastModified: raw,
+          );
+          expect(f.lastModified, isNull, reason: 'raw=$raw');
+          expect(f.formattedDate, raw.isEmpty ? '' : raw);
+        }
       });
     });
 

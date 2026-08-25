@@ -124,16 +124,70 @@ final lastAutoBackupErrorProvider =
     StateProvider<AutoBackupError?>((ref) => null);
 
 /// Unified backup service (ADR-0010 incremental + ADR-0011 observability).
+///
+/// 架构审查候选 D：由静态过程 + 服务定位器签名改为实例化深模块。
+/// 依赖经构造器注入（helperFactory / localDbPathResolver / clock），
+/// Riverpod provider 见 [backupServiceProvider]。
+/// 「运行中互斥」是实例状态（[runAutoBackup] 的 Future 锁），手动全量
+/// 同步与自动备份共用同一入口；节流窗口仍在 EntryCoordinator。
 class BackupService {
-  BackupService._();
+  /// WebDAV 客户端工厂。每次运行新建一个 helper；
+  /// 测试注入携带 fake transport 的工厂。
+  final WebDavHelper Function() _helperFactory;
+
+  /// 本地数据库绝对路径解析器（其所在目录即应用文档目录，ADR-0009 相对路径基准）。
+  final Future<String> Function() _localDbPathResolver;
+
+  /// 时钟注入（summary 时间戳 + trashed 清理 cutoff），测试可固定。
+  final DateTime Function() _clock;
+
+  /// 设置开关与变更集/横幅状态的读取入口。
+  final ProviderContainer _container;
+
+  BackupService({
+    required ProviderContainer container,
+    WebDavHelper Function()? helperFactory,
+    Future<String> Function()? localDbPathResolver,
+    DateTime Function()? clock,
+  })  : _container = container,
+        _helperFactory = helperFactory ??
+            (() => WebDavHelper(
+                  serverUrl: container.read(webDavUrlProvider),
+                  username: container.read(webDavUsernameProvider),
+                  password: container.read(webDavPasswordProvider),
+                )),
+        _localDbPathResolver = localDbPathResolver ??
+            (() => container.read(workEntryRepositoryProvider).filePath()),
+        _clock = clock ?? DateTime.now;
 
   static const String cloudDbName = 'daily_gig_journal.db';
   static const String imagesSubDir = 'images';
   static const String draftsSubDir = 'drafts';
   static const String trashedSubDir = 'trashed';
 
-  /// Old API kept for backwards compatibility (Q4 decision: throttling moved to EntryCoordinator).
   static const int autoBackupRetentionDays = 30;
+
+  // ==================== 运行中互斥（候选 D 下沉到 service） ====================
+
+  Future<void>? _active;
+
+  AutoBackupRun runAutoBackup() {
+    final active = _active;
+    if (active != null) {
+      return AutoBackupRun(started: false, completion: active);
+    }
+    final done = _execute();
+    _active = done;
+    return AutoBackupRun(started: true, completion: done);
+  }
+
+  Future<void> _execute() async {
+    try {
+      await _doAutoBackup();
+    } finally {
+      _active = null;
+    }
+  }
 
   /// 云端恢复（ADR-0010）：云端唯一可恢复对象是固定名 [cloudDbName]。
   /// 先 HEAD 校验存在，再下载并用 [WebDavHelper.downloadFile] 已有的
@@ -149,28 +203,19 @@ class BackupService {
     return helper.downloadFile(cloudDbName, localDbPath);
   }
 
-  static WebDavHelper buildWebDavHelper(ProviderContainer container) {
-    return WebDavHelper(
-      serverUrl: container.read(webDavUrlProvider),
-      username: container.read(webDavUsernameProvider),
-      password: container.read(webDavPasswordProvider),
-    );
-  }
-
   /// Auto-backup: incremental upload of DB + images/ + drafts/ changes + soft-delete (ADR-0010).
-  static Future<void> autoBackup(dynamic container) async {
+  Future<void> _doAutoBackup() async {
     AutoBackupSummary? summary;
     try {
-      final enabled = container.read(autoBackupProvider);
-      final configured = container.read(webDavConfiguredProvider);
+      final enabled = _container.read(autoBackupProvider);
+      final configured = _container.read(webDavConfiguredProvider);
       if (!enabled || !configured) return;
 
-      final helper = buildWebDavHelper(container);
-      final repo = container.read(workEntryRepositoryProvider);
-      final localDbPath = await repo.filePath();
+      final helper = _helperFactory();
+      final localDbPath = await _localDbPathResolver();
 
-      final changes = container.read(backupChangeSetProvider);
-      container.read(backupChangeSetProvider.notifier).reset();
+      final changes = _container.read(backupChangeSetProvider);
+      _container.read(backupChangeSetProvider.notifier).reset();
 
       // 1. Ensure sub directories exist.
       for (final sub in [imagesSubDir, draftsSubDir, trashedSubDir]) {
@@ -240,7 +285,7 @@ class BackupService {
       await _cleanupTrashed(helper);
 
       summary = AutoBackupSummary(
-        completedAt: DateTime.now(),
+        completedAt: _clock(),
         uploadedImages: uploadedImages,
         skippedImages: skippedImages,
         uploadedDrafts: uploadedDrafts,
@@ -248,20 +293,20 @@ class BackupService {
         dbUploaded: dbUploaded,
       );
     } catch (e) {
-      final prev = container.read(lastAutoBackupErrorProvider);
+      final prev = _container.read(lastAutoBackupErrorProvider);
       final err = AutoBackupError(
-        occurredAt: DateTime.now(),
+        occurredAt: _clock(),
         reason: e.toString(),
         consecutiveCount: (prev?.consecutiveCount ?? 0) + 1,
       );
-      container.read(lastAutoBackupErrorProvider.notifier).state = err;
+      _container.read(lastAutoBackupErrorProvider.notifier).state = err;
       await _persistError(err);
       return;
     }
 
     // Success: write summary, clear error, persist (ADR-0011 cross-restart).
-    container.read(lastAutoBackupSummaryProvider.notifier).state = summary;
-    container.read(lastAutoBackupErrorProvider.notifier).state = null;
+    _container.read(lastAutoBackupSummaryProvider.notifier).state = summary;
+    _container.read(lastAutoBackupErrorProvider.notifier).state = null;
     await _persistSummary(summary);
     await _clearPersistedError();
   }
@@ -316,35 +361,29 @@ class BackupService {
     } catch (_) {}
   }
 
-  /// Clean up trashed/ older than 30 days.
-  static Future<void> _cleanupTrashed(WebDavHelper helper) async {
+  /// Clean up trashed/ older than 30 days（消费 [WebDavFileInfo.lastModified]
+  /// 类型化时间；解析失败的条目视为未过期，不动）。
+  Future<void> _cleanupTrashed(WebDavHelper helper) async {
     try {
       final list = await helper.listFilesInSubDir(trashedSubDir);
       if (!list.isSuccess) return;
-      final cutoff = DateTime.now().subtract(const Duration(days: 30));
+      final cutoff =
+          _clock().subtract(const Duration(days: autoBackupRetentionDays));
       for (final f in list.files) {
-        final lm = parseDavLastModified(f.lastModified);
+        final lm = f.lastModified;
         if (lm == null || !lm.isBefore(cutoff)) continue;
         await helper.deleteFile('$trashedSubDir/${f.name}');
       }
     } catch (_) {}
   }
 
-  /// 解析 WebDAV PROPFIND 返回的 getlastmodified 值（RFC 1123 HTTP-date，
-  /// 如 `Mon, 14 Jun 2026 08:30:00 GMT`）为本地时间；无法解析返回 null。
-  /// 注意不能用 [DateTime.parse]：它只接受 ISO 8601。
-  @visibleForTesting
-  static DateTime? parseDavLastModified(String raw) {
-    try {
-      return HttpDate.parse(raw).toLocal();
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// ADR-0011: 应用启动时从 SharedPreferences 恢复上次备份状态 (summary + error).
-  /// 调用方在 settings_provider.loadSettings 内统一调入.
-  static Future<void> loadInitial(dynamic container) async {
+  /// 调用方在 settings_provider.loadSettings 内统一调入。
+  /// 不再吃 container/ref：由调用方注入两个状态写入口。
+  static Future<void> loadInitial({
+    required void Function(AutoBackupSummary?) setSummary,
+    required void Function(AutoBackupError?) setError,
+  }) async {
     // Summary
     final atStr = await SettingsService.loadString(keyLastAutoBackupAt, '');
     if (atStr.isNotEmpty) {
@@ -356,15 +395,14 @@ class BackupService {
             keyLastAutoBackupSkippedImages, 0);
         final bytes = await SettingsService.loadInt(
             keyLastAutoBackupUploadedBytes, 0);
-        container.read(lastAutoBackupSummaryProvider.notifier).state =
-            AutoBackupSummary(
+        setSummary(AutoBackupSummary(
           completedAt: at,
           uploadedImages: uploaded,
           skippedImages: skipped,
           uploadedDrafts: 0,
           uploadedBytes: bytes,
           dbUploaded: true,
-        );
+        ));
       }
     }
     // Error
@@ -377,13 +415,28 @@ class BackupService {
             keyLastAutoBackupErrorReason, '');
         final count = await SettingsService.loadInt(
             keyLastAutoBackupErrorConsecutiveCount, 1);
-        container.read(lastAutoBackupErrorProvider.notifier).state =
-            AutoBackupError(
+        setError(AutoBackupError(
           occurredAt: at,
           reason: reason,
           consecutiveCount: count,
-        );
+        ));
       }
     }
   }
 }
+
+/// [BackupService.runAutoBackup] 的返回值：本次调用是否真正启动了备份
+/// （false = 已有备份在跑，被互斥跳过），以及该次运行的完成信号
+/// （跳过时即已在跑的那次的完成信号）。
+class AutoBackupRun {
+  final bool started;
+  final Future<void> completion;
+
+  const AutoBackupRun({required this.started, required this.completion});
+}
+
+/// 实例化 BackupService 的注入点。手动全量同步与自动备份共用同一实例，
+/// 因此共用其内部互斥。
+final backupServiceProvider = Provider<BackupService>((ref) {
+  return BackupService(container: ref.container);
+});

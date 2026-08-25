@@ -76,7 +76,10 @@ Future<void> loadSettings(WidgetRef ref) async {
       await SettingsService.loadBool(keyAutoBackup, false);
 
   // ADR-0011: load last auto-backup summary + error from SharedPreferences.
-  await BackupService.loadInitial(ref);
+  await BackupService.loadInitial(
+    setSummary: (s) => ref.read(lastAutoBackupSummaryProvider.notifier).state = s,
+    setError: (e) => ref.read(lastAutoBackupErrorProvider.notifier).state = e,
+  );
 
   // 加载语言设置
   final localeCode = await SettingsService.loadString(keyLocale, '');

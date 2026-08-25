@@ -350,7 +350,7 @@ class WebDavHelper {
       }
       if (resp.statusCode == 207) {
         final files = await _listFilesInDir(subUrl);
-        files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+        files.sort(_newestFirst);
         return WebDavListResult.success(files);
       }
       return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
@@ -457,7 +457,7 @@ class WebDavHelper {
         files.addAll(r.files);
       }
 
-      files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
+      files.sort(_newestFirst);
       return WebDavListResult.success(files);
     } on SocketException {
       return const WebDavListResult.error('网络连接失败');
@@ -465,6 +465,11 @@ class WebDavHelper {
       return WebDavListResult.error('列出文件失败: $e');
     }
   }
+
+  /// 按类型化时间新→旧排序（解析失败视为最旧，排最后）。
+  static int _newestFirst(WebDavFileInfo a, WebDavFileInfo b) =>
+      (b.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0));
 
   /// PROPFIND 指定目录并解析文件列表
   Future<List<WebDavFileInfo>> _listFilesInDir(String dirUrl) async {
@@ -646,19 +651,40 @@ class WebDavListResult {
         files = const [];
 }
 
-/// WebDAV 文件信息
+/// WebDAV 文件信息。
+///
+/// 协议层的 HTTP-date 表示细节（RFC 1123，如
+/// `Mon, 14 Jun 2026 08:30:00 GMT`）在此构造时一次性消化为类型化的
+/// [lastModified]；解析失败得 null。注意不能用 [DateTime.parse]：
+/// 它只接受 ISO 8601（这正是旧实现的 bug 根源）。
 class WebDavFileInfo {
   final String name;
   final String href;
   final int size;
-  final String lastModified;
 
-  const WebDavFileInfo({
+  /// PROPFIND getlastmodified 原始字符串（HTTP-date）。
+  final String lastModifiedRaw;
+
+  /// 类型化时间（本地时区）；原始串为空或不可解析时为 null。
+  final DateTime? lastModified;
+
+  WebDavFileInfo({
     required this.name,
     required this.href,
     required this.size,
-    required this.lastModified,
-  });
+    required String lastModified,
+  })  : lastModifiedRaw = lastModified,
+        lastModified = parseHttpDate(lastModified);
+
+  /// 解析 RFC 1123 HTTP-date 为本地时间；无法解析返回 null。
+  static DateTime? parseHttpDate(String raw) {
+    if (raw.isEmpty) return null;
+    try {
+      return HttpDate.parse(raw).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
 
   String get formattedSize {
     if (size < 1024) return '$size B';
@@ -666,18 +692,15 @@ class WebDavFileInfo {
     return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  /// 将 HTTP 日期格式转为中文本地时间显示
+  /// 将 [lastModified] 转为中文本地时间显示；
+  /// 解析失败时退回原始字符串。
   /// 输入：Mon, 14 Jun 2025 08:30:00 GMT
   /// 输出：2025年6月14日 16:30（本地时区）
   String get formattedDate {
-    try {
-      final utc = HttpDate.parse(lastModified);
-      final local = utc.toLocal();
-      final fmt = DateFormat('yyyy年M月d日 HH:mm');
-      return fmt.format(local);
-    } catch (_) {
-      return lastModified;
-    }
+    final local = lastModified;
+    if (local == null) return lastModifiedRaw;
+    final fmt = DateFormat('yyyy年M月d日 HH:mm');
+    return fmt.format(local);
   }
 }
 

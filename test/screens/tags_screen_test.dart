@@ -17,7 +17,7 @@ void main() {
 
   setUp(() {
     backupCalls = 0;
-    EntryCoordinator.backupHook = (_) async => backupCalls++;
+    EntryCoordinator.backupHook = () async => backupCalls++;
   });
 
   tearDown(() {

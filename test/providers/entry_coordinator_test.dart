@@ -75,7 +75,7 @@ void main() {
 
     setUp(() async {
       backupCalls = 0;
-      EntryCoordinator.backupHook = (_) async => backupCalls++;
+      EntryCoordinator.backupHook = () async => backupCalls++;
       repo = SqliteWorkEntryRepository();
       final dbPath = await repo.filePath();
       final file = File(dbPath);

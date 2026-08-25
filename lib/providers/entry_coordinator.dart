@@ -14,19 +14,21 @@ import '../services/backup_service.dart';
 /// 当前职责：
 ///   * 集中所有 save / delete mutation 入口
 ///   * build() 单一挂 `WorkEntryRepository.watch()` 订阅做派生缓存失效
-///   * 同步触发自动备份（fire-and-forget，leading-edge 30s 节流；见 ADR-0005）
+///   * 同步触发自动备份（fire-and-forget，leading-edge 5 分钟节流；见 ADR-0005/0010）
+///
+/// 「运行中互斥」已下沉到 [BackupService] 实例内部（架构审查候选 D）：
+/// 本类只管节流与触发，手动全量同步与自动备份共用 service 的同一互斥入口。
 class EntryCoordinator extends Notifier<AsyncValue<void>> {
   /// 自动备份 leading-edge 节流窗口。窗口从上次备份**完成**算起。
   /// ADR-0010 Q4: 单包开销小, 改 5 分钟。
   static const _backupThrottleWindow = Duration(minutes: 5);
 
-  bool _isBackupRunning = false;
   DateTime? _lastBackupCompletedAt;
   StreamSubscription<WorkEntryChange>? _watchSub;
 
-  /// 测试钩子：非空时替代 [BackupService.autoBackup]，供测试断言备份被触发。
+  /// 测试钩子：非空时替代 [BackupService.runAutoBackup]，供测试断言备份被触发。
   @visibleForTesting
-  static Future<void> Function(ProviderContainer container)? backupHook;
+  static Future<void> Function()? backupHook;
 
   @override
   AsyncValue<void> build() {
@@ -61,32 +63,30 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
   /// 自动备份：后台异步触发，不阻塞 save/delete 关键路径。
   ///
   /// 节流（leading-edge）：
-  ///   1) 有备份在跑 → 跳过；
-  ///   2) 最近 30s 内刚跑完 → 跳过；
-  ///   3) 否则发起新一次。失败被 [BackupService.autoBackup] 内部 try/catch 吞掉。
+  ///   1) 最近 5 分钟内刚跑完 → 跳过；
+  ///   2) 否则发起新一次。运行中互斥在 [BackupService] 实例内部：
+  ///      已有备份（含手动全量同步）在跑时第二次调用直接跳过，不排队不竞态。
+  ///      失败被 service 内部 try/catch 吞掉。
   void _tryAutoBackup() {
-    if (_isBackupRunning) return;
     final last = _lastBackupCompletedAt;
     if (last != null &&
         DateTime.now().difference(last) < _backupThrottleWindow) {
       return;
     }
-    _isBackupRunning = true;
     unawaited(_runBackup());
   }
 
   Future<void> _runBackup() async {
-    try {
-      final hook = backupHook;
-      if (hook != null) {
-        await hook(ref.container);
-      } else {
-        await BackupService.autoBackup(ref.container);
-      }
-    } finally {
-      _isBackupRunning = false;
+    final hook = backupHook;
+    if (hook != null) {
+      await hook();
       _lastBackupCompletedAt = DateTime.now();
+      return;
     }
+    final run = ref.read(backupServiceProvider).runAutoBackup();
+    if (!run.started) return; // 已有备份在跑，互斥跳过；节流时间戳不动
+    await run.completion;
+    _lastBackupCompletedAt = DateTime.now();
   }
 
   /// 保存或插入一个 WorkEntry。显式 add/update 不变式由接口保证。
