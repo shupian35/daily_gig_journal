@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:math';
 
+import 'note_delta_images.dart';
+
 /// 工具函数集合
 class Helpers {
   Helpers._();
@@ -138,11 +140,12 @@ class Helpers {
   }
 
   /// 生成唯一的图片文件名：日期_随机数.png
+  /// 格式与 NoteDeltaImages.managedImageBasenameRegExp 白名单共享常量，
+  /// 保证生成器与 v6 迁移白名单不漂移（调用方再加 img_/draw_ 等前缀）。
   static String generateImageFileName() {
     final now = DateTime.now();
-    final datePart = formatDate(now);
-    final randomPart = Random().nextInt(999999).toString().padLeft(6, '0');
-    return '${datePart}_$randomPart.png';
+    return '${NoteDeltaImages.imageDateRandBody(formatDate(now), Random().nextInt(999999))}'
+        '${NoteDeltaImages.managedImageExtension}';
   }
 
   /// 平台无关的 basename：同时切分 / 与 \（Windows 路径在非 Windows 平台
@@ -166,13 +169,11 @@ class Helpers {
 
   /// 图片相对名 `images/<basename>` → 绝对路径（基于应用文档目录）
   /// 跨设备恢复场景：appDocsDir 路径可能变化，但 images/ 子目录稳定
+  /// 核心逻辑在 [NoteDeltaImages.imageAbsPathCore]（可注入 docsRoot 直测），
+  /// 此处仅为向后兼容的平台通道包装。
   static Future<String> imageAbsPath(String relPath) async {
     final appDir = await getApplicationDocumentsDirectory();
-    // 已是绝对路径（含盘符或以 / 开头）→ 原样返回
-    if (relPath.contains(r'\') || relPath.startsWith('/')) {
-      return relPath;
-    }
-    return p.join(appDir.path, relPath);
+    return NoteDeltaImages.imageAbsPathCore(relPath, appDir.path);
   }
 
   /// 草稿文件名 → 相对名 `drafts/<basename>`

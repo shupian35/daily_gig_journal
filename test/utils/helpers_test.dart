@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_gig_journal/utils/helpers.dart';
+import 'package:daily_gig_journal/utils/note_delta_images.dart';
 
 void main() {
   group('Helpers', () {
@@ -130,6 +131,20 @@ void main() {
 
       test('draftRelPath: 空字符串原样返回', () {
         expect(Helpers.draftRelPath(''), '');
+      });
+
+      test('generateImageFileName 生成格式命中 v6 迁移白名单（单一事实源回归）', () {
+        for (var i = 0; i < 5; i++) {
+          final name = Helpers.generateImageFileName();
+          // name 为 <日期>_<6位随机>.png；加 img_ 前缀后应命中受管 basename 正则
+          expect(
+            NoteDeltaImages.isManagedImageBasename(
+              '${NoteDeltaImages.managedImagePrefix}$name',
+            ),
+            isTrue,
+            reason: '生成的文件名 $name 应符合 img_YYYY-MM-DD_NNNNNN.png 规范',
+          );
+        }
       });
     });
   });

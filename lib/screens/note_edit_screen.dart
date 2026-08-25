@@ -1,12 +1,13 @@
 import 'dart:async' show unawaited;
-import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_quill/flutter_quill.dart' as quill;
 import '../l10n/app_localizations.dart';
 import '../models/work_entry.dart';
+import '../services/note_document_service.dart';
 import '../widgets/note_form_fields.dart';
 import '../widgets/tags_field.dart';
 import '../widgets/drawing_canvas.dart';
@@ -42,6 +43,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   late quill.QuillController _quillController;
 
+  /// Delta 文档管线深模块（候选 C）：编解码/插删图片/路径批量解析收口于此
+  final NoteDocumentService _doc = NoteDocumentService();
+
+  /// rel→abs 批量解析结果（每次文档图片集合变化时单次刷新，O(N) 非 O(N²)）
+  Map<String, String> _absByRel = const {};
+  List<String> _mappedRels = const [];
+
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isAutoUpdating = false; // 防止递归锁
@@ -53,9 +61,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   @override
   void initState() {
     super.initState();
-    _quillController = quill.QuillController.basic();
+    _doc.load(null);
+    _quillController = _doc.controller;
+    _quillController.addListener(_onDocumentChanged);
     _loadNote();
   }
+
+  void _onDocumentChanged() => _refreshResolvedPaths();
 
   @override
   void dispose() {
@@ -67,7 +79,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     _hourlyWageController.dispose();
     _workHoursController.dispose();
     _dailyWageController.dispose();
-    _quillController.dispose();
+    unawaited(_doc.dispose());
     super.dispose();
   }
 
@@ -98,17 +110,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           _dailyWageController.text =
               note.dailyWage > 0 ? note.dailyWage.toString() : '';
           _currentTags = List<String>.from(note.tags);
-          try {
-            final deltaJson = jsonDecode(note.noteContent);
-            _quillController.dispose();
-            _quillController = quill.QuillController(
-              document: quill.Document.fromJson(deltaJson),
-              selection: const TextSelection.collapsed(offset: 0),
-            );
-          } catch (_) {
-            _quillController.dispose();
-            _quillController = quill.QuillController.basic();
-          }
+          // Delta 编解码与破损 JSON 兜底在服务内部完成
+          _doc.load(note);
+          _quillController = _doc.controller;
+          _quillController.addListener(_onDocumentChanged);
         } else {
           _existingNoteId = null;
           _startTimeController.text = '09:00';
@@ -116,6 +121,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         }
         _initialized = true;
       });
+      _refreshResolvedPaths();
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
@@ -139,8 +145,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final workHours = double.tryParse(_workHoursController.text) ?? 0.0;
       final dailyWage = double.tryParse(_dailyWageController.text) ?? 0.0;
 
-      final quillJson =
-          jsonEncode(_quillController.document.toDelta().toJson());
+      final quillJson = _doc.toPersistedJson();
 
       final note = WorkEntry(
         id: _existingNoteId,
@@ -312,20 +317,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   Future<void> _insertImageToNote(String sourcePath) async {
     final l10n = AppLocalizations.of(context)!;
     try {
-      // 资源写入接缝（候选 A）：落盘 + 变更集上报都是 store 内部副作用
-      final relPath =
-          await ref.read(resourceStoreProvider).saveImage(File(sourcePath));
-
-      final selection = _quillController.selection;
-      final offset = (selection.isValid && selection.baseOffset >= 0)
-          ? selection.baseOffset
-          : _quillController.document.length - 1;
-
-      _quillController.replaceText(
-        offset,
-        0,
-        quill.BlockEmbed.image(relPath),
-        null,
+      // 文档管线深模块（候选 C）：落盘经资源写入接缝（persist 回调），
+      // 光标计算 + embed 写入都在服务内部
+      await _doc.insertImageFile(
+        File(sourcePath),
+        persist: (f) => ref.read(resourceStoreProvider).saveImage(f),
       );
 
       if (mounted) {
@@ -655,14 +651,20 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               ),
               constraints:
                   const BoxConstraints(minHeight: 200, maxHeight: 400),
-              child: quill.QuillEditor.basic(
-                controller: _quillController,
-                config: quill.QuillEditorConfig(
-                  placeholder: l10n.remarksPlaceholder,
-                  padding: const EdgeInsets.all(14),
-                  autoFocus: false,
-                  scrollable: true,
-                  embedBuilders: [ImageFileEmbedBuilder()],
+              // O(N²) 消除（候选 C）：整文档一次批量解析后经 scope 下发，
+              // 每个 embed 同步取映射，不再各自 resolve 整个画廊
+              child: ResolvedImagePaths(
+                relPathsInOrder: _doc.imageRels(),
+                absByRel: _absByRel,
+                child: quill.QuillEditor.basic(
+                  controller: _quillController,
+                  config: quill.QuillEditorConfig(
+                    placeholder: l10n.remarksPlaceholder,
+                    padding: const EdgeInsets.all(14),
+                    autoFocus: false,
+                    scrollable: true,
+                    embedBuilders: [ImageFileEmbedBuilder()],
+                  ),
                 ),
               ),
             ),
@@ -738,16 +740,29 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Widget _buildImageList() {
-    return FutureBuilder<List<String>>(
-      future: _collectAllImages(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const SizedBox.shrink();
-        }
-        final rels = _collectAllImageRelPaths();
-        return _renderImagePanel(rels, snapshot.data!);
-      },
-    );
+    // 缓存式收集：imageRels() 只在文档变化后首次访问时重扫 Delta，
+    // 不再每帧 FutureBuilder 重扫 + 重复遍历
+    final rels = _doc.imageRels();
+    if (rels.isEmpty) return const SizedBox.shrink();
+    final images = [
+      for (final rel in rels)
+        if (_absByRel.containsKey(rel)) _absByRel[rel]!,
+    ];
+    if (images.length != rels.length) return const SizedBox.shrink();
+    return _renderImagePanel(rels, images);
+  }
+
+  /// 文档图片集合变化后单次批量解析 rel→abs（一次 docs-root 调用 + N 次 join）。
+  /// 集合未变时直接复用，不重复触发平台通道。
+  void _refreshResolvedPaths() {
+    final rels = _doc.imageRels();
+    if (listEquals(rels, _mappedRels)) return;
+    final pending = List.of(rels);
+    _doc.resolveAbsPaths(pending).then((map) {
+      if (!mounted) return;
+      _mappedRels = pending;
+      setState(() => _absByRel = map);
+    });
   }
 
   Widget _renderImagePanel(List<String> rels, List<String> images) {
@@ -868,58 +883,12 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     );
   }
 
-  /// 收集 Delta JSON 中所有图片的相对名（ADR-0009 后约定存 `images/<basename>`）
-  /// 返回顺序与 Quill 编辑器中顺序一致
-  List<String> _collectAllImageRelPaths() {
-    final rels = <String>[];
-    try {
-      final deltaJson = _quillController.document.toDelta().toJson();
-      for (final op in deltaJson) {
-        final insert = op['insert'];
-        if (insert is Map && insert.containsKey('image')) {
-          rels.add(insert['image'] as String);
-        }
-      }
-    } catch (_) {}
-    return rels;
-  }
-
-  /// 收集图片对应的绝对路径列表（用于文件加载 / 删除）
-  /// 单次扫 Delta 后批量转绝对路径，比每个文件单独 IO 更省
-  Future<List<String>> _collectAllImages() async {
-    final rels = _collectAllImageRelPaths();
-    final abs = <String>[];
-    for (final rel in rels) {
-      abs.add(await Helpers.imageAbsPath(rel));
-    }
-    return abs;
-  }
-
-  /// 从 Delta 中删除给定相对名的图片嵌入（ADR-0009：Delta JSON 中只存相对名）
+  /// 从文档删除图片 embed：偏移/长度计算在 NoteDocumentService 内完成
+  /// （消掉旧实现的魔法数 2），文件删除与 trash 上报仍走资源写入接缝。
   void _removeImageFromDocument(String relPath) {
-    try {
-      final delta = _quillController.document.toDelta();
-      final ops = delta.toJson();
-      int offset = 0;
-      for (final op in ops) {
-        final imgInsert = op['insert'];
-        if (imgInsert is Map && imgInsert.containsKey('image')) {
-          if (imgInsert['image'] == relPath) {
-            _quillController.replaceText(offset, 2, '', null);
-            // 资源写入接缝（候选 A）：文件删除 + trash 上报收口到 store
-            unawaited(ref.read(resourceStoreProvider).removeImage(relPath));
-            setState(() {});
-            return;
-          }
-        }
-        final ins = op['insert'];
-        if (ins is String) {
-          offset += ins.length;
-        } else if (ins is Map) {
-          offset += 1;
-        }
-      }
-    } catch (_) {}
+    if (!_doc.removeImage(relPath)) return;
+    unawaited(ref.read(resourceStoreProvider).removeImage(relPath));
+    setState(() {});
   }
 }
 

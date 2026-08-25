@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 
 import '../models/work_entry.dart';
+import '../utils/note_delta_images.dart';
 import 'work_entry_change.dart';
 import 'work_entry_repository.dart';
 
@@ -225,27 +225,10 @@ class InMemoryWorkEntryRepository implements WorkEntryRepository {
     return list;
   }
 
-  /// 与 SqliteWorkEntryRepository._deltaToPlainText 同款实现；两份代码靠测试对齐。
-  static String _deltaToPlainText(String deltaJson) {
-    if (deltaJson.isEmpty) return '';
-    try {
-      final decoded = jsonDecode(deltaJson);
-      if (decoded is! List) return '';
-      final buf = StringBuffer();
-      for (final op in decoded) {
-        if (op is! Map) continue;
-        final insert = op['insert'];
-        if (insert is String) {
-          buf.write(insert);
-        } else if (insert is Map) {
-          // 嵌入对象（图片等）跳过。
-        }
-      }
-      return buf.toString();
-    } catch (_) {
-      return '';
-    }
-  }
+  /// 与 SqliteWorkEntryRepository 共用 NoteDeltaImages.deltaToPlainText
+  /// 单一实现（候选 C 收敛，行为靠共享实现天然对齐）。
+  static String _deltaToPlainText(String deltaJson) =>
+      NoteDeltaImages.deltaToPlainText(deltaJson);
 
   // ── Write ──
 
