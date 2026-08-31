@@ -1,10 +1,15 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../l10n/app_localizations.dart';
 import '../providers/notes_provider.dart';
 import '../providers/settings_provider.dart';
+import '../services/backup_service.dart';
 import '../utils/constants.dart';
+import '../utils/helpers.dart';
 import '../utils/webdav_helper.dart';
 import '../widgets/app_card.dart';
 import '../widgets/app_section_label.dart';
@@ -61,6 +66,8 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isConfigured = ref.watch(webDavConfiguredProvider);
+    final lastError = ref.watch(lastAutoBackupErrorProvider);
+    final lastSummary = ref.watch(lastAutoBackupSummaryProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -69,6 +76,11 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          // ── ADR-0011: 自动备份状态 banner ──
+          if (lastError != null)
+            _buildErrorBanner(context, l10n, lastError)
+          else if (lastSummary != null)
+            _buildSummaryBanner(context, l10n, lastSummary),
           // ── 说明卡片 ──
           AppSectionLabel(title: l10n.instructions, icon: Icons.info_outline_rounded),
           const SizedBox(height: 8),
@@ -230,7 +242,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isRestoring || !isConfigured
                           ? null
-                          : _showRestoreFilePicker,
+                          : _confirmAndRestore,
                       icon: _isRestoring
                           ? const SizedBox(
                               width: 16,
@@ -315,6 +327,142 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// ADR-0011: 上次备份失败 banner
+  Widget _buildErrorBanner(BuildContext context, AppLocalizations l10n, AutoBackupError err) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isCritical = err.consecutiveCount >= 3;
+    final bgColor = isCritical
+        ? (isDark ? const Color(0xFF5C2D1A) : const Color(0xFFFFEBE0))
+        : (isDark ? const Color(0xFF4D4A2A) : const Color(0xFFFFF8E1));
+    final iconColor = isCritical ? Colors.orange : Colors.amber.shade700;
+    final timeStr = Helpers.formatTime(err.occurredAt);
+    final titleText = isCritical
+        ? l10n.autoBackupConsecutiveFailures(err.consecutiveCount)
+        : l10n.autoBackupFailedBanner(timeStr);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(
+            color: iconColor.withValues(alpha: 0.4),
+            width: 0.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(isCritical ? Icons.error_outline : Icons.warning_amber_rounded,
+                    size: 18, color: iconColor),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    titleText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              err.reason.isEmpty
+                  ? l10n.autoBackupErrorUnknownReason
+                  : err.reason,
+              style: TextStyle(
+                fontSize: 11,
+                color: isDark ? Colors.white70 : Colors.black54,
+                height: 1.4,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (isCritical) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () {
+                    // ADR-1: ignore: use_build_context_synchronously
+                    _fullSyncToCloud();
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: Text(l10n.autoBackupRetry,
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: () {
+                      // 跳到本页（本页就是配置页）
+                    },
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: Text(l10n.autoBackupGoSettings,
+                        style: const TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ADR-0011: 上次备份成功 summary banner
+  Widget _buildSummaryBanner(BuildContext context, AppLocalizations l10n, AutoBackupSummary summary) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final timeStr = Helpers.formatTime(summary.completedAt);
+    final stats = l10n.autoBackupSummaryUploadedN(
+      summary.uploadedImages,
+      summary.uploadedBytes,
+      summary.skippedImages,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1F3A2D) : const Color(0xFFE7F6EC),
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+          border: Border.all(
+            color: (isDark ? const Color(0xFF2E5340) : const Color(0xFFCFE3D6)),
+            width: 0.5,
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline,
+                size: 16, color: isDark ? const Color(0xFF7CC397) : const Color(0xFF3F8556)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l10n.autoBackupSummaryRecent(timeStr, stats),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -420,18 +568,13 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     });
 
     try {
-      final repo = ref.read(workEntryRepositoryProvider);
-      final dbPath = await repo.filePath();
-      final timestamp = DateTime.now()
-          .toIso8601String()
-          .replaceAll(':', '-')
-          .substring(0, 19);
-      final remoteName = 'daily_gig_backup_$timestamp.db';
-      final result = await _buildHelper().uploadFile(dbPath, remoteName);
+      // ADR-0010: 手动备份也走增量路径 (DB + images/ + drafts/ 各自 PUT)
+      // 复用 autoBackup 内部逻辑：构造全量变更集，确保所有本地资源都上传
+      await _fullSyncToCloud();
 
       if (!mounted) return;
       setState(() => _isBackingUp = false);
-      _showOpStatus(result.message, error: !result.isSuccess);
+      _showOpStatus('已上传 DB + images/ + drafts/ 到云盘', error: false);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isBackingUp = false);
@@ -439,37 +582,50 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     }
   }
 
-  Future<void> _showRestoreFilePicker() async {
-    if (!mounted) return;
-    final helper = _buildHelper();
+  /// 手动"备份到云盘"按钮：把本地所有图片/草稿塞入变更集, 触发增量上传。
+  /// 走 backupServiceProvider 实例入口——与自动备份共用同一运行中互斥
+  /// （架构审查候选 D），不再 containerOf 直调静态方法。
+  Future<void> _fullSyncToCloud() async {
+    final service = ref.read(backupServiceProvider);
+    final repo = ref.read(workEntryRepositoryProvider);
+    final dbPath = await repo.filePath();
+    final appDocsDir = dbPath.substring(0, dbPath.lastIndexOf('/'));
 
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) => _CloudFileListSheet(
-        helper: helper,
-        onFileSelected: (file) {
-          Navigator.pop(sheetCtx);
-          _restoreSelectedFile(file);
-        },
-      ),
-    );
+    // 1. 扫描本地所有 images/ 和 drafts/
+    final imagesDir = Directory(p.join(appDocsDir, 'images'));
+    final draftsDir = Directory(p.join(appDocsDir, 'drafts'));
+    final allImages = <String>{};
+    final allDrafts = <String>{};
+    if (imagesDir.existsSync()) {
+      for (final f in imagesDir.listSync()) {
+        if (f is File) allImages.add('images/${p.basename(f.path)}');
+      }
+    }
+    if (draftsDir.existsSync()) {
+      for (final f in draftsDir.listSync()) {
+        if (f is File) allDrafts.add('drafts/${p.basename(f.path)}');
+      }
+    }
+
+    // 2. merge 进变更集（候选 A）：上传集取并集，pending trash 条目原样保留，
+    //    不做覆盖式赋值——软删除不得因全量同步静默丢失
+    ref.read(backupChangeSetProvider.notifier).mergeForFullSync(
+          imagesToUpload: allImages,
+          draftsToUpload: allDrafts,
+        );
+
+    // 3. 触发备份（互斥在 service 内部：自动备份进行中时本次直接跳过）
+    final run = service.runAutoBackup();
+    await run.completion;
   }
 
-  Future<void> _restoreSelectedFile(WebDavFileInfo file) async {
+  Future<void> _confirmAndRestore() async {
     final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l10n.confirmRestore),
-        content: Text(
-          '即将从云盘恢复备份文件：\n\n${file.name}\n'
-          '${file.formattedSize}  |  ${file.formattedDate}\n\n'
-          '${l10n.confirmRestoreDialogContent}',
-        ),
+        content: Text(l10n.confirmRestoreDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -486,7 +642,7 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
 
     setState(() {
       _isRestoring = true;
@@ -496,200 +652,26 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
     try {
       final repo = ref.read(workEntryRepositoryProvider);
       final dbPath = await repo.filePath();
-      final result = await _buildHelper().downloadFile(file.href, dbPath);
+      // ADR-0010: 云端唯一可恢复对象是固定名 daily_gig_journal.db
+      final result = await BackupService.restoreFromCloud(
+        helper: _buildHelper(),
+        localDbPath: dbPath,
+      );
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showOpStatus(
-        result.isSuccess
-            ? l10n.restoreSuccessCloud
-            : result.message,
-        error: !result.isSuccess,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result.isSuccess ? l10n.restoreSuccessCloud : '${l10n.restoreFailedCloud}: ${result.message}',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isRestoring = false);
-      _showOpStatus('${l10n.restoreFailedCloud}: $e', error: true);
-    }
-  }
-}
-
-class _CloudFileListSheet extends StatefulWidget {
-  final WebDavHelper helper;
-  final ValueChanged<WebDavFileInfo> onFileSelected;
-
-  const _CloudFileListSheet({
-    required this.helper,
-    required this.onFileSelected,
-  });
-
-  @override
-  State<_CloudFileListSheet> createState() => _CloudFileListSheetState();
-}
-
-class _CloudFileListSheetState extends State<_CloudFileListSheet> {
-  bool _loading = true;
-  String? _error;
-  List<WebDavFileInfo> _files = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchFiles();
-  }
-
-  Future<void> _fetchFiles() async {
-    final result = await widget.helper.listFiles();
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-      if (result.isSuccess) {
-        _files = result.files;
-      } else {
-        _error = result.errorMessage ?? AppLocalizations.of(context)!.fetchFileListFailed;
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.55,
-      maxChildSize: 0.85,
-      minChildSize: 0.3,
-      expand: false,
-      builder: (ctx, scrollCtrl) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                AppLocalizations.of(context)!.selectBackupFile,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                AppLocalizations.of(context)!.selectBackupFileSubtitle,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade500,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Divider(color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2)),
-              Expanded(child: _buildContent(scrollCtrl)),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildContent(ScrollController scrollCtrl) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    if (_loading) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(strokeWidth: 2),
-            const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.fetchingFileList,
-                style: const TextStyle(fontSize: 13, color: AppConstants.textSecondary)),
-          ],
-        ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.restoreFailedCloud}: $e')),
       );
     }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cloud_off_rounded, size: 48,
-                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(_error!,
-                style: TextStyle(
-                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: () {
-                setState(() { _loading = true; _error = null; });
-                _fetchFiles();
-              },
-              icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: Text(AppLocalizations.of(context)!.retry),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_files.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inbox_rounded, size: 48,
-                color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-            const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.noBackupFiles,
-                style: TextStyle(
-                    color: isDark ? AppConstants.textSecondaryDark : Colors.grey.shade600)),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      controller: scrollCtrl,
-      itemCount: _files.length,
-      itemBuilder: (_, i) {
-        final file = _files[i];
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            side: BorderSide(
-              color: isDark ? const Color(0xFF3A3A44) : const Color(0xFFEDE8E2),
-            ),
-          ),
-          color: isDark ? const Color(0xFF262630) : Colors.white,
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: const Icon(Icons.insert_drive_file_outlined,
-                size: 22, color: AppConstants.primaryDark),
-            title: Text(file.name,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis),
-            subtitle: Text(
-              '${file.formattedSize}  |  ${file.formattedDate}',
-              style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
-            ),
-            trailing: const Icon(Icons.download_rounded,
-                size: 20, color: AppConstants.primaryDark),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-            ),
-            onTap: () => widget.onFileSelected(file),
-          ),
-        );
-      },
-    );
   }
 }

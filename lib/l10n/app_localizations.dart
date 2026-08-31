@@ -1472,6 +1472,70 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'+{count}'**
   String tagsMoreCount(int count);
+
+  /// No description provided for @autoBackupFailedBanner.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动备份失败 ({time})'**
+  String autoBackupFailedBanner(Object time);
+
+  /// No description provided for @autoBackupFailedDetail.
+  ///
+  /// In zh, this message translates to:
+  /// **'详情'**
+  String get autoBackupFailedDetail;
+
+  /// No description provided for @autoBackupConsecutiveFailures.
+  ///
+  /// In zh, this message translates to:
+  /// **'已连续 {count} 次备份失败，建议检查 WebDAV 配置'**
+  String autoBackupConsecutiveFailures(Object count);
+
+  /// No description provided for @autoBackupRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'立即重试'**
+  String get autoBackupRetry;
+
+  /// No description provided for @autoBackupGoSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'去设置'**
+  String get autoBackupGoSettings;
+
+  /// No description provided for @autoBackupClearError.
+  ///
+  /// In zh, this message translates to:
+  /// **'忽略'**
+  String get autoBackupClearError;
+
+  /// No description provided for @autoBackupErrorUnknownReason.
+  ///
+  /// In zh, this message translates to:
+  /// **'(未知原因)'**
+  String get autoBackupErrorUnknownReason;
+
+  /// No description provided for @autoBackupErrorTimestampFormat.
+  ///
+  /// In zh, this message translates to:
+  /// **'HH:mm'**
+  String get autoBackupErrorTimestampFormat;
+
+  /// No description provided for @autoBackupSummaryRecent.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次备份 ({time}) - {stats}'**
+  String autoBackupSummaryRecent(Object stats, Object time);
+
+  /// No description provided for @autoBackupSummaryUploadedN.
+  ///
+  /// In zh, this message translates to:
+  /// **'上传 {images} 张图 ({bytes} 字节)，跳过 {skipped} 张'**
+  String autoBackupSummaryUploadedN(
+    Object bytes,
+    Object images,
+    Object skipped,
+  );
 }
 
 class _AppLocalizationsDelegate

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:daily_gig_journal/utils/helpers.dart';
+import 'package:daily_gig_journal/utils/note_delta_images.dart';
 
 void main() {
   group('Helpers', () {
@@ -81,6 +82,69 @@ void main() {
         expect(Helpers.formatHours(8.0), '8h');
         expect(Helpers.formatHours(4.5), '4h30m');
         expect(Helpers.formatHours(0), '0h');
+      });
+    });
+
+    group('ADR-0009 相对路径化', () {
+      test('imageRelPath: 绝对路径 → images/<basename>', () {
+        expect(
+          Helpers.imageRelPath('/data/user/0/com.example/files/img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+        expect(
+          Helpers.imageRelPath(r'C:\Users\me\AppData\images\img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 已经是 images/<basename> 则原样返回', () {
+        expect(
+          Helpers.imageRelPath('images/img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 纯文件名归一为 images/<basename>', () {
+        expect(
+          Helpers.imageRelPath('img_2025-06-14_000001.png'),
+          'images/img_2025-06-14_000001.png',
+        );
+      });
+
+      test('imageRelPath: 空字符串原样返回', () {
+        expect(Helpers.imageRelPath(''), '');
+      });
+
+      test('draftRelPath: 文件名 → drafts/<basename>', () {
+        expect(
+          Helpers.draftRelPath('draft_2025-06-14_000001.json'),
+          'drafts/draft_2025-06-14_000001.json',
+        );
+      });
+
+      test('draftRelPath: 已经是 drafts/<basename> 则原样返回', () {
+        expect(
+          Helpers.draftRelPath('drafts/draft_2025-06-14_000001.json'),
+          'drafts/draft_2025-06-14_000001.json',
+        );
+      });
+
+      test('draftRelPath: 空字符串原样返回', () {
+        expect(Helpers.draftRelPath(''), '');
+      });
+
+      test('generateImageFileName 生成格式命中 v6 迁移白名单（单一事实源回归）', () {
+        for (var i = 0; i < 5; i++) {
+          final name = Helpers.generateImageFileName();
+          // name 为 <日期>_<6位随机>.png；加 img_ 前缀后应命中受管 basename 正则
+          expect(
+            NoteDeltaImages.isManagedImageBasename(
+              '${NoteDeltaImages.managedImagePrefix}$name',
+            ),
+            isTrue,
+            reason: '生成的文件名 $name 应符合 img_YYYY-MM-DD_NNNNNN.png 规范',
+          );
+        }
       });
     });
   });

@@ -15,10 +15,20 @@ class WebDavHelper {
   /// 备份文件存放的子目录
   static const backupSubDir = 'daily_gig_journal';
 
+  /// ADR-0010 固定名云端数据库文件
+  static const cloudDbName = 'daily_gig_journal.db';
+
+  /// ADR-0010 布局子目录
+  static const adr0010SubDirs = ['images', 'drafts', 'trashed'];
+
+  /// 可注入的 HTTP 客户端（仅测试用）；为空时内部自建并在请求后关闭
+  final http.Client? httpClient;
+
   WebDavHelper({
     required this.serverUrl,
     required this.username,
     required this.password,
+    this.httpClient,
   });
 
   /// 构建基础 URL（去掉尾部斜杠）
@@ -43,12 +53,13 @@ class WebDavHelper {
 
   /// 发送 HTTP 请求并返回响应，自动管理客户端生命周期
   Future<http.Response> _send(http.BaseRequest request) async {
-    final client = http.Client();
+    final client = httpClient ?? http.Client();
+    final owned = httpClient == null;
     try {
       final streamed = await client.send(request);
       return await http.Response.fromStream(streamed);
     } finally {
-      client.close();
+      if (owned) client.close();
     }
   }
 
@@ -84,6 +95,55 @@ class WebDavHelper {
       return const WebDavResult.error('无法连接服务器');
     } catch (e) {
       return WebDavResult.error('检查目录失败: $e');
+    }
+  }
+
+  /// 确保备份子目录下某个子目录存在（如 images/ 或 drafts/），不存在则创建
+  /// [subDir] 相对 backupSubDir 的子路径，如 'images' / 'drafts' / 'trashed'
+  Future<WebDavResult> ensureSubDir(String subDir) async {
+    try {
+      // 先确保父级备份目录存在
+      final parentResult = await ensureBackupDir();
+      if (!parentResult.isSuccess) return parentResult;
+
+      final subUrl = '$_backupPath/$subDir/';
+      // PROPFIND 检查子目录是否存在
+      final checkRequest = http.Request('PROPFIND', Uri.parse(subUrl))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '0';
+      final checkResp = await _send(checkRequest);
+      if (checkResp.statusCode == 207) {
+        return const WebDavResult.success('子目录已存在');
+      }
+      // 不存在则 MKCOL
+      final mkcolRequest = http.Request('MKCOL', Uri.parse(subUrl))
+        ..headers.addAll(_headers);
+      final mkcolResp = await _send(mkcolRequest);
+      if (mkcolResp.statusCode == 201 || mkcolResp.statusCode == 405) {
+        return const WebDavResult.success('子目录已创建');
+      }
+      if (mkcolResp.statusCode == 401 || mkcolResp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      return WebDavResult.error('创建子目录失败 (HTTP ${mkcolResp.statusCode})');
+    } on SocketException {
+      return const WebDavResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavResult.error('创建子目录失败: $e');
+    }
+  }
+
+  /// HEAD 探测文件是否存在
+  /// 返回 true 表示存在（200/204），false 表示不存在（404）或网络失败
+  Future<bool> headFile(String remoteRelativePath) async {
+    try {
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('HEAD', Uri.parse(url))
+        ..headers.addAll(_headers);
+      final resp = await _send(request);
+      return resp.statusCode == 200 || resp.statusCode == 204 || resp.statusCode == 207;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -216,6 +276,91 @@ class WebDavHelper {
     }
   }
 
+  /// 直接上传字节流到备份子目录 (ADR-0010 增量备份)。
+  /// [remoteRelativePath] 相对 backupSubDir 的路径, 如 'images/img_x.png' 或 'daily_gig_journal.db'。
+  Future<WebDavResult> uploadBytes(
+    List<int> bytes,
+    String remoteRelativePath,
+  ) async {
+    try {
+      final dirResult = await ensureBackupDir();
+      if (!dirResult.isSuccess) return dirResult;
+
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('PUT', Uri.parse(url))
+        ..headers.addAll(_headers)
+        ..bodyBytes = bytes;
+      final resp = await _send(request);
+      if (resp.statusCode == 201 ||
+          resp.statusCode == 200 ||
+          resp.statusCode == 204) {
+        return const WebDavResult.success('上传成功');
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavResult.error('认证失败，请检查账号和密码');
+      }
+      if (resp.statusCode == 507) {
+        return const WebDavResult.error('云盘空间不足');
+      }
+      return WebDavResult.error('上传失败 (HTTP ${resp.statusCode})');
+    } on SocketException {
+      return const WebDavResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavResult.error('上传失败: $e');
+    }
+  }
+
+  /// 下载文件到字节 (ADR-0010 软删除用)。
+  /// [remoteRelativePath] 相对 backupSubDir 的路径。
+  Future<WebDavBytesResult> downloadFileToBytes(String remoteRelativePath) async {
+    try {
+      final url = '$_backupPath/$remoteRelativePath';
+      final request = http.Request('GET', Uri.parse(url))
+        ..headers.addAll(_headers);
+      final resp = await _send(request);
+      if (resp.statusCode == 200) {
+        if (resp.bodyBytes.isEmpty) {
+          return const WebDavBytesResult.error('下载的文件为空');
+        }
+        return WebDavBytesResult.success(resp.bodyBytes);
+      }
+      if (resp.statusCode == 404) {
+        return const WebDavBytesResult.error('文件不存在');
+      }
+      return WebDavBytesResult.error('下载失败 (HTTP ${resp.statusCode})');
+    } catch (e) {
+      return WebDavBytesResult.error('下载失败: $e');
+    }
+  }
+
+  /// 列出指定子目录的文件 (ADR-0010 增量备份用)。
+  /// [subDir] 相对 backupSubDir 的子目录, 如 'images' / 'drafts' / 'trashed'。
+  Future<WebDavListResult> listFilesInSubDir(String subDir) async {
+    try {
+      final subUrl = '$_backupPath/$subDir/';
+      final request = http.Request('PROPFIND', Uri.parse(subUrl))
+        ..headers.addAll(_headers)
+        ..headers['Depth'] = '1';
+      final resp = await _send(request);
+      if (resp.statusCode == 404) {
+        return const WebDavListResult.success([]);
+      }
+      if (resp.statusCode == 401 || resp.statusCode == 403) {
+        return const WebDavListResult.error('认证失败，请检查账号和密码');
+      }
+      if (resp.statusCode == 207) {
+        final files = await _listFilesInDir(subUrl);
+        files.sort(_newestFirst);
+        return WebDavListResult.success(files);
+      }
+      return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
+    } on SocketException {
+      return const WebDavListResult.error('网络连接失败');
+    } catch (e) {
+      return WebDavListResult.error('列出文件失败: $e');
+    }
+  }
+
   /// 从 WebDAV 下载文件到本地
   /// [remotePath] 可以是文件名、绝对路径 (/dav/...)、或完整 URL
   Future<WebDavResult> downloadFile(
@@ -278,8 +423,10 @@ class WebDavHelper {
     }
   }
 
-  /// 列出备份目录中的文件
-  Future<WebDavListResult> listFiles({String prefix = 'daily_gig_backup'}) async {
+  /// 列出云端 ADR-0010 布局资源（§6 只显示新格式资源）：
+  /// 固定名 [cloudDbName] + images/ + drafts/ + trashed/ 子目录内容。
+  /// 旧前缀 daily_gig_backup_* 与根目录 fallback 已废弃，不再列出。
+  Future<WebDavListResult> listFiles() async {
     try {
       // PROPFIND 备份子目录（带尾部斜杠）
       final request = http.Request('PROPFIND', Uri.parse(_backupDirUrl))
@@ -295,20 +442,23 @@ class WebDavHelper {
       if (resp.statusCode == 401 || resp.statusCode == 403) {
         return const WebDavListResult.error('认证失败，请检查账号和密码');
       }
-
-      if (resp.statusCode == 207) {
-        var files = await _listFilesInDir(_backupDirUrl, prefix);
-
-        // 如果子目录为空，也检查根目录（兼容旧版本备份）
-        if (files.isEmpty) {
-          files = await _listFilesInDir(_baseUrl, prefix);
-        }
-
-        files.sort((a, b) => b.lastModified.compareTo(a.lastModified));
-        return WebDavListResult.success(files);
+      if (resp.statusCode != 207) {
+        return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
       }
 
-      return WebDavListResult.error('列出文件失败 (HTTP ${resp.statusCode})');
+      // 根目录只保留固定名 DB
+      final files = await _listFilesInDir(_backupDirUrl)
+        ..retainWhere((f) => f.name == cloudDbName);
+
+      // 子目录资源（images / drafts / trashed）
+      for (final sub in adr0010SubDirs) {
+        final r = await listFilesInSubDir(sub);
+        if (!r.isSuccess) return WebDavListResult.error(r.errorMessage!);
+        files.addAll(r.files);
+      }
+
+      files.sort(_newestFirst);
+      return WebDavListResult.success(files);
     } on SocketException {
       return const WebDavListResult.error('网络连接失败');
     } catch (e) {
@@ -316,11 +466,13 @@ class WebDavHelper {
     }
   }
 
+  /// 按类型化时间新→旧排序（解析失败视为最旧，排最后）。
+  static int _newestFirst(WebDavFileInfo a, WebDavFileInfo b) =>
+      (b.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(a.lastModified ?? DateTime.fromMillisecondsSinceEpoch(0));
+
   /// PROPFIND 指定目录并解析文件列表
-  Future<List<WebDavFileInfo>> _listFilesInDir(
-    String dirUrl,
-    String prefix,
-  ) async {
+  Future<List<WebDavFileInfo>> _listFilesInDir(String dirUrl) async {
     try {
       final url = dirUrl.endsWith('/') ? dirUrl : '$dirUrl/';
       final request = http.Request('PROPFIND', Uri.parse(url))
@@ -357,7 +509,6 @@ class WebDavHelper {
         final isCollection = href.endsWith('/');
 
         if (isCollection || name.isEmpty) continue;
-        if (prefix.isNotEmpty && !name.startsWith(prefix)) continue;
 
         files.add(WebDavFileInfo(
           name: name,
@@ -500,19 +651,40 @@ class WebDavListResult {
         files = const [];
 }
 
-/// WebDAV 文件信息
+/// WebDAV 文件信息。
+///
+/// 协议层的 HTTP-date 表示细节（RFC 1123，如
+/// `Mon, 14 Jun 2026 08:30:00 GMT`）在此构造时一次性消化为类型化的
+/// [lastModified]；解析失败得 null。注意不能用 [DateTime.parse]：
+/// 它只接受 ISO 8601（这正是旧实现的 bug 根源）。
 class WebDavFileInfo {
   final String name;
   final String href;
   final int size;
-  final String lastModified;
 
-  const WebDavFileInfo({
+  /// PROPFIND getlastmodified 原始字符串（HTTP-date）。
+  final String lastModifiedRaw;
+
+  /// 类型化时间（本地时区）；原始串为空或不可解析时为 null。
+  final DateTime? lastModified;
+
+  WebDavFileInfo({
     required this.name,
     required this.href,
     required this.size,
-    required this.lastModified,
-  });
+    required String lastModified,
+  })  : lastModifiedRaw = lastModified,
+        lastModified = parseHttpDate(lastModified);
+
+  /// 解析 RFC 1123 HTTP-date 为本地时间；无法解析返回 null。
+  static DateTime? parseHttpDate(String raw) {
+    if (raw.isEmpty) return null;
+    try {
+      return HttpDate.parse(raw).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
 
   String get formattedSize {
     if (size < 1024) return '$size B';
@@ -520,17 +692,27 @@ class WebDavFileInfo {
     return '${(size / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  /// 将 HTTP 日期格式转为中文本地时间显示
+  /// 将 [lastModified] 转为中文本地时间显示；
+  /// 解析失败时退回原始字符串。
   /// 输入：Mon, 14 Jun 2025 08:30:00 GMT
   /// 输出：2025年6月14日 16:30（本地时区）
   String get formattedDate {
-    try {
-      final utc = HttpDate.parse(lastModified);
-      final local = utc.toLocal();
-      final fmt = DateFormat('yyyy年M月d日 HH:mm');
-      return fmt.format(local);
-    } catch (_) {
-      return lastModified;
-    }
+    final local = lastModified;
+    if (local == null) return lastModifiedRaw;
+    final fmt = DateFormat('yyyy年M月d日 HH:mm');
+    return fmt.format(local);
   }
+}
+
+/// 下载字节结果 (公开, 供 BackupService 软删除使用)
+class WebDavBytesResult {
+  final bool isSuccess;
+  final List<int>? bytes;
+  final String? errorMessage;
+  const WebDavBytesResult.success(this.bytes)
+      : isSuccess = true,
+        errorMessage = null;
+  const WebDavBytesResult.error(this.errorMessage)
+      : isSuccess = false,
+        bytes = null;
 }

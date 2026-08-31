@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../data/work_entry_repository.dart';
 import '../models/work_entry.dart';
+import 'note_delta_images.dart';
 
 /// 数据导出工具类
 /// 支持将全部工作笔记导出为 CSV 或 JSON 文件
@@ -114,31 +115,17 @@ class ExportHelper {
 
   // ========== 工具方法 ==========
 
-  /// 将 Quill Delta JSON 转为可读纯文本
-  static String _deltaToPlainText(String deltaJson) {
-    try {
-      final List<dynamic> ops = jsonDecode(deltaJson);
-      final buffer = StringBuffer();
-      for (final op in ops) {
-        if (op is Map<String, dynamic>) {
-          final insert = op['insert'];
-          if (insert is String) {
-            buffer.write(insert);
-          } else if (insert is Map) {
-            // 嵌入对象（图片等）
-            if (insert.containsKey('image')) {
-              buffer.write('[图片]');
-            } else {
-              buffer.write('[附件]');
-            }
-          }
-        }
-      }
-      return buffer.toString().trim();
-    } catch (_) {
-      return deltaJson; // 解析失败返回原文
-    }
-  }
+  /// 将 Quill Delta JSON 转为可读纯文本。
+  /// 实现收敛到 NoteDeltaImages.deltaToPlainText（候选 C），导出语义：
+  /// 嵌入对象写占位符、裁剪首尾、解析失败返回原文。
+  static String _deltaToPlainText(String deltaJson) =>
+      NoteDeltaImages.deltaToPlainText(
+        deltaJson,
+        embedPlaceholder: (insert) =>
+            insert.containsKey('image') ? '[图片]' : '[附件]',
+        trimResult: true,
+        fallback: deltaJson,
+      );
 
   /// CSV 字段转义：包含逗号、引号、换行时用双引号包裹
   static String _csvEscape(String field) {

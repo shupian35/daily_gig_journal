@@ -1,12 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/work_entry.dart';
+import '../utils/note_delta_images.dart';
 import 'work_entry_change.dart';
 import 'work_entry_repository.dart';
 
@@ -17,7 +18,7 @@ import 'work_entry_repository.dart';
 class SqliteWorkEntryRepository implements WorkEntryRepository {
   // ── Schema 常量（以前散在 DatabaseHelper） ──
   static const String _tableName = 'work_notes';
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
 
   static const String _colId = 'id';
   static const String _colDate = 'date';
@@ -151,6 +152,31 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       await db.execute(
         "ALTER TABLE $_tableName ADD COLUMN $_colTags TEXT DEFAULT ''",
       );
+    }
+    if (oldVersion < 6) {
+      // ADR-0009：把 note_content 里 image 字段的绝对路径改写为相对名
+      // images/<basename>。仅 basename 匹配 generateImageFileName 规则才重写，
+      // 第三方手动修改的 JSON 保留原值显示坏图（不强行迁移）。
+      await _migrateNoteContentPaths(db);
+    }
+  }
+
+  /// v5 → v6 一次性迁移：note_content 中 image 字段绝对路径 → 相对名
+  /// 仅 basename 匹配 /^img_\d{4}-\d{2}-\d{2}_\d{6}\.png$/ 才重写
+  Future<void> _migrateNoteContentPaths(Database db) async {
+    final rows = await db.query(_tableName, columns: [_colId, _colNoteContent]);
+    for (final row in rows) {
+      final id = row[_colId] as int;
+      final content = (row[_colNoteContent] as String?) ?? '[]';
+      final migrated = NoteDeltaImages.rewriteToRelativePaths(content);
+      if (migrated != content) {
+        await db.update(
+          _tableName,
+          {_colNoteContent: migrated},
+          where: '$_colId = ?',
+          whereArgs: [id],
+        );
+      }
     }
   }
 
@@ -495,7 +521,8 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       final kwLower = kw.toLowerCase();
       results = results.where((e) {
         if (_matchesStruct(e, kwLower)) return true;
-        final plain = _deltaToPlainText(e.noteContent).toLowerCase();
+        final plain = NoteDeltaImages.deltaToPlainText(e.noteContent)
+            .toLowerCase();
         return plain.contains(kwLower);
       });
     }
@@ -522,30 +549,8 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
         e.contact.toLowerCase().contains(kwLower);
   }
 
-  /// Quill Delta JSON → 可读纯文本片段。
-  ///
-  /// 与 ExportHelper._deltaToPlainText 同款实现；这里独立 copy 是为了
-  /// 避免 SearchScreen 依赖 utils/export_helper 的 I/O 路径。
-  static String _deltaToPlainText(String deltaJson) {
-    if (deltaJson.isEmpty) return '';
-    try {
-      final decoded = jsonDecode(deltaJson);
-      if (decoded is! List) return '';
-      final buf = StringBuffer();
-      for (final op in decoded) {
-        if (op is! Map) continue;
-        final insert = op['insert'];
-        if (insert is String) {
-          buf.write(insert);
-        } else if (insert is Map) {
-          // 嵌入对象（图片等）跳过。
-        }
-      }
-      return buf.toString();
-    } catch (_) {
-      return '';
-    }
-  }
+  // _deltaToPlainText 已收敛到 NoteDeltaImages.deltaToPlainText（候选 C），
+  // 与 in_memory / ExportHelper 共用单一实现。
 
   // ── Write ──
 
@@ -612,4 +617,11 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
     await _db?.close();
     _db = null;
   }
+
+  /// 仅供测试使用：把 Quill Delta JSON 中 image 字段的绝对路径重写为相对名
+  /// `images/<basename>`。实现收敛在 NoteDeltaImages.rewriteToRelativePaths
+  /// （候选 C），行为断言由其直测表驱动用例覆盖。
+  @visibleForTesting
+  static String debugRewriteImagePathsForTest(String deltaJson) =>
+      NoteDeltaImages.rewriteToRelativePaths(deltaJson);
 }

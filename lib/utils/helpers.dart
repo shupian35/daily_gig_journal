@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 import 'dart:io';
 import 'dart:math';
 
+import 'note_delta_images.dart';
+
 /// 工具函数集合
 class Helpers {
   Helpers._();
@@ -138,13 +140,52 @@ class Helpers {
   }
 
   /// 生成唯一的图片文件名：日期_随机数.png
+  /// 格式与 NoteDeltaImages.managedImageBasenameRegExp 白名单共享常量，
+  /// 保证生成器与 v6 迁移白名单不漂移（调用方再加 img_/draw_ 等前缀）。
   static String generateImageFileName() {
     final now = DateTime.now();
-    final datePart = formatDate(now);
-    final randomPart = Random().nextInt(999999).toString().padLeft(6, '0');
-    return '${datePart}_$randomPart.png';
+    return '${NoteDeltaImages.imageDateRandBody(formatDate(now), Random().nextInt(999999))}'
+        '${NoteDeltaImages.managedImageExtension}';
+  }
+
+  /// 平台无关的 basename：同时切分 / 与 \（Windows 路径在非 Windows 平台
+  /// 上 p.basename 不切反斜杠，导致 ADR-0009 改写失效）
+  static String _anySepBasename(String path) => path.split(RegExp(r'[/\\]')).last;
+
+  /// 图片绝对路径 → 相对名 `images/<basename>`
+  /// 若输入已经是相对名（不含路径分隔符），原样返回
+  /// 不验证文件存在性——纯字符串变换，调用方负责落盘
+  static String imageRelPath(String absPath) {
+    if (absPath.isEmpty) return absPath;
+    // 已经以 images/ 开头 → 视作相对名
+    if (absPath.startsWith('images/')) return absPath;
+    // 含路径分隔符 → 取 basename 重写
+    if (absPath.contains('/') || absPath.contains(r'\')) {
+      return 'images/${_anySepBasename(absPath)}';
+    }
+    // 纯文件名 → 同样归一为 images/<basename>
+    return 'images/$absPath';
+  }
+
+  /// 图片相对名 `images/<basename>` → 绝对路径（基于应用文档目录）
+  /// 跨设备恢复场景：appDocsDir 路径可能变化，但 images/ 子目录稳定
+  /// 核心逻辑在 [NoteDeltaImages.imageAbsPathCore]（可注入 docsRoot 直测），
+  /// 此处仅为向后兼容的平台通道包装。
+  static Future<String> imageAbsPath(String relPath) async {
+    final appDir = await getApplicationDocumentsDirectory();
+    return NoteDeltaImages.imageAbsPathCore(relPath, appDir.path);
+  }
+
+  /// 草稿文件名 → 相对名 `drafts/<basename>`
+  static String draftRelPath(String fileName) {
+    if (fileName.isEmpty) return fileName;
+    if (fileName.startsWith('drafts/')) return fileName;
+    return 'drafts/${_anySepBasename(fileName)}';
   }
 
   /// 获取当前时间字符串
   static String nowTimeString() => _timeFormatter.format(DateTime.now());
+
+  /// 格式化时间为 HH:mm
+  static String formatTime(DateTime time) => _timeFormatter.format(time);
 }

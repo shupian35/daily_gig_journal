@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -9,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../services/resource_store.dart';
 import '../utils/helpers.dart';
 import '../utils/constants.dart';
 import 'drawing_data.dart';
@@ -75,7 +77,8 @@ class _DrawingScreenState extends State<DrawingScreen> {
   void initState() {
     super.initState();
     if (widget.initialDraft != null) {
-      _restoreFromDraft(widget.initialDraft!);
+      // ADR-0009：异步恢复（layer.filePath 相对名转绝对路径）
+      unawaited(_restoreFromDraft(widget.initialDraft!));
     } else if (widget.initialBackgroundPath != null) {
       final f = File(widget.initialBackgroundPath!);
       if (f.existsSync()) {
@@ -108,21 +111,34 @@ class _DrawingScreenState extends State<DrawingScreen> {
     super.dispose();
   }
 
-  void _restoreFromDraft(CanvasDraft draft) {
+  /// 异步：从 CanvasDraft 恢复（ADR-0009 后 layer.filePath 是相对名，
+  /// 这里统一还原为绝对路径用于 UI 渲染）
+  Future<void> _restoreFromDraft(CanvasDraft draft) async {
     _transform = Matrix4.fromFloat64List(
         Float64List.fromList(draft.transform));
     _strokes.addAll(draft.strokes);
-    _imageLayers.addAll(draft.layers);
     _actionHistory.clear();
     String? firstVisibleId;
     for (final layer in draft.layers) {
       firstVisibleId ??= layer.id;
-      if (File(layer.filePath).existsSync()) {
-        _decodeLayerImage(layer);
+      // 兼容老草稿（filePath 可能是绝对路径或相对名）
+      final absPath = await Helpers.imageAbsPath(layer.filePath);
+      // 复制为新对象，filePath 改绝对路径
+      final resolvedLayer = ImageLayer(
+        id: layer.id,
+        filePath: absPath,
+        position: layer.position,
+        scale: layer.scale,
+        opacity: layer.opacity,
+        visible: layer.visible,
+      );
+      _imageLayers.add(resolvedLayer);
+      if (File(absPath).existsSync()) {
+        _decodeLayerImage(resolvedLayer);
       }
     }
     _selectedLayerId = firstVisibleId;
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   ImageLayer _makeLayer(String filePath) {
@@ -387,16 +403,27 @@ class _DrawingScreenState extends State<DrawingScreen> {
   // ======================== 草稿 ========================
   Future<void> _saveDraft() async {
     try {
+      // ADR-0009：layer.filePath 在草稿 JSON 中存相对名 "images/<basename>"，
+      // 加载草稿时通过 Helpers.imageAbsPath 转回绝对路径用于 UI 渲染
+      final layersForDraft = _imageLayers
+          .map((l) => ImageLayer(
+                id: l.id,
+                filePath: Helpers.imageRelPath(l.filePath),
+                position: l.position,
+                scale: l.scale,
+                opacity: l.opacity,
+                visible: l.visible,
+              ))
+          .toList();
       final draft = CanvasDraft(
         version: 1,
         transform: _transform.storage.toList(),
         strokes: _strokes.toList(),
-        layers: _imageLayers.toList(),
+        layers: layersForDraft,
       );
-      final draftsDir = await _getDraftsDir();
-      final fileName = 'draft_${Helpers.generateImageFileName().replaceAll('.png', '.json')}';
-      final filePath = p.join(draftsDir.path, fileName);
-      await draft.saveToFile(filePath);
+      // 资源写入接缝（候选 A）：落盘 + 变更集上报收口到 store；
+      // containerOf 劫持已集中在 ResourceStore.of 一处
+      await ResourceStore.of(context).saveDraft(draft);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context)!.draftSaved), duration: const Duration(seconds: 1)),
@@ -429,7 +456,7 @@ class _DrawingScreenState extends State<DrawingScreen> {
       _strokes.clear();
       _actionHistory.clear();
 
-      _restoreFromDraft(draft);
+      await _restoreFromDraft(draft);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

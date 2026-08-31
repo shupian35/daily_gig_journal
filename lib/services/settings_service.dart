@@ -10,6 +10,15 @@ const keyWebDavPassword = 'webdav_password';
 const keyAutoBackup = 'auto_backup';
 const keyLocale = 'locale';
 
+// ADR-0011: 上次自动备份的持久化 key (summary + error 跨重启)
+const keyLastAutoBackupAt = 'last_auto_backup_at';
+const keyLastAutoBackupUploadedImages = 'last_auto_backup_uploaded_images';
+const keyLastAutoBackupSkippedImages = 'last_auto_backup_skipped_images';
+const keyLastAutoBackupUploadedBytes = 'last_auto_backup_uploaded_bytes';
+const keyLastAutoBackupErrorAt = 'last_auto_backup_error_at';
+const keyLastAutoBackupErrorReason = 'last_auto_backup_error_reason';
+const keyLastAutoBackupErrorConsecutiveCount = 'last_auto_backup_error_consecutive_count';
+
 /// 设置持久化服务
 /// 封装 SharedPreferences 访问，消除 7 处重复的 getInstance 样板
 class SettingsService {
@@ -46,5 +55,10 @@ class SettingsService {
   static Future<void> saveString(String key, String value) async {
     final prefs = await _prefs;
     await prefs.setString(key, value);
+  }
+
+  static Future<void> remove(String key) async {
+    final prefs = await _prefs;
+    await prefs.remove(key);
   }
 }

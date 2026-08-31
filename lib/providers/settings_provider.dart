@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/backup_service.dart';
 import '../services/settings_service.dart';
 
 /// 主题模式状态提供者
@@ -73,6 +74,12 @@ Future<void> loadSettings(WidgetRef ref) async {
       await SettingsService.loadString(keyWebDavPassword, '');
   ref.read(autoBackupProvider.notifier).state =
       await SettingsService.loadBool(keyAutoBackup, false);
+
+  // ADR-0011: load last auto-backup summary + error from SharedPreferences.
+  await BackupService.loadInitial(
+    setSummary: (s) => ref.read(lastAutoBackupSummaryProvider.notifier).state = s,
+    setError: (e) => ref.read(lastAutoBackupErrorProvider.notifier).state = e,
+  );
 
   // 加载语言设置
   final localeCode = await SettingsService.loadString(keyLocale, '');
