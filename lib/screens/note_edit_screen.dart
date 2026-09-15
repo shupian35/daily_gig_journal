@@ -649,8 +649,12 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                 borderRadius: BorderRadius.circular(AppConstants.radiusSm),
                 color: isDark ? const Color(0xFF1B1B22) : const Color(0xFFFBFAF7),
               ),
-              constraints:
-                  const BoxConstraints(minHeight: 200, maxHeight: 400),
+              // 最小高度保视觉空状态高度；不再限制 maxHeight —
+              // 让编辑器内容自然撑开，由外层 SingleChildScrollView 统一滚动。
+              // 关键：scrollable: false + 非滚动父容器，
+              // 避免与上层 TextFormField 焦点竞争（标题聚焦时点备注
+              // 会被外层 Scrollable 吞掉，焦点不切换、画面上滑）。
+              constraints: const BoxConstraints(minHeight: 200),
               // O(N²) 消除（候选 C）：整文档一次批量解析后经 scope 下发，
               // 每个 embed 同步取映射，不再各自 resolve 整个画廊
               child: ResolvedImagePaths(
@@ -662,7 +666,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                     placeholder: l10n.remarksPlaceholder,
                     padding: const EdgeInsets.all(14),
                     autoFocus: false,
-                    scrollable: true,
+                    scrollable: false,
                     embedBuilders: [ImageFileEmbedBuilder()],
                   ),
                 ),

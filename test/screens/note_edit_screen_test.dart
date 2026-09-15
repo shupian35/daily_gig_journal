@@ -27,6 +27,15 @@ void main() {
     }
   });
 
+  /// 备注 Quill 编辑器上方那一组 EditableText 依次是：
+  /// 工作标题 / 工作地点 / 联系人 / 时薪 / 工作时长 / 日薪。
+  /// 第一个就是"工作标题"，对应 _titleController。
+  EditableText _findTitleEditable(WidgetTester tester) {
+    final editables = find.byType(EditableText);
+    expect(editables, findsWidgets);
+    return tester.widget<EditableText>(editables.first);
+  }
+
   group('NoteEditScreen', () {
     testWidgets('新建模式 — 屏幕正常渲染', (tester) async {
       await tester.pumpWidget(
@@ -45,6 +54,54 @@ void main() {
       // 屏幕渲染完成且无异常即视为通过
       expect(tester.takeException(), isNull);
       expect(find.byType(NoteEditScreen), findsOneWidget);
+    });
+
+    testWidgets(
+        '标题获焦后点击备注 Quill 编辑器，焦点应切换到编辑器（不再被外层 Scrollable 吞掉）',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: [
+              ...AppLocalizations.localizationsDelegates,
+              FlutterQuillLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('zh'),
+            home: NoteEditScreen(dateStr: '2025-06-14'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final titleEditable = _findTitleEditable(tester);
+      final titleFocus = titleEditable.focusNode;
+      final quillEditor = find.byType(QuillEditor);
+      expect(quillEditor, findsOneWidget, reason: '备注 Quill 编辑器应存在');
+
+      // 1) 点标题，让它获焦
+      final titleFieldFinder = find.byType(EditableText).first;
+      await tester.tap(titleFieldFinder);
+      await tester.pump();
+      expect(titleFocus.hasFocus, isTrue,
+          reason: '点标题后标题应获焦');
+
+      // 2) 滚到可见，再点备注编辑器
+      await tester.ensureVisible(quillEditor);
+      await tester.pump();
+      await tester.tap(quillEditor);
+      await tester.pump();
+
+      // 3) 标题应已失焦
+      expect(titleFocus.hasFocus, isFalse,
+          reason: '点备注后标题应失焦（焦点已被外层 Scrollable 吞掉的回归点）');
+
+      // 4) 当前主焦点应不再是标题的 FocusNode
+      final primaryFocus = tester.binding.focusManager.primaryFocus;
+      expect(primaryFocus, isNotNull);
+      expect(primaryFocus, isNot(equals(titleFocus)),
+          reason: '焦点应已离开标题字段');
     });
   });
 }
