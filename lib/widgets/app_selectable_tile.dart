@@ -39,47 +39,54 @@ class AppSelectableTile extends StatelessWidget {
         ),
         boxShadow: AppConstants.cardShadow(isDark),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        leading: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppConstants.primaryColor
-                .withValues(alpha: selected ? 0.18 : 0.08),
+      // Flutter 3.47+：Container.decoration 有背景色时，ListTile 的
+      // background/ink 会画在最近 Material 上，被外层 Container 盖住。
+      // 用透明 Material 隔离，让 ListTile 能正确绘制。
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          leading: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppConstants.primaryColor
+                  .withValues(alpha: selected ? 0.18 : 0.08),
+            ),
+            child: Icon(icon, color: AppConstants.primaryDark, size: 20),
           ),
-          child: Icon(icon, color: AppConstants.primaryDark, size: 20),
-        ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-            color: selected ? AppConstants.primaryDark : null,
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: selected ? AppConstants.primaryDark : null,
+            ),
           ),
-        ),
-        subtitle: subtitle == null
-            ? null
-            : Text(
-                subtitle!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppConstants.textSecondary,
+          subtitle: subtitle == null
+              ? null
+              : Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppConstants.textSecondary,
+                  ),
                 ),
-              ),
-        trailing: selected
-            ? const Icon(
-                Icons.check_rounded,
-                color: AppConstants.primaryColor,
-                size: 22,
-              )
-            : const Icon(
-                Icons.chevron_right_rounded,
-                color: AppConstants.textSecondary,
-                size: 20,
-              ),
-        onTap: onTap,
+          trailing: selected
+              ? const Icon(
+                  Icons.check_rounded,
+                  color: AppConstants.primaryColor,
+                  size: 22,
+                )
+              : const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppConstants.textSecondary,
+                  size: 20,
+                ),
+          onTap: onTap,
+        ),
       ),
     );
   }

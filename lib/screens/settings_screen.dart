@@ -235,20 +235,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     bool enabled = true,
     VoidCallback? onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: AppConstants.primaryDark, size: 22),
-      title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+    return Material(
+      // Flutter 3.47+：外层 AppCard 是带背景色的 Container，
+      // 需要透明 Material 隔离，让 ListTile 的 background/ink 不被遮挡。
+      type: MaterialType.transparency,
+      child: ListTile(
+        leading: Icon(icon, color: AppConstants.primaryDark, size: 22),
+        title: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: AppConstants.textSecondary),
+        ),
+        trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: AppConstants.textSecondary, size: 20),
+        enabled: enabled,
+        onTap: onTap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppConstants.radiusLg),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
-      trailing: trailing ?? const Icon(Icons.chevron_right_rounded, color: AppConstants.textSecondary, size: 20),
-      enabled: enabled,
-      onTap: onTap,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.radiusLg),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 

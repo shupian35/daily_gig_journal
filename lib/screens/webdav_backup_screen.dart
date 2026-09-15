@@ -275,18 +275,23 @@ class _WebDavBackupScreenState extends ConsumerState<WebDavBackupScreen> {
           AppSectionLabel(title: l10n.autoBackup, icon: Icons.auto_mode_rounded),
           const SizedBox(height: 8),
           AppCard(
-            child: SwitchListTile(
-              secondary: const Icon(Icons.sync_rounded,
-                  size: 22, color: AppConstants.primaryDark),
-              title: Text(l10n.autoBackupTitle,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: Text(l10n.autoBackupSubtitle),
-              value: ref.watch(autoBackupProvider),
-              onChanged: isConfigured
-                  ? (v) => ref.read(autoBackupProvider.notifier).state = v
-                  : null,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+            child: Material(
+              // Flutter 3.47+：AppCard 是带背景色的 Container，
+              // 需要透明 Material 隔离，让 SwitchListTile 内部 InkWell/Thumb 不被遮挡。
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                secondary: const Icon(Icons.sync_rounded,
+                    size: 22, color: AppConstants.primaryDark),
+                title: Text(l10n.autoBackupTitle,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                subtitle: Text(l10n.autoBackupSubtitle),
+                value: ref.watch(autoBackupProvider),
+                onChanged: isConfigured
+                    ? (v) => ref.read(autoBackupProvider.notifier).state = v
+                    : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppConstants.radiusXl),
+                ),
               ),
             ),
           ),
