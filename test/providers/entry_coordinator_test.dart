@@ -66,6 +66,59 @@ void main() {
       expect(await repo.findById(id), isNull);
       expect(container.read(entryCoordinatorProvider), isA<AsyncData<void>>());
     });
+
+    test('save() moves note to new date: both old and new date list providers invalidated', () async {
+      final note = WorkEntry.empty('2025-06-14');
+      final id = await repo.add(note);
+
+      // 触发 coordinator.build() 提前建立 repo.watch() 订阅，
+      // 否则 build 在后续 save 时才调用，第一次 add 的事件不会被监听。
+      container.read(entryCoordinatorProvider);
+
+      // 用 listen 订阅两个 family provider，阻止 autoDispose 提前释放。
+      final oldSub = container.listen(
+        notesByDateListProvider('2025-06-14'),
+        (_, _) {},
+      );
+      final newSub = container.listen(
+        notesByDateListProvider('2025-06-20'),
+        (_, _) {},
+      );
+      addTearDown(oldSub.close);
+      addTearDown(newSub.close);
+
+      // 预热两个 family：旧日期有 1 条，新日期为空
+      await container.read(notesByDateListProvider('2025-06-14').future);
+      await container.read(notesByDateListProvider('2025-06-20').future);
+      expect(
+        container.read(notesByDateListProvider('2025-06-14')).value,
+        hasLength(1),
+      );
+      expect(
+        container.read(notesByDateListProvider('2025-06-20')).value,
+        isEmpty,
+      );
+
+      // 把 note 从 6-14 移到 6-20
+      await container
+          .read(entryCoordinatorProvider.notifier)
+          .save(note.copyWith(id: id, date: '2025-06-20'));
+
+      // 让出 microtask，确保 broadcast stream 的 listener dispatch。
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      // 重新读 family（.future）—— 由于 coordinator 失效了它们，
+      // 这里应重新走 repo.findByDate；新值与 DB 同步。
+      final oldListNew = await container
+          .read(notesByDateListProvider('2025-06-14').future);
+      final newListNew = await container
+          .read(notesByDateListProvider('2025-06-20').future);
+      expect(oldListNew, isEmpty, reason: '旧日期列表应被失效并清空');
+      expect(newListNew, hasLength(1), reason: '新日期列表应包含移动后的条目');
+      expect(newListNew.first.date, '2025-06-20');
+    });
   });
 
   group('EntryCoordinator · tag mutations (写入瓶颈点 + 自动备份)', () {

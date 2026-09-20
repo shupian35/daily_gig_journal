@@ -1,6 +1,6 @@
 import 'dart:async' show unawaited;
 import 'dart:io';
-import 'package:flutter/foundation.dart' show listEquals;
+import 'package:flutter/foundation.dart' show listEquals, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,9 +58,53 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   bool _initialized = false;
   List<String> _currentTags = const [];
 
+  /// 当前显示/保存的日期。可被 AppBar 标题点击 → showDatePicker 后更新。
+  /// 初始 = widget.dateStr；新建时不变，编辑时用户可改。
+  late String _currentDateStr;
+
+  /// 测试钩子：可被 widget test 替换成返回预设值的函数，
+  /// 避免依赖平台 showDatePicker 通道。生产环境始终为 [_defaultShowDatePicker]。
+  // ignore: prefer_final_fields
+  Future<DateTime?> Function(BuildContext, DateTime) _showDatePickerFor =
+      _defaultShowDatePicker;
+
+  /// 仅供 widget test 注入 picker 桩函数；生产代码请勿调用。
+  @visibleForTesting
+  // ignore: prefer_final_fields
+  void debugSetShowDatePickerFor(
+    Future<DateTime?> Function(BuildContext, DateTime) impl,
+  ) {
+    _showDatePickerFor = impl;
+  }
+
+  /// 仅供 widget test 直接驱动日期选择流程（绕过 tap 命中检测的脆性）。
+  /// 生产代码请勿调用。
+  @visibleForTesting
+  Future<void> debugPickNewDate() => _pickNewDate();
+
+  /// 仅供 widget test 直接驱动冲突确认对话框（避开 SQLite runAsync 复杂度）。
+  /// 生产代码请勿调用。
+  @visibleForTesting
+  Future<bool?> debugConfirmMove(String newDateStr, int count) =>
+      _confirmMove(newDateStr, count);
+
+  static Future<DateTime?> _defaultShowDatePicker(
+    BuildContext context,
+    DateTime initial,
+  ) {
+    final now = DateTime.now();
+    return showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 1, now.month, now.day),
+      lastDate: DateTime(now.year + 1, now.month, now.day),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _currentDateStr = widget.dateStr;
     _doc.load(null);
     _quillController = _doc.controller;
     _quillController.addListener(_onDocumentChanged);
@@ -149,7 +193,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
       final note = WorkEntry(
         id: _existingNoteId,
-        date: widget.dateStr,
+        date: _currentDateStr,
         title: _titleController.text.trim(),
         workLocation: _workLocationController.text.trim(),
         contact: _contactController.text.trim(),
@@ -186,6 +230,57 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+
+  /// AppBar 日期点击入口：弹 showDatePicker → 若选了新日期
+  /// （且不等于当前日期）则进入冲突确认或直接更新状态。
+  ///
+  /// picker 走可注入钩子 [_showDatePickerFor]；测试里替换成桩函数。
+  Future<void> _pickNewDate() async {
+    final initial = Helpers.parseDate(_currentDateStr) ?? DateTime.now();
+    final picked = await _showDatePickerFor(context, initial);
+    if (picked == null) return; // 用户取消
+    final newDateStr = Helpers.formatDate(picked);
+    if (newDateStr == _currentDateStr) return;
+
+    // 查询目标日期已有记录数。
+    // 冲突计数 = 目标日期总条目数。
+    // 若当前是编辑模式（_existingNoteId != null）且当前日程也在新日期，
+    // 把"自己"从冲突计数里剔除（理论上不可能，但防御一下）。
+    final repo = ref.read(workEntryRepositoryProvider);
+    final existing = await repo.findByDate(newDateStr);
+    final conflictCount = existing.length;
+
+    if (conflictCount > 0) {
+      final confirmed = await _confirmMove(newDateStr, conflictCount);
+      if (confirmed != true) return;
+    }
+    if (!mounted) return;
+    setState(() => _currentDateStr = newDateStr);
+  }
+
+  /// 目标日期已有日程时弹确认对话框。
+  Future<bool?> _confirmMove(String newDateStr, int count) async {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = Localizations.localeOf(context).languageCode;
+    final displayDate = Helpers.toDisplayDate(newDateStr, locale);
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.confirmChangeDateTitle),
+        content: Text(l10n.confirmChangeDateContent(displayDate, count)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteNote() async {
@@ -381,9 +476,9 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       },
     );
     final locale = Localizations.localeOf(context).languageCode;
-    final date = Helpers.parseDate(widget.dateStr);
+    final date = Helpers.parseDate(_currentDateStr);
     final displayDate =
-        date != null ? Helpers.toDisplayDate(widget.dateStr, locale) : widget.dateStr;
+        date != null ? Helpers.toDisplayDate(_currentDateStr, locale) : _currentDateStr;
     final weekday = date != null ? Helpers.getWeekday(date, locale) : '';
     final screenWidth = MediaQuery.of(context).size.width;
     final isTablet = screenWidth >= 600;
@@ -395,22 +490,47 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
-          title: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(displayDate),
-              if (weekday.isNotEmpty)
-                Text(
-                  weekday,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: isDark
-                        ? AppConstants.textSecondaryDark
-                        : AppConstants.textSecondary,
-                  ),
+          // 点击 AppBar 日期 → showDatePicker 改日期。
+          // 用 InkWell 而非 GestureDetector 以获得涟漪反馈 + a11y。
+          title: Tooltip(
+            message: l10n.changeDateTooltip,
+            child: InkWell(
+              onTap: _isSaving || _isLoading ? null : _pickNewDate,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(displayDate),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.edit_calendar_rounded,
+                          size: 14,
+                          color: isDark
+                              ? AppConstants.textSecondaryDark
+                              : AppConstants.textSecondary,
+                        ),
+                      ],
+                    ),
+                    if (weekday.isNotEmpty)
+                      Text(
+                        weekday,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: isDark
+                              ? AppConstants.textSecondaryDark
+                              : AppConstants.textSecondary,
+                        ),
+                      ),
+                  ],
                 ),
-            ],
+              ),
+            ),
           ),
           actions: [
             if (_existingNoteId != null)

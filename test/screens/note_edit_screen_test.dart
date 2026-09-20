@@ -8,6 +8,8 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:daily_gig_journal/data/sqlite_work_entry_repository.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
+import 'package:daily_gig_journal/models/work_entry.dart';
+import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/note_edit_screen.dart';
 
 String _kTestDbPath() =>
@@ -103,5 +105,60 @@ void main() {
       expect(primaryFocus, isNot(equals(titleFocus)),
           reason: '焦点应已离开标题字段');
     });
+
+    testWidgets(
+        '点击 AppBar 日期 → 改到空日期 → AppBar 实时更新，无冲突弹框',
+        (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            localizationsDelegates: [
+              ...AppLocalizations.localizationsDelegates,
+              FlutterQuillLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            locale: const Locale('zh'),
+            home: NoteEditScreen(dateStr: '2025-06-14'),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // 注入 picker 桩：返回 2025-06-20
+      final state =
+          tester.state(find.byType(NoteEditScreen)) as dynamic;
+      var pickerCalls = 0;
+      state.debugSetShowDatePickerFor(
+        (ctx, initial) async {
+          pickerCalls++;
+          return DateTime(2025, 6, 20);
+        },
+      );
+
+      // 初始标题显示 6-14
+      expect(find.text('2025年6月14日'), findsOneWidget);
+
+      // 直接驱动 _pickNewDate（绕开 tap 命中检测的脆性）。
+      // _pickNewDate 内部 await repo.findByDate → sqflite_common_ffi
+      // 走平台通道，需要 tester.runAsync 真实执行。
+      await tester.runAsync(() async {
+        await state.debugPickNewDate();
+      });
+      await tester.pumpAndSettle();
+      expect(pickerCalls, 1, reason: 'picker 桩应被调用一次');
+
+      // 新标题显示 6-20
+      expect(find.text('2025年6月20日'), findsOneWidget,
+          reason: 'AppBar 日期应实时反映新日期');
+      // 旧文本不再出现
+      expect(find.text('2025年6月14日'), findsNothing);
+      // 目标日期空 → 没有冲突弹框
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    // 冲突确认对话框的覆盖由仓库层（target date 非空 → Moved 事件）
+// + coordinator 层（双日期失效）两个测试已经保证。
+// widget 层只保留：picker 选空日期 → AppBar 实时更新这条主路径。
   });
 }
