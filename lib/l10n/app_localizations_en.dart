@@ -117,6 +117,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tapToViewFullImage => 'Tap to view full image';
 
   @override
+  String get changeDate => 'Change date';
+
+  @override
+  String get changeDateTooltip => 'Tap to change the date';
+
+  @override
+  String get confirmChangeDateTitle => 'Date already has entries';
+
+  @override
+  String confirmChangeDateContent(String date, int count) {
+    return 'The target date $date already has $count note(s). Move this note there anyway?';
+  }
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
   String get wageStatistics => 'Wage Statistics';
 
   @override

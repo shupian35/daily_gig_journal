@@ -44,6 +44,18 @@
   "images": "Images",
   "tapToViewFullImage": "Tap to view full image",
 
+  "changeDate": "Change date",
+  "changeDateTooltip": "Tap to change the date",
+  "confirmChangeDateTitle": "Date already has entries",
+  "confirmChangeDateContent": "The target date {date} already has {count} note(s). Move this note there anyway?",
+  "@confirmChangeDateContent": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "confirm": "Confirm",
+
   "wageStatistics": "Wage Statistics",
   "retry": "Retry",
   "statsHidden": "Statistics Hidden",

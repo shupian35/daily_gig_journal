@@ -44,6 +44,18 @@
   "images": "圖片",
   "tapToViewFullImage": "點擊可查看大圖",
 
+  "changeDate": "修改日期",
+  "changeDateTooltip": "點擊修改日期",
+  "confirmChangeDateTitle": "該日期已有日程",
+  "confirmChangeDateContent": "目標日期 {date} 已有 {count} 條記錄，是否仍要把當前日程移到這一天？",
+  "@confirmChangeDateContent": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "confirm": "確認",
+
   "wageStatistics": "工資統計",
   "retry": "重試",
   "statsHidden": "統計資料已隱藏",
