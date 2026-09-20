@@ -8,8 +8,6 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:daily_gig_journal/data/sqlite_work_entry_repository.dart';
 import 'package:daily_gig_journal/l10n/app_localizations.dart';
-import 'package:daily_gig_journal/models/work_entry.dart';
-import 'package:daily_gig_journal/providers/notes_provider.dart';
 import 'package:daily_gig_journal/screens/note_edit_screen.dart';
 
 String _kTestDbPath() =>
@@ -32,7 +30,7 @@ void main() {
   /// 备注 Quill 编辑器上方那一组 EditableText 依次是：
   /// 工作标题 / 工作地点 / 联系人 / 时薪 / 工作时长 / 日薪。
   /// 第一个就是"工作标题"，对应 _titleController。
-  EditableText _findTitleEditable(WidgetTester tester) {
+  EditableText findTitleEditable(WidgetTester tester) {
     final editables = find.byType(EditableText);
     expect(editables, findsWidgets);
     return tester.widget<EditableText>(editables.first);
@@ -77,7 +75,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final titleEditable = _findTitleEditable(tester);
+      final titleEditable = findTitleEditable(tester);
       final titleFocus = titleEditable.focusNode;
       final quillEditor = find.byType(QuillEditor);
       expect(quillEditor, findsOneWidget, reason: '备注 Quill 编辑器应存在');
