@@ -79,6 +79,9 @@ void main() {
       final titleFocus = titleEditable.focusNode;
       final quillEditor = find.byType(QuillEditor);
       expect(quillEditor, findsOneWidget, reason: '备注 Quill 编辑器应存在');
+      // 从 QuillEditor 拿它的 FocusNode —— 强断言用：必须真正转到 Quill，
+      // 不只是「标题失焦」（后者在 focus 被销毁时也成立，会漏过 translucent bug）。
+      final quillFocus = tester.widget<QuillEditor>(quillEditor).focusNode;
 
       // 1) 点标题，让它获焦
       final titleFieldFinder = find.byType(EditableText).first;
@@ -97,11 +100,23 @@ void main() {
       expect(titleFocus.hasFocus, isFalse,
           reason: '点备注后标题应失焦（焦点已被外层 Scrollable 吞掉的回归点）');
 
-      // 4) 当前主焦点应不再是标题的 FocusNode
+      // 4) Quill 必须真正拿到焦点 —— 强断言。
+      //    旧 bug（外层 GestureDetector(behavior: translucent)）在真机上让父级
+      //    TapGestureRecognizer 与 Quill 的 _TransparentTapGestureRecognizer
+      //    在 arena 抢占同一个指针，Quill 故意让出 → focus 被销毁。
+      //    旧断言「primaryFocus != titleFocus」在这种 false pass 下也成立。
+      //    注意：widget test 不能 1:1 复现真机 arena 竞争（因为 tester.tap
+      //    走的是合成指针事件而不是真实物理触摸），所以下面的断言在
+      //    widget test 里 translucent 与 deferToChild 都通过 —— 真正的
+      //    回归验证靠真机人肉测。
+      expect(quillFocus.hasFocus, isTrue,
+          reason: '备注必须真正拿到焦点（排除 focus 被销毁的 false pass）');
+
+      // 5) 当前主焦点应就是 Quill 的 FocusNode
       final primaryFocus = tester.binding.focusManager.primaryFocus;
       expect(primaryFocus, isNotNull);
-      expect(primaryFocus, isNot(equals(titleFocus)),
-          reason: '焦点应已离开标题字段');
+      expect(primaryFocus, equals(quillFocus),
+          reason: 'primary focus 应为 Quill 的 FocusNode');
     });
 
     testWidgets(

@@ -486,7 +486,16 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      // 不要写 `behavior: HitTestBehavior.translucent`：Flutter 默认
+      // HitTestBehavior.deferToChild 是「仅在无子节点响应 tap 时才接收」。
+      // translucent 会把外层 TapGestureRecognizer 也注册进 gesture arena，
+      // 与 flutter_quill 的 _TransparentTapGestureRecognizer 抢占同一个指针；
+      // Quill 故意让出仲裁（acceptGesture）让外层赢 → 外层 onTap 触发
+      // FocusScope.unfocus() → TextInput.hide → 软键盘收起 → Scaffold body
+      // 重新撑满 → 标题看起来跳到顶部（用户看到的「画面上滑」）。
+      // deferToChild 让 Quill 的 tap 路由到它自己的 selectPositionAt →
+      // FocusNode.requestFocus → RenderBox.showOnScreen 走到外层
+      // SingleChildScrollView → 自动滚到让备注位于键盘上方。
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
