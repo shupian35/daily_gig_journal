@@ -50,6 +50,18 @@
   "images": "图片",
   "tapToViewFullImage": "点击可查看大图",
 
+  "changeDate": "修改日期",
+  "changeDateTooltip": "点击修改日期",
+  "confirmChangeDateTitle": "该日期已有日程",
+  "confirmChangeDateContent": "目标日期 {date} 已有 {count} 条记录，是否仍要把当前日程移到这一天？",
+  "@confirmChangeDateContent": {
+    "placeholders": {
+      "date": {"type": "String"},
+      "count": {"type": "int"}
+    }
+  },
+  "confirm": "确认",
+
   "@statisticsScreen": {"description": "Statistics screen strings"},
   "wageStatistics": "工资统计",
   "retry": "重试",

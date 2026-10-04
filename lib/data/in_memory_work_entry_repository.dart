@@ -251,9 +251,14 @@ class InMemoryWorkEntryRepository implements WorkEntryRepository {
     if (entry.id == null) {
       throw ArgumentError('update() requires entry.id != null; got null.');
     }
+    final previousDate = _entries[entry.id!]?.date;
     _entries[entry.id!] =
         entry.copyWith(updatedAt: DateTime.now().toIso8601String());
-    _changes.add(Edited(entry.id!, entry.date));
+    if (previousDate != null && previousDate != entry.date) {
+      _changes.add(Moved(entry.id!, entry.date, previousDate));
+    } else {
+      _changes.add(Edited(entry.id!, entry.date));
+    }
   }
 
   @override

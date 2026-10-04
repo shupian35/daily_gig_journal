@@ -578,6 +578,10 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       );
     }
     final db = await _database;
+    // 拿旧日期以便 date 变化时发 Moved 而非 Edited，
+    // 让 entry_coordinator 同步失效旧日期的 family 缓存。
+    final existing = await findById(entry.id!);
+    final previousDate = existing?.date;
     final map = entry.toMap(forUpdate: true);
     await db.update(
       _tableName,
@@ -585,7 +589,11 @@ class SqliteWorkEntryRepository implements WorkEntryRepository {
       where: '$_colId = ?',
       whereArgs: [entry.id],
     );
-    _changes.add(Edited(entry.id!, entry.date));
+    if (previousDate != null && previousDate != entry.date) {
+      _changes.add(Moved(entry.id!, entry.date, previousDate));
+    } else {
+      _changes.add(Edited(entry.id!, entry.date));
+    }
   }
 
   @override

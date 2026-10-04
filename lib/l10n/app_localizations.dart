@@ -309,6 +309,36 @@ abstract class AppLocalizations {
   /// **'点击可查看大图'**
   String get tapToViewFullImage;
 
+  /// No description provided for @changeDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'修改日期'**
+  String get changeDate;
+
+  /// No description provided for @changeDateTooltip.
+  ///
+  /// In zh, this message translates to:
+  /// **'点击修改日期'**
+  String get changeDateTooltip;
+
+  /// No description provided for @confirmChangeDateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'该日期已有日程'**
+  String get confirmChangeDateTitle;
+
+  /// No description provided for @confirmChangeDateContent.
+  ///
+  /// In zh, this message translates to:
+  /// **'目标日期 {date} 已有 {count} 条记录，是否仍要把当前日程移到这一天？'**
+  String confirmChangeDateContent(String date, int count);
+
+  /// No description provided for @confirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认'**
+  String get confirm;
+
   /// No description provided for @wageStatistics.
   ///
   /// In zh, this message translates to:

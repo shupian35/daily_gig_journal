@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:daily_gig_journal/data/sqlite_work_entry_repository.dart';
+import 'package:daily_gig_journal/data/work_entry_change.dart';
 import 'package:daily_gig_journal/models/work_entry.dart';
 
 void main() {
@@ -46,6 +47,39 @@ void main() {
       expect(events, hasLength(1));
       final fetched = await repo.findById(id);
       expect(fetched?.title, 'updated');
+      await sub.cancel();
+      await repo.close();
+    });
+
+    test('update with same date fires Edited event (not Moved)', () async {
+      final note = WorkEntry.empty('2025-06-14');
+      final id = await repo.add(note);
+      final events = <WorkEntryChange>[];
+      final sub = repo.watch().listen(events.add);
+      await repo.update(note.copyWith(id: id, title: 'updated'));
+      await Future<void>.delayed(Duration.zero);
+      expect(events, hasLength(1));
+      expect(events.first, isA<Edited>());
+      await sub.cancel();
+      await repo.close();
+    });
+
+    test('update with new date fires Moved event with previousDate', () async {
+      final note = WorkEntry.empty('2025-06-14');
+      final id = await repo.add(note);
+      final events = <WorkEntryChange>[];
+      final sub = repo.watch().listen(events.add);
+      await repo.update(note.copyWith(id: id, date: '2025-06-20'));
+      await Future<void>.delayed(Duration.zero);
+      expect(events, hasLength(1));
+      final moved = events.first;
+      expect(moved, isA<Moved>());
+      expect(moved.date, '2025-06-20');
+      expect((moved as Moved).previousDate, '2025-06-14');
+      final fetched = await repo.findById(id);
+      expect(fetched?.date, '2025-06-20');
+      expect(await repo.findByDate('2025-06-14'), isEmpty);
+      expect((await repo.findByDate('2025-06-20')).length, 1);
       await sub.cancel();
       await repo.close();
     });

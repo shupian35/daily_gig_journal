@@ -21,6 +21,16 @@ class Edited extends WorkEntryChange {
   const Edited(super.id, super.date);
 }
 
+/// 把 WorkEntry 从一个日期移动到另一个日期。
+///
+/// `date` 是**新**日期，[previousDate] 是**旧**日期。
+/// 监听者需要同时失效新旧两个日期的缓存（`notesByDateListProvider`
+/// family 项），否则旧日列表会显示已移动走的条目。
+class Moved extends WorkEntryChange {
+  final String previousDate;
+  const Moved(super.id, super.date, this.previousDate);
+}
+
 /// 删除一条 WorkEntry。
 class Removed extends WorkEntryChange {
   const Removed(super.id, super.date);

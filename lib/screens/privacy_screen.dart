@@ -59,29 +59,34 @@ class PrivacyScreen extends ConsumerWidget {
           // 隐藏收入金额
           AppCard(
             padding: EdgeInsets.zero,
-            child: SwitchListTile(
-              secondary: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
+            child: Material(
+              // Flutter 3.47+：AppCard 是带背景色的 Container，
+              // 需要透明 Material 隔离，让 SwitchListTile 内部 InkWell/Thumb 不被遮挡。
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                secondary: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                  ),
+                  child: Icon(
+                    hideIncome
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppConstants.primaryDark,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(
-                  hideIncome
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  color: AppConstants.primaryDark,
-                  size: 20,
-                ),
+                title: Text(l10n.hideIncomeAmount,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                subtitle: Text(l10n.hideIncomeAmountSubtitle),
+                value: hideIncome,
+                onChanged: (value) {
+                  ref.read(hideIncomeProvider.notifier).state = value;
+                },
               ),
-              title: Text(l10n.hideIncomeAmount,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: Text(l10n.hideIncomeAmountSubtitle),
-              value: hideIncome,
-              onChanged: (value) {
-                ref.read(hideIncomeProvider.notifier).state = value;
-              },
             ),
           ),
           const SizedBox(height: 10),
@@ -89,29 +94,34 @@ class PrivacyScreen extends ConsumerWidget {
           // 隐藏统计数据
           AppCard(
             padding: EdgeInsets.zero,
-            child: SwitchListTile(
-              secondary: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppConstants.primaryColor.withValues(alpha: 0.1),
+            child: Material(
+              // Flutter 3.47+：AppCard 是带背景色的 Container，
+              // 需要透明 Material 隔离，让 SwitchListTile 内部 InkWell/Thumb 不被遮挡。
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                secondary: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                  ),
+                  child: Icon(
+                    hideStatistics
+                        ? Icons.bar_chart_outlined
+                        : Icons.bar_chart_rounded,
+                    color: AppConstants.primaryDark,
+                    size: 20,
+                  ),
                 ),
-                child: Icon(
-                  hideStatistics
-                      ? Icons.bar_chart_outlined
-                      : Icons.bar_chart_rounded,
-                  color: AppConstants.primaryDark,
-                  size: 20,
-                ),
+                title: Text(l10n.hideStatisticsPage,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                subtitle: Text(l10n.hideStatisticsPageSubtitle),
+                value: hideStatistics,
+                onChanged: (value) {
+                  ref.read(hideStatisticsProvider.notifier).state = value;
+                },
               ),
-              title: Text(l10n.hideStatisticsPage,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-              subtitle: Text(l10n.hideStatisticsPageSubtitle),
-              value: hideStatistics,
-              onChanged: (value) {
-                ref.read(hideStatisticsProvider.notifier).state = value;
-              },
             ),
           ),
           const SizedBox(height: 24),

@@ -46,6 +46,10 @@ class EntryCoordinator extends Notifier<AsyncValue<void>> {
   /// write event → invalidate 影响到的派生 provider。
   void _onRepoChange(WorkEntryChange change) {
     // 精准：按 change.date 失效该日 list 的 family 项。
+    // Moved（改日期）需要同时失效旧日期，否则旧日列表会留着已移走的条目。
+    if (change is Moved) {
+      ref.invalidate(notesByDateListProvider(change.previousDate));
+    }
     ref.invalidate(notesByDateListProvider(change.date));
     // 表级：所有写都影响的聚合 provider。
     ref.invalidate(workDatesProvider);

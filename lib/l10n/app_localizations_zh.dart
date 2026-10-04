@@ -116,6 +116,23 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tapToViewFullImage => '点击可查看大图';
 
   @override
+  String get changeDate => '修改日期';
+
+  @override
+  String get changeDateTooltip => '点击修改日期';
+
+  @override
+  String get confirmChangeDateTitle => '该日期已有日程';
+
+  @override
+  String confirmChangeDateContent(String date, int count) {
+    return '目标日期 $date 已有 $count 条记录，是否仍要把当前日程移到这一天？';
+  }
+
+  @override
+  String get confirm => '确认';
+
+  @override
   String get wageStatistics => '工资统计';
 
   @override
@@ -869,6 +886,23 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get tapToViewFullImage => '點擊可查看大圖';
+
+  @override
+  String get changeDate => '修改日期';
+
+  @override
+  String get changeDateTooltip => '點擊修改日期';
+
+  @override
+  String get confirmChangeDateTitle => '該日期已有日程';
+
+  @override
+  String confirmChangeDateContent(String date, int count) {
+    return '目標日期 $date 已有 $count 條記錄，是否仍要把當前日程移到這一天？';
+  }
+
+  @override
+  String get confirm => '確認';
 
   @override
   String get wageStatistics => '工資統計';
