@@ -43,6 +43,15 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   late quill.QuillController _quillController;
 
+  /// Quill 编辑器焦点节点（必须由本页面持有）。
+  ///
+  /// `QuillEditor.basic` 是 factory 构造器，未显式传入 `focusNode` 时它会在
+  /// **每次 build 内部 `FocusNode()` 新建一个**。而 `_buildRichTextCard()` 是
+  /// build 树的一部分，任何一次 setState（图片路径刷新、删除图片、保存中等）
+  /// 都会重建它 → 旧节点被丢弃，编辑器焦点在「点标题 → 点备注」这类切换中
+  /// 直接丢失。持有稳定实例并在 dispose 时释放，焦点才能跨 rebuild 存活。
+  final FocusNode _quillFocusNode = FocusNode(debugLabel: 'quill-editor');
+
   /// Delta 文档管线深模块（候选 C）：编解码/插删图片/路径批量解析收口于此
   final NoteDocumentService _doc = NoteDocumentService();
 
@@ -115,6 +124,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
 
   @override
   void dispose() {
+    _quillFocusNode.dispose();
     _titleController.dispose();
     _workLocationController.dispose();
     _contactController.dispose();
@@ -791,6 +801,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                 absByRel: _absByRel,
                 child: quill.QuillEditor.basic(
                   controller: _quillController,
+                  focusNode: _quillFocusNode,
                   config: quill.QuillEditorConfig(
                     placeholder: l10n.remarksPlaceholder,
                     padding: const EdgeInsets.all(14),
