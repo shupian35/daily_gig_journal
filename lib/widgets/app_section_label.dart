@@ -15,19 +15,51 @@ class AppSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 分区标题作为视觉锚点：图标加暖色圆形底 + 标题加大字距形成节奏
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.only(left: 4, bottom: 2),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: AppConstants.primaryDark),
+          Container(
+            width: 22,
+            height: 22,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppConstants.primaryColor
+                  .withValues(alpha: isDark ? 0.16 : 0.12),
+            ),
+            child: Icon(icon, size: 13, color: AppConstants.primaryDark),
+          ),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppConstants.primaryDark,
-              letterSpacing: 0.5,
+          Flexible(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppConstants.primaryDark,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          // 细延伸线：延续 note_form_fields 的杂志风分隔符语言
+          Expanded(
+            child: Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    AppConstants.primaryColor.withValues(alpha: 0.22),
+                    AppConstants.primaryColor.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

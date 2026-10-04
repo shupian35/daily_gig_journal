@@ -66,22 +66,72 @@ class AppConstants {
   static const double spaceXl = 32.0;
 
   // ===================== 阴影系统 =====================
+  /// 卡片投影：三层递减，制造「贴近纸面」的柔和层次而非生硬悬浮。
+  ///
+  /// 收紧 offset（原先 0,4 偏大）与扩散半径，配合暖棕基色而非纯黑，
+  /// 避免深色模式下出现死黑的脏边。
   static List<BoxShadow> cardShadow(bool isDark) => [
+        // 贴近物体的高频小投影：定义边缘，让卡片"坐"在背景上
         BoxShadow(
           color: isDark
-              ? Colors.black.withValues(alpha: 0.2)
-              : const Color(0x1A8D7E76),
-          blurRadius: 12,
-          offset: const Offset(0, 4),
-        ),
-        BoxShadow(
-          color: isDark
-              ? Colors.black.withValues(alpha: 0.1)
-              : const Color(0x0D8D7E76),
-          blurRadius: 4,
+              ? Colors.black.withValues(alpha: 0.28)
+              : const Color(0x0F6B5B4F),
+          blurRadius: 2,
           offset: const Offset(0, 1),
         ),
+        // 主体柔和投影：承担主要体积感
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.22)
+              : const Color(0x148D7E76),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+        // 大范围极淡环境影：拉开与背景的距离
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.16)
+              : const Color(0x0A8D7E76),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+          spreadRadius: -4,
+        ),
       ];
+
+  /// 悬浮态投影：用于 FAB / 按下中的卡片，投影更深更集中
+  static List<BoxShadow> elevatedShadow(bool isDark) => [
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.36)
+              : const Color(0x1F6B5B4F),
+          blurRadius: 4,
+          offset: const Offset(0, 2),
+        ),
+        BoxShadow(
+          color: isDark
+              ? Colors.black.withValues(alpha: 0.30)
+              : const Color(0x1F8D7E76),
+          blurRadius: 18,
+          offset: const Offset(0, 8),
+        ),
+      ];
+
+  /// 卡片顶部的极淡高光：模拟纸面受光，消除纯色卡片的「塑料感」。
+  /// 浅色模式下是白色微光，深色模式下改为提亮而非加白。
+  static LinearGradient cardSheen(bool isDark) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [
+                Colors.white.withValues(alpha: 0.045),
+                Colors.white.withValues(alpha: 0.0),
+              ]
+            : [
+                Colors.white.withValues(alpha: 0.85),
+                Colors.white.withValues(alpha: 0.0),
+              ],
+        stops: const [0.0, 0.55],
+      );
 
   // ===================== 主题 =====================
   /// 浅色主题 —— 精致杂志风
@@ -138,6 +188,9 @@ class AppConstants {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 2,
+        focusElevation: 4,
+        hoverElevation: 4,
+        highlightElevation: 6,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
@@ -346,6 +399,9 @@ class AppConstants {
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
         elevation: 2,
+        focusElevation: 4,
+        hoverElevation: 4,
+        highlightElevation: 6,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),
