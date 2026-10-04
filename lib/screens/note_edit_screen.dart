@@ -391,7 +391,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return GestureDetector(
-      behavior: HitTestBehavior.translucent,
+      // 修复焦点切换:已用 opaque 时,TextField / QuillEditor 内部 tap
+      // 会由子组件自己处理(请求焦点),外层 onTap 不再被同时触发,
+      // 避免 unfocus 立刻吞掉新获得的焦点。空白处点击依然会触发 unfocus。
+      behavior: HitTestBehavior.opaque,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         appBar: AppBar(
